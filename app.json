@@ -36,7 +36,8 @@
           "photosPermission": "A Emmmenta precisa de acesso às fotografias para escolheres a foto do teu restaurante.",
           "cameraPermission": "A Emmmenta precisa da câmara para tirares a foto do teu restaurante."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "emmmenta"
   }
