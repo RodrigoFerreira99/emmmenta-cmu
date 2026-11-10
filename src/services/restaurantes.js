@@ -53,9 +53,12 @@ export function horaParaBd(horaEcra) {
 /**
  * Põe os dois pontos sozinho enquanto a pessoa escreve a hora: "1230" → "12:30".
  * É preciso porque o teclado numérico do iPhone não tem a tecla ":".
+ * Também põe o zero à esquerda quando a hora só pode ter um dígito: "930" → "09:30".
  */
 export function mascararHora(textoEscrito) {
-  const digitos = (textoEscrito ?? '').replace(/\D/g, '').slice(0, 4);
+  let digitos = (textoEscrito ?? '').replace(/\D/g, '').slice(0, 4);
+  // Nenhuma hora começa por 3 a 9 (não existe "30h"), por isso "9" só pode querer dizer "09".
+  if (digitos.length > 0 && digitos[0] > '2') digitos = `0${digitos}`.slice(0, 4);
   return digitos.length > 2 ? `${digitos.slice(0, 2)}:${digitos.slice(2)}` : digitos;
 }
 

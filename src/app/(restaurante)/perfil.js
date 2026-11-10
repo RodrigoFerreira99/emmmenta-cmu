@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CampoComErro } from '@/components/CampoComErro';
+import { EcraDeErro } from '@/components/EcraDeErro';
 import { SeletorFoto } from '@/components/SeletorFoto';
 import { SeletorLocal } from '@/components/SeletorLocal';
-import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
+import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import {
   buscarMeuRestaurante,
@@ -27,11 +29,17 @@ const NOMES_DOS_CAMPOS = {
   telefone: 'telefone',
 };
 
+// true se algum campo do formulário for diferente do que está guardado na base de dados.
+function haDiferencas(formulario, guardado) {
+  return Object.keys(formulario).some((campo) => formulario[campo] !== guardado[campo]);
+}
+
 // Ecrã 7 · Perfil do restaurante (RF02) — responsável: Rodrigo
 //
 // Como funciona:
 //  1. Ao abrir, vai buscar o restaurante desta conta (pode ainda não existir).
 //  2. O que a pessoa escreve fica no estado "dados" (um objeto com todos os campos).
+//     O estado "guardado" tem a cópia do que está na base de dados, para saber se há alterações.
 //  3. "Guardar" valida tudo, envia a fotografia (se houver uma nova) e grava na base de dados
 //     (cria o restaurante na 1.ª vez, atualiza-o depois).
 // O acesso aos dados é todo feito pelas funções de src/services/restaurantes.js (RNF09).
@@ -44,6 +52,7 @@ export default function PerfilRestaurante() {
   const [tentativa, setTentativa] = useState(0); // aumenta quando se carrega em "Tentar outra vez"
   const [jaExiste, setJaExiste] = useState(false); // esta conta já tem restaurante guardado?
   const [dados, setDados] = useState(() => restauranteParaFormulario(null));
+  const [guardado, setGuardado] = useState(() => restauranteParaFormulario(null));
   const [erros, setErros] = useState({}); // um erro por campo, ex.: { nome: 'Escreve o nome...' }
   const [fotoLocal, setFotoLocal] = useState(null); // fotografia escolhida no telemóvel que ainda não foi enviada
   const [aGuardar, setAGuardar] = useState(false);
@@ -73,7 +82,9 @@ export default function PerfilRestaurante() {
     buscarMeuRestaurante(donoId)
       .then((restaurante) => {
         if (!ativo) return;
-        setDados(restauranteParaFormulario(restaurante));
+        const formulario = restauranteParaFormulario(restaurante);
+        setDados(formulario);
+        setGuardado(formulario);
         setJaExiste(restaurante !== null);
         setEstado('pronto');
       })
@@ -113,12 +124,21 @@ export default function PerfilRestaurante() {
     setMensagem(null);
   }
 
-  // Fotografia escolhida na galeria: fica só no telemóvel até se carregar em Guardar.
+  // Fotografia tirada ou escolhida: fica só no telemóvel até se carregar em Guardar.
   function escolherFoto(uriLocal) {
     if (!montado.current) return;
     setFotoLocal(uriLocal);
     setMensagem(null);
   }
+
+  // Tira a fotografia do perfil (a nova que ainda não foi enviada e a que já estava guardada).
+  function removerFoto() {
+    setFotoLocal(null);
+    alterar('fotoUrl', null);
+  }
+
+  // Há alguma coisa por guardar? (um campo diferente ou uma fotografia nova por enviar)
+  const temAlteracoes = fotoLocal !== null || haDiferencas(dados, guardado);
 
   // 3) Guardar: primeiro valida; só fala com o servidor se estiver tudo certo.
   async function guardar() {
@@ -149,9 +169,14 @@ export default function PerfilRestaurante() {
         setAEnviarFoto(false);
       }
 
-      // b) Grava o restaurante (com o link da fotografia).
-      await guardarRestaurante(donoId, { ...dados, fotoUrl });
+      // b) Grava o restaurante (com o link da fotografia) e fica com a linha tal como ficou guardada.
+      const linhaGuardada = await guardarRestaurante(donoId, { ...dados, fotoUrl });
       if (!montado.current) return;
+      // Os campos passam a mostrar exatamente o que ficou na base de dados
+      // (por exemplo, o telefone já formatado e o nome sem espaços a mais).
+      const formulario = restauranteParaFormulario(linhaGuardada);
+      setDados(formulario);
+      setGuardado(formulario);
       setJaExiste(true);
       setMensagem({ tipo: 'sucesso', texto: 'Perfil guardado' });
     } catch (erro) {
@@ -165,24 +190,24 @@ export default function PerfilRestaurante() {
     }
   }
 
+  // Terminar sessão com alterações por guardar: pergunta primeiro, para não se perder o que foi escrito.
+  function terminarSessao() {
+    if (!temAlteracoes) {
+      sair();
+      return;
+    }
+    Alert.alert('Alterações por guardar', 'Se terminares a sessão agora, perdes o que alteraste no perfil.', [
+      { text: 'Continuar a editar', style: 'cancel' },
+      { text: 'Terminar sessão', style: 'destructive', onPress: sair },
+    ]);
+  }
+
   // null enquanto o restaurante não tiver ponto marcado (o mapa abre centrado no Porto, sem pin)
   const temPonto = dados.latitude !== null && dados.longitude !== null;
   const ponto = temPonto ? { latitude: dados.latitude, longitude: dados.longitude } : null;
 
   if (estado === 'aCarregar') return <Carregar />;
-
-  if (estado === 'erro') {
-    return (
-      <Ecra>
-        <View style={estilos.centro}>
-          <Ionicons name="cloud-offline-outline" size={40} color={cores.textoTerciario} style={estilos.iconeCentro} />
-          <Text style={[texto.corpo, estilos.textoCentro]}>{erroAoCarregar}</Text>
-          <Botao titulo="Tentar outra vez" icone="refresh-outline" onPress={tentarOutraVez} />
-          <Botao tipo="secundario" icone="log-out-outline" titulo="Terminar sessão" onPress={sair} />
-        </View>
-      </Ecra>
-    );
-  }
+  if (estado === 'erro') return <EcraDeErro mensagem={erroAoCarregar} aoTentar={tentarOutraVez} aoSair={sair} />;
 
   return (
     <Ecra>
@@ -200,7 +225,12 @@ export default function PerfilRestaurante() {
           <View style={estilos.campos} pointerEvents={aGuardar ? 'none' : 'auto'}>
             <View style={estilos.grupo}>
               {/* mostra a fotografia nova (ainda no telemóvel) ou, se não houver, a que já está guardada */}
-              <SeletorFoto uri={fotoLocal ?? dados.fotoUrl} aoEscolher={escolherFoto} aEnviar={aEnviarFoto} />
+              <SeletorFoto
+                uri={fotoLocal ?? dados.fotoUrl}
+                aoEscolher={escolherFoto}
+                aoRemover={removerFoto}
+                aEnviar={aEnviarFoto}
+              />
               {fotoLocal !== null && !aEnviarFoto && (
                 <Text style={texto.pequeno}>A fotografia nova é enviada quando carregares em Guardar.</Text>
               )}
@@ -304,25 +334,22 @@ export default function PerfilRestaurante() {
             </View>
           )}
 
-          <Botao titulo={jaExiste ? 'Guardar alterações' : 'Guardar perfil'} onPress={guardar} aCarregar={aGuardar} />
+          {/* Sem alterações não há nada para gravar: o botão fica desativado até se mexer em algum campo. */}
+          <Botao
+            titulo={jaExiste ? 'Guardar alterações' : 'Guardar perfil'}
+            onPress={guardar}
+            aCarregar={aGuardar}
+            desativado={jaExiste && !temAlteracoes}
+          />
+          {jaExiste && !temAlteracoes && !mensagem && (
+            <Text style={[texto.pequeno, estilos.textoCentro]}>Não há alterações por guardar.</Text>
+          )}
 
           <Text style={[texto.pequeno, estilos.textoCentro]}>{sessao?.user?.email}</Text>
-          <Botao tipo="secundario" icone="log-out-outline" titulo="Terminar sessão" onPress={sair} />
+          <Botao tipo="secundario" icone="log-out-outline" titulo="Terminar sessão" onPress={terminarSessao} />
         </ScrollView>
       </KeyboardAvoidingView>
     </Ecra>
-  );
-}
-
-// Um campo do formulário com a mensagem de erro por baixo (a vermelho), quando existe.
-// Recebe as mesmas propriedades do <Campo> de ui.js, mais "erro".
-function CampoComErro({ erro, ...props }) {
-  return (
-    <View style={estilos.grupoPequeno}>
-      {/* accessibilityLabel: o leitor de ecrã diz o nome do campo */}
-      <Campo accessibilityLabel={props.etiqueta} {...props} />
-      {erro ? <Text style={estilos.erroCampo}>{erro}</Text> : null}
-    </View>
   );
 }
 
@@ -330,14 +357,10 @@ const estilos = StyleSheet.create({
   ocuparTudo: { flex: 1 },
   conteudo: { padding: espaco.xl, gap: espaco.l },
   campos: { gap: espaco.l },
-  centro: { flex: 1, justifyContent: 'center', padding: espaco.xl, gap: espaco.l },
-  iconeCentro: { alignSelf: 'center' },
   textoCentro: { textAlign: 'center' },
   grupo: { gap: espaco.s },
-  grupoPequeno: { gap: espaco.xs },
   linha: { flexDirection: 'row', gap: espaco.m },
   metade: { flex: 1 },
-  erroCampo: { ...texto.pequeno, color: cores.erro },
   mensagemErro: { ...texto.corpo, color: cores.erro },
   sucesso: {
     flexDirection: 'row',
