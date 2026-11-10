@@ -195,98 +195,102 @@ export default function PerfilRestaurante() {
           </Text>
           {!jaExiste && <Text style={texto.pequeno}>Preenche o perfil para poderes publicar o menu do dia</Text>}
 
-          <View style={estilos.grupo}>
-            {/* mostra a fotografia nova (ainda no telemóvel) ou, se não houver, a que já está guardada */}
-            <SeletorFoto uri={fotoLocal ?? dados.fotoUrl} aoEscolher={escolherFoto} aEnviar={aEnviarFoto} />
-            {fotoLocal && !aEnviarFoto && (
-              <Text style={texto.pequeno}>A fotografia nova é enviada quando carregares em Guardar.</Text>
-            )}
-          </View>
+          {/* Enquanto está a guardar, os campos não aceitam toques: assim o que é gravado
+              é exatamente o que está no ecrã e nada muda a meio. */}
+          <View style={estilos.campos} pointerEvents={aGuardar ? 'none' : 'auto'}>
+            <View style={estilos.grupo}>
+              {/* mostra a fotografia nova (ainda no telemóvel) ou, se não houver, a que já está guardada */}
+              <SeletorFoto uri={fotoLocal ?? dados.fotoUrl} aoEscolher={escolherFoto} aEnviar={aEnviarFoto} />
+              {fotoLocal !== null && !aEnviarFoto && (
+                <Text style={texto.pequeno}>A fotografia nova é enviada quando carregares em Guardar.</Text>
+              )}
+            </View>
 
-          <CampoComErro
-            etiqueta="Nome do restaurante"
-            value={dados.nome}
-            onChangeText={(valor) => alterar('nome', valor)}
-            erro={erros.nome}
-            placeholder="Tasca do Manuel"
-            maxLength={80}
-            autoCapitalize="words"
-            returnKeyType="next"
-            submitBehavior="submit"
-            onSubmitEditing={() => campoTipo.current?.focus()}
-          />
+            <CampoComErro
+              etiqueta="Nome do restaurante"
+              value={dados.nome}
+              onChangeText={(valor) => alterar('nome', valor)}
+              erro={erros.nome}
+              placeholder="Tasca do Manuel"
+              maxLength={80}
+              autoCapitalize="words"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoTipo.current?.focus()}
+            />
 
-          <CampoComErro
-            ref={campoTipo}
-            etiqueta="Tipo de cozinha (opcional)"
-            value={dados.tipoCozinha}
-            onChangeText={(valor) => alterar('tipoCozinha', valor)}
-            erro={erros.tipoCozinha}
-            placeholder="Portuguesa"
-            maxLength={40}
-            returnKeyType="next"
-            submitBehavior="submit"
-            onSubmitEditing={() => campoMorada.current?.focus()}
-          />
+            <CampoComErro
+              ref={campoTipo}
+              etiqueta="Tipo de cozinha (opcional)"
+              value={dados.tipoCozinha}
+              onChangeText={(valor) => alterar('tipoCozinha', valor)}
+              erro={erros.tipoCozinha}
+              placeholder="Portuguesa"
+              maxLength={40}
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoMorada.current?.focus()}
+            />
 
-          <CampoComErro
-            ref={campoMorada}
-            etiqueta="Morada"
-            value={dados.morada}
-            onChangeText={(valor) => alterar('morada', valor)}
-            erro={erros.morada}
-            placeholder="Rua de Cedofeita, 123, Porto"
-            returnKeyType="done"
-          />
+            <CampoComErro
+              ref={campoMorada}
+              etiqueta="Morada"
+              value={dados.morada}
+              onChangeText={(valor) => alterar('morada', valor)}
+              erro={erros.morada}
+              placeholder="Rua de Cedofeita, 123, Porto"
+              returnKeyType="done"
+            />
 
-          <SeletorLocal ponto={ponto} aoMudarPonto={mudarPonto} morada={dados.morada} erro={erros.local} />
+            <SeletorLocal ponto={ponto} aoMudarPonto={mudarPonto} morada={dados.morada} erro={erros.local} />
 
-          <View style={estilos.grupo}>
-            <Text style={texto.etiqueta}>Horário de almoço (opcional)</Text>
-            <View style={estilos.linha}>
-              <View style={estilos.metade}>
-                <CampoComErro
-                  etiqueta="Abre às"
-                  value={dados.horaAbertura}
-                  onChangeText={(valor) => alterarHora('horaAbertura', valor)}
-                  erro={erros.horaAbertura}
-                  placeholder="12:00"
-                  keyboardType="number-pad"
-                  maxLength={5}
-                  returnKeyType="next"
-                  submitBehavior="submit"
-                  onSubmitEditing={() => campoFecho.current?.focus()}
-                />
-              </View>
-              <View style={estilos.metade}>
-                <CampoComErro
-                  ref={campoFecho}
-                  etiqueta="Fecha às"
-                  value={dados.horaFecho}
-                  onChangeText={(valor) => alterarHora('horaFecho', valor)}
-                  erro={erros.horaFecho}
-                  placeholder="15:00"
-                  keyboardType="number-pad"
-                  maxLength={5}
-                  returnKeyType="next"
-                  submitBehavior="submit"
-                  onSubmitEditing={() => campoTelefone.current?.focus()}
-                />
+            <View style={estilos.grupo}>
+              <Text style={texto.etiqueta}>Horário de almoço (opcional)</Text>
+              <View style={estilos.linha}>
+                <View style={estilos.metade}>
+                  <CampoComErro
+                    etiqueta="Abre às"
+                    value={dados.horaAbertura}
+                    onChangeText={(valor) => alterarHora('horaAbertura', valor)}
+                    erro={erros.horaAbertura}
+                    placeholder="12:00"
+                    keyboardType="number-pad"
+                    maxLength={5}
+                    returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => campoFecho.current?.focus()}
+                  />
+                </View>
+                <View style={estilos.metade}>
+                  <CampoComErro
+                    ref={campoFecho}
+                    etiqueta="Fecha às"
+                    value={dados.horaFecho}
+                    onChangeText={(valor) => alterarHora('horaFecho', valor)}
+                    erro={erros.horaFecho}
+                    placeholder="15:00"
+                    keyboardType="number-pad"
+                    maxLength={5}
+                    returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => campoTelefone.current?.focus()}
+                  />
+                </View>
               </View>
             </View>
-          </View>
 
-          <CampoComErro
-            ref={campoTelefone}
-            etiqueta="Telefone (opcional)"
-            value={dados.telefone}
-            onChangeText={(valor) => alterar('telefone', valor)}
-            erro={erros.telefone}
-            placeholder="222 000 000"
-            keyboardType="phone-pad"
-            maxLength={20}
-            returnKeyType="done"
-          />
+            <CampoComErro
+              ref={campoTelefone}
+              etiqueta="Telefone (opcional)"
+              value={dados.telefone}
+              onChangeText={(valor) => alterar('telefone', valor)}
+              erro={erros.telefone}
+              placeholder="222 000 000"
+              keyboardType="phone-pad"
+              maxLength={20}
+              returnKeyType="done"
+            />
+          </View>
 
           {mensagem?.tipo === 'erro' && (
             <Text style={estilos.mensagemErro} accessibilityRole="alert">
@@ -315,7 +319,8 @@ export default function PerfilRestaurante() {
 function CampoComErro({ erro, ...props }) {
   return (
     <View style={estilos.grupoPequeno}>
-      <Campo {...props} />
+      {/* accessibilityLabel: o leitor de ecrã diz o nome do campo */}
+      <Campo accessibilityLabel={props.etiqueta} {...props} />
       {erro ? <Text style={estilos.erroCampo}>{erro}</Text> : null}
     </View>
   );
@@ -324,6 +329,7 @@ function CampoComErro({ erro, ...props }) {
 const estilos = StyleSheet.create({
   ocuparTudo: { flex: 1 },
   conteudo: { padding: espaco.xl, gap: espaco.l },
+  campos: { gap: espaco.l },
   centro: { flex: 1, justifyContent: 'center', padding: espaco.xl, gap: espaco.l },
   iconeCentro: { alignSelf: 'center' },
   textoCentro: { textAlign: 'center' },
