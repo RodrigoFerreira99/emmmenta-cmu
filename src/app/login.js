@@ -31,6 +31,7 @@ export default function Login() {
 
   // Referências aos campos, para a tecla "Seguinte" do teclado saltar para o campo seguinte.
   const campoEmail = useRef(null);
+  const campoCodigo = useRef(null);
   const campoPalavraPasse = useRef(null);
 
   // Quando o login corre bem a navegação muda e este ecrã é desmontado.
@@ -91,6 +92,13 @@ export default function Login() {
         texto: `Enviámos um código para ${email.trim()}. Escreve-o aqui e escolhe a palavra-passe nova.`,
       });
     }
+  }
+
+  // Tecla "Seguinte" no campo do email: o que vem a seguir depende do modo.
+  function depoisDoEmail() {
+    if (modo === 'pedirCodigo') submeter();
+    else if (modo === 'novaPalavraPasse') campoCodigo.current?.focus();
+    else campoPalavraPasse.current?.focus();
   }
 
   const tituloDoBotao = {
@@ -166,11 +174,12 @@ export default function Login() {
             autoComplete="email"
             returnKeyType={modo === 'pedirCodigo' ? 'send' : 'next'}
             submitBehavior="submit"
-            onSubmitEditing={() => (modo === 'pedirCodigo' ? submeter() : campoPalavraPasse.current?.focus())}
+            onSubmitEditing={depoisDoEmail}
           />
 
           {modo === 'novaPalavraPasse' && (
             <CampoComErro
+              ref={campoCodigo}
               etiqueta="Código do email"
               value={codigo}
               onChangeText={(valor) => alterar('codigo', setCodigo, valor.replace(/\D/g, ''))}

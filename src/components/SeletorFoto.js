@@ -77,7 +77,7 @@ export function SeletorFoto({ uri, aoEscolher, aoRemover, aEnviar = false }) {
           <View style={estilos.botoes}>
             <BotaoDeTexto icone="camera-outline" titulo="Tirar" rotulo="Tirar fotografia" onPress={() => obterImagem('camara')} />
             <BotaoDeTexto icone="images-outline" titulo="Galeria" rotulo="Escolher fotografia da galeria" onPress={() => obterImagem('galeria')} />
-            {uri ? (
+            {uri && aoRemover ? (
               <BotaoDeTexto icone="trash-outline" titulo="Remover" rotulo="Remover fotografia" cor={cores.textoSecundario} onPress={aoRemover} />
             ) : null}
           </View>
