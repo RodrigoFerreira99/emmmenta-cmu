@@ -21,8 +21,8 @@ Precisas de: [Node.js LTS](https://nodejs.org/), [Git](https://git-scm.com/) e a
 
 ```bash
 # 1. descarregar o projeto
-git clone <link do repositório>
-cd emmmenta
+git clone https://github.com/RodrigoFerreira99/emmmenta-cmu.git
+cd emmmenta-cmu
 
 # 2. instalar as dependências
 npm install
