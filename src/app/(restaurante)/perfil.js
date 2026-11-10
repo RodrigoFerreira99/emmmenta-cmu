@@ -2,11 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SeletorFoto } from '@/components/SeletorFoto';
 import { SeletorLocal } from '@/components/SeletorLocal';
 import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import {
   buscarMeuRestaurante,
+  enviarFotoRestaurante,
   guardarRestaurante,
   mascararHora,
   restauranteParaFormulario,
@@ -30,7 +32,8 @@ const NOMES_DOS_CAMPOS = {
 // Como funciona:
 //  1. Ao abrir, vai buscar o restaurante desta conta (pode ainda não existir).
 //  2. O que a pessoa escreve fica no estado "dados" (um objeto com todos os campos).
-//  3. "Guardar" valida tudo e grava na base de dados (cria na 1.ª vez, atualiza depois).
+//  3. "Guardar" valida tudo, envia a fotografia (se houver uma nova) e grava na base de dados
+//     (cria o restaurante na 1.ª vez, atualiza-o depois).
 // O acesso aos dados é todo feito pelas funções de src/services/restaurantes.js (RNF09).
 export default function PerfilRestaurante() {
   const { sessao, sair } = useAuth();
@@ -42,7 +45,9 @@ export default function PerfilRestaurante() {
   const [jaExiste, setJaExiste] = useState(false); // esta conta já tem restaurante guardado?
   const [dados, setDados] = useState(() => restauranteParaFormulario(null));
   const [erros, setErros] = useState({}); // um erro por campo, ex.: { nome: 'Escreve o nome...' }
+  const [fotoLocal, setFotoLocal] = useState(null); // fotografia escolhida no telemóvel que ainda não foi enviada
   const [aGuardar, setAGuardar] = useState(false);
+  const [aEnviarFoto, setAEnviarFoto] = useState(false);
   const [mensagem, setMensagem] = useState(null); // { tipo: 'sucesso' | 'erro', texto }
 
   // Referências aos campos, para a tecla "Seguinte" do teclado saltar para o campo seguinte.
@@ -108,6 +113,13 @@ export default function PerfilRestaurante() {
     setMensagem(null);
   }
 
+  // Fotografia escolhida na galeria: fica só no telemóvel até se carregar em Guardar.
+  function escolherFoto(uriLocal) {
+    if (!montado.current) return;
+    setFotoLocal(uriLocal);
+    setMensagem(null);
+  }
+
   // 3) Guardar: primeiro valida; só fala com o servidor se estiver tudo certo.
   async function guardar() {
     if (aGuardar) return; // evita enviar duas vezes (o botão também fica desativado)
@@ -125,7 +137,20 @@ export default function PerfilRestaurante() {
 
     setAGuardar(true);
     try {
-      await guardarRestaurante(donoId, dados);
+      // a) Se foi escolhida uma fotografia nova, envia-a primeiro e fica com o link público.
+      let fotoUrl = dados.fotoUrl;
+      if (fotoLocal) {
+        setAEnviarFoto(true);
+        fotoUrl = await enviarFotoRestaurante(donoId, fotoLocal);
+        if (!montado.current) return;
+        // O link fica já no formulário: se o passo b) falhar, ao tentar outra vez a foto não é enviada de novo.
+        setDados((atuais) => ({ ...atuais, fotoUrl }));
+        setFotoLocal(null);
+        setAEnviarFoto(false);
+      }
+
+      // b) Grava o restaurante (com o link da fotografia).
+      await guardarRestaurante(donoId, { ...dados, fotoUrl });
       if (!montado.current) return;
       setJaExiste(true);
       setMensagem({ tipo: 'sucesso', texto: 'Perfil guardado' });
@@ -133,7 +158,10 @@ export default function PerfilRestaurante() {
       // o que foi escrito continua nos campos: só mostramos a mensagem
       if (montado.current) setMensagem({ tipo: 'erro', texto: erro.message });
     } finally {
-      if (montado.current) setAGuardar(false);
+      if (montado.current) {
+        setAGuardar(false);
+        setAEnviarFoto(false);
+      }
     }
   }
 
@@ -166,6 +194,14 @@ export default function PerfilRestaurante() {
             Perfil do restaurante
           </Text>
           {!jaExiste && <Text style={texto.pequeno}>Preenche o perfil para poderes publicar o menu do dia</Text>}
+
+          <View style={estilos.grupo}>
+            {/* mostra a fotografia nova (ainda no telemóvel) ou, se não houver, a que já está guardada */}
+            <SeletorFoto uri={fotoLocal ?? dados.fotoUrl} aoEscolher={escolherFoto} aEnviar={aEnviarFoto} />
+            {fotoLocal && !aEnviarFoto && (
+              <Text style={texto.pequeno}>A fotografia nova é enviada quando carregares em Guardar.</Text>
+            )}
+          </View>
 
           <CampoComErro
             etiqueta="Nome do restaurante"
