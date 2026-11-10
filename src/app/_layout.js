@@ -17,18 +17,24 @@ function Navegacao() {
   const eRestaurante = entrou && perfil?.tipo === 'restaurante';
   const eCliente = entrou && !eRestaurante;
 
+  // Primeiro ecrã de cada percurso. Quem estiver num ecrã que deixou de poder ver
+  // (ex.: acabou de entrar e ainda está no login) é enviado para aqui.
+  // Tem de ser indicado à mão: sem "redirectTo" o router manda o restaurante para
+  // "/(restaurante)", que não existe (o grupo não tem ecrã "index") e dava "Unmatched Route".
+  const inicio = !entrou ? '/login' : eRestaurante ? '/painel' : '/';
+
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: cores.fundo } }}>
-      <Stack.Protected guard={!entrou}>
+      <Stack.Protected guard={!entrou} redirectTo={inicio}>
         <Stack.Screen name="login" />
       </Stack.Protected>
 
-      <Stack.Protected guard={eCliente}>
+      <Stack.Protected guard={eCliente} redirectTo={inicio}>
         <Stack.Screen name="(cliente)" />
         <Stack.Screen name="restaurante/[id]" options={{ headerShown: true, title: '', headerTintColor: cores.texto }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={eRestaurante}>
+      <Stack.Protected guard={eRestaurante} redirectTo={inicio}>
         <Stack.Screen name="(restaurante)" />
         <Stack.Screen name="publicar" options={{ headerShown: true, title: 'Publicar menu de hoje', headerTintColor: cores.texto }} />
       </Stack.Protected>
