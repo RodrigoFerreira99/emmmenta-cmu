@@ -306,14 +306,24 @@ export async function enviarFotoRestaurante(donoId, uriLocal) {
  */
 export async function faltaPermissaoParaProcurarMorada() {
   if (Platform.OS !== 'android') return false;
-  const { granted } = await Location.getForegroundPermissionsAsync();
-  return !granted;
+  try {
+    const { granted } = await Location.getForegroundPermissionsAsync();
+    return !granted;
+  } catch (erro) {
+    console.warn('Erro técnico (ver permissão):', erro?.message ?? erro);
+    return true; // na dúvida, assumimos que falta e pedimos
+  }
 }
 
 /** Mostra o pedido de permissão do sistema. Devolve true se o utilizador aceitou. */
 export async function pedirPermissaoDeLocalizacao() {
-  const { granted } = await Location.requestForegroundPermissionsAsync();
-  return granted;
+  try {
+    const { granted } = await Location.requestForegroundPermissionsAsync();
+    return granted;
+  } catch (erro) {
+    console.warn('Erro técnico (pedir permissão):', erro?.message ?? erro);
+    return false;
+  }
 }
 
 /**

@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SeletorLocal } from '@/components/SeletorLocal';
 import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -100,6 +101,13 @@ export default function PerfilRestaurante() {
     setErros((atuais) => ({ ...atuais, horaAbertura: undefined, horaFecho: undefined }));
   }
 
+  // O ponto do restaurante no mapa (tocar no mapa, arrastar o pin ou "Encontrar a morada").
+  function mudarPonto({ latitude, longitude }) {
+    setDados((atuais) => ({ ...atuais, latitude, longitude }));
+    setErros((atuais) => ({ ...atuais, local: undefined }));
+    setMensagem(null);
+  }
+
   // 3) Guardar: primeiro valida; só fala com o servidor se estiver tudo certo.
   async function guardar() {
     if (aGuardar) return; // evita enviar duas vezes (o botão também fica desativado)
@@ -128,6 +136,10 @@ export default function PerfilRestaurante() {
       if (montado.current) setAGuardar(false);
     }
   }
+
+  // null enquanto o restaurante não tiver ponto marcado (o mapa abre centrado no Porto, sem pin)
+  const temPonto = dados.latitude !== null && dados.longitude !== null;
+  const ponto = temPonto ? { latitude: dados.latitude, longitude: dados.longitude } : null;
 
   if (estado === 'aCarregar') return <Carregar />;
 
@@ -190,6 +202,8 @@ export default function PerfilRestaurante() {
             placeholder="Rua de Cedofeita, 123, Porto"
             returnKeyType="done"
           />
+
+          <SeletorLocal ponto={ponto} aoMudarPonto={mudarPonto} morada={dados.morada} erro={erros.local} />
 
           <View style={estilos.grupo}>
             <Text style={texto.etiqueta}>Horário de almoço (opcional)</Text>
