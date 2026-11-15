@@ -3,6 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 
+import { traduzirErro } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
 
 // RF02 — Perfil do restaurante.
@@ -148,34 +149,8 @@ export function validarRestaurante(dados) {
   return erros;
 }
 
-// ---------------------------------------------------------------------------
-// Erros: o utilizador nunca vê mensagens técnicas em inglês
-// ---------------------------------------------------------------------------
-
-// Recebe o erro do Supabase (ou da rede) e devolve um Error com uma mensagem em português.
-function traduzirErro(erro) {
-  // a mensagem técnica fica só na consola, para quem está a programar
-  console.warn('Erro técnico (restaurantes):', erro?.message ?? erro);
-
-  const mensagem = String(erro?.message ?? '').toLowerCase();
-  const codigo = String(erro?.code ?? erro?.statusCode ?? '');
-  const estadoHttp = Number(erro?.status ?? 0);
-
-  if (mensagem.includes('network request failed') || mensagem.includes('failed to fetch') || mensagem.includes('timeout')) {
-    return new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.');
-  }
-  if (estadoHttp === 401 || mensagem.includes('jwt')) {
-    return new Error('A tua sessão expirou. Termina a sessão e entra outra vez.');
-  }
-  // 42501 = a base de dados recusou por causa das regras de segurança (RLS); 403 = o mesmo no Storage
-  if (codigo === '42501' || codigo === '403' || estadoHttp === 403 || mensagem.includes('row-level security')) {
-    return new Error('Não tens permissão para fazer esta alteração. Só uma conta de restaurante pode guardar o seu perfil.');
-  }
-  if (codigo === '413' || estadoHttp === 413 || mensagem.includes('exceeded the maximum allowed size')) {
-    return new Error('A fotografia é grande demais (o máximo são 500 KB).');
-  }
-  return new Error('Ocorreu um erro inesperado. Tenta outra vez.');
-}
+// Os erros do Supabase são traduzidos para português por traduzirErro() (src/lib/erros.js),
+// para o utilizador nunca ver mensagens técnicas em inglês.
 
 // ---------------------------------------------------------------------------
 // Ler e guardar o restaurante (tabela "restaurantes")
