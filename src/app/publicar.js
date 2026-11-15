@@ -246,7 +246,8 @@ export default function Publicar() {
         <View style={estilos.centro}>
           <Ionicons name="storefront-outline" size={40} color={cores.textoTerciario} style={estilos.iconeCentro} />
           <Text style={[texto.corpo, estilos.textoCentro]}>Antes de publicares o menu, preenche o perfil do restaurante.</Text>
-          <Botao titulo="Preencher o perfil" icone="storefront-outline" onPress={() => router.replace('/perfil')} />
+          {/* dismissTo: fecha este ecrã e volta aos separadores, já no Perfil */}
+          <Botao titulo="Preencher o perfil" icone="storefront-outline" onPress={() => router.dismissTo('/perfil')} />
         </View>
       </Ecra>
     );

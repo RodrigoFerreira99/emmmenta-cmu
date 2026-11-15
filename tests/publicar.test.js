@@ -16,7 +16,7 @@ jest.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ sessao: { user: { id: 'u1', email: 'tasca@email.pt' } }, perfil: { nome: 'Manuel', tipo: 'restaurante' } }),
 }));
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), replace: jest.fn(), push: jest.fn(), navigate: jest.fn(), canGoBack: jest.fn(() => true) },
+  router: { back: jest.fn(), replace: jest.fn(), push: jest.fn(), navigate: jest.fn(), dismissTo: jest.fn(), canGoBack: jest.fn(() => true) },
   usePreventRemove: jest.fn(),
 }));
 jest.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 56 }));
@@ -55,7 +55,7 @@ describe('Publicar menu — primeira publicação do dia', () => {
     await render(<Publicar />);
     expect(await screen.findByText(/preenche o perfil do restaurante/)).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Preencher o perfil' }));
-    expect(router.replace).toHaveBeenCalledWith('/perfil');
+    expect(router.dismissTo).toHaveBeenCalledWith('/perfil');
   });
 
   test('começa sem pratos e com o botão "Publicar menu"', async () => {
