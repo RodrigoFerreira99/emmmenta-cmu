@@ -1,6 +1,5 @@
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 
 import { traduzirErro } from '@/lib/erros';
@@ -274,39 +273,24 @@ export async function enviarFotoRestaurante(donoId, uriLocal) {
 }
 
 // ---------------------------------------------------------------------------
-// Encontrar a morada no mapa (geocoding do telemóvel, não usa o Supabase)
+// Encontrar a morada no mapa (serviço de moradas do OpenStreetMap, não usa o Supabase)
 // ---------------------------------------------------------------------------
 
-/**
- * No Android, transformar uma morada em coordenadas só funciona com a permissão de localização
- * (é uma regra do expo-location). No iPhone não é precisa, por isso lá nunca a pedimos (RNF04).
- * Devolve true se ainda for preciso pedir a permissão.
- */
-export async function faltaPermissaoParaProcurarMorada() {
-  if (Platform.OS !== 'android') return false;
-  try {
-    const { granted } = await Location.getForegroundPermissionsAsync();
-    return !granted;
-  } catch (erro) {
-    console.warn('Erro técnico (ver permissão):', erro?.message ?? erro);
-    return true; // na dúvida, assumimos que falta e pedimos
-  }
-}
-
-/** Mostra o pedido de permissão do sistema. Devolve true se o utilizador aceitou. */
-export async function pedirPermissaoDeLocalizacao() {
-  try {
-    const { granted } = await Location.requestForegroundPermissionsAsync();
-    return granted;
-  } catch (erro) {
-    console.warn('Erro técnico (pedir permissão):', erro?.message ?? erro);
-    return false;
-  }
-}
+// Nominatim: o serviço público do OpenStreetMap que transforma uma morada em coordenadas.
+// É gratuito e não precisa de chave. As regras de utilização pedem que a app se identifique
+// e que não se faça mais de um pedido por segundo — aqui só há um pedido por toque no botão.
+//
+// Antes usávamos o localizador do próprio telemóvel (Location.geocodeAsync), mas falhava muitas
+// vezes mesmo com rede, e no Android obrigava a pedir a permissão de localização só para isto.
+const SERVICO_DE_MORADAS = 'https://nominatim.openstreetmap.org/search';
+const TEMPO_MAXIMO_MS = 10 * 1000;
+const SERVICO_EM_BAIXO =
+  'O serviço de moradas não está a responder. Tenta daqui a pouco ou toca no mapa para pôr o pin à mão.';
 
 /**
  * Procura as coordenadas de uma morada. Devolve { latitude, longitude } ou null se não encontrar.
- * Nota (RNF04): isto NÃO lê a localização do telemóvel — só converte o texto da morada num ponto.
+ * Nota (RNF04): isto NÃO lê a localização do telemóvel nem pede nenhuma permissão — só envia
+ * o texto da morada do restaurante (um dado público do negócio) e recebe um ponto no mapa.
  */
 export async function procurarMoradaNoMapa(morada) {
   const texto = limparEspacos(morada);
@@ -314,15 +298,49 @@ export async function procurarMoradaNoMapa(morada) {
 
   // acrescentar o país evita resultados com o mesmo nome de rua noutro sítio do mundo
   const pesquisa = /portugal/i.test(texto) ? texto : `${texto}, Portugal`;
+  const endereco =
+    `${SERVICO_DE_MORADAS}?format=jsonv2&limit=1&countrycodes=pt&accept-language=pt` +
+    `&q=${encodeURIComponent(pesquisa)}`;
+
+  // No browser é o próprio browser que identifica o pedido; no telemóvel identificamos nós a app.
+  const cabecalhos = Platform.OS === 'web' ? {} : { 'User-Agent': 'Emmmenta/1.0' };
+
+  // Se a rede estiver muito lenta, desistimos ao fim de 10 segundos em vez de ficar à espera para sempre.
+  const controlo = new AbortController();
+  const relogio = setTimeout(() => controlo.abort(), TEMPO_MAXIMO_MS);
+
+  let resposta;
+  try {
+    resposta = await fetch(endereco, { headers: cabecalhos, signal: controlo.signal });
+  } catch (erro) {
+    console.warn('Erro técnico (procurar morada):', erro?.message ?? erro);
+    if (controlo.signal.aborted) {
+      throw new Error('A procura demorou demasiado. Tenta outra vez ou toca no mapa para pôr o pin à mão.');
+    }
+    // o fetch só falha quando o pedido não chega ao servidor, ou seja, quando não há rede
+    throw new Error('Sem ligação à internet. Verifica a rede ou toca no mapa para pôr o pin à mão.');
+  } finally {
+    clearTimeout(relogio);
+  }
+
+  // O pedido chegou, mas o serviço recusou ou está em baixo: a culpa não é da rede do utilizador.
+  if (!resposta.ok) {
+    console.warn('Erro técnico (procurar morada): o serviço respondeu', resposta.status);
+    throw new Error(SERVICO_EM_BAIXO);
+  }
 
   let resultados;
   try {
-    resultados = await Location.geocodeAsync(pesquisa);
+    resultados = await resposta.json();
   } catch (erro) {
     console.warn('Erro técnico (procurar morada):', erro?.message ?? erro);
-    throw new Error('Não foi possível procurar a morada. Verifica a ligação à internet ou põe o pin à mão.');
+    throw new Error(SERVICO_EM_BAIXO);
   }
 
-  if (resultados.length === 0) return null;
-  return { latitude: resultados[0].latitude, longitude: resultados[0].longitude };
+  // O serviço devolve uma lista (vazia se não encontrar) com "lat" e "lon" em texto.
+  const primeiro = Array.isArray(resultados) ? resultados[0] : null;
+  if (!primeiro) return null;
+  const latitude = Number(primeiro.lat);
+  const longitude = Number(primeiro.lon);
+  return coordenadasValidas(latitude, longitude) ? { latitude, longitude } : null;
 }
