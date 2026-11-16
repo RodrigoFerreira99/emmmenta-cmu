@@ -231,6 +231,12 @@ describe('publicarMenu', () => {
     expect(mockBd.chamadas).toEqual([]);
   });
 
+  test('um prato sem preço (lido de uma fotografia) não é publicado', async () => {
+    const semPreco = { nome: 'Pudim', categoria: 'sobremesa', preco: null };
+    await expect(m.publicarMenu('r1', { pratos: [NOVO, semPreco] })).rejects.toThrow('Há pratos sem preço');
+    expect(mockBd.chamadas).toEqual([]);
+  });
+
   test('primeira publicação: cria o menu e os pratos', async () => {
     mockBd.respostas['menus.upsert'] = { data: { id: 'm1' }, error: null };
     mockBd.respostas['pratos.select'] = { data: [], error: null };

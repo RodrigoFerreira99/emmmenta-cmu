@@ -7,6 +7,7 @@ import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text
 import { CampoComErro } from '@/components/CampoComErro';
 import { Chip } from '@/components/Chip';
 import { EcraDeErro } from '@/components/EcraDeErro';
+import { LerMenuDaFoto } from '@/components/LerMenuDaFoto';
 import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { confirmar } from '@/lib/confirmar';
@@ -32,7 +33,13 @@ import { cores, espaco, raio, texto } from '@/theme';
 //  2. Os pratos ficam numa lista no ecrã (estado "pratos"). Adicionar, alterar e remover só mexe
 //     nessa lista — nada vai para a base de dados até se carregar em "Publicar menu".
 //  3. "Publicar menu" grava tudo de uma vez (publicarMenu) e volta ao Painel.
+// Em vez de escrever os pratos um a um, o dono pode fotografar o menu (cartão LerMenuDaFoto):
+// os pratos lidos entram na mesma lista, para serem confirmados antes de publicar.
 // O acesso aos dados é todo feito pelas funções de src/services/ (RNF09).
+
+// Um prato lido de uma fotografia pode vir sem preço (preco: null) quando não se conseguiu ler.
+const semPreco = (prato) => !(prato.preco > 0);
+
 export default function Publicar() {
   const { sessao } = useAuth();
   const donoId = sessao?.user?.id;
@@ -164,12 +171,46 @@ export default function Publicar() {
     setErrosDoPrato({});
     setMensagem(null);
     deslizar.current?.scrollTo({ y: 0, animated: true });
+    // se só falta o preço (prato lido de uma fotografia), o cursor vai logo para lá
+    if (semPreco(prato)) campoPreco.current?.focus();
   }
 
   function removerPrato(chave) {
     setPratos((lista) => lista.filter((prato) => prato.chave !== chave));
     if (chave === chaveAEditar) limparFormulario();
     setMensagem(null);
+  }
+
+  // Pratos lidos de uma fotografia: entram na lista do ecrã como se tivessem sido escritos à mão.
+  // Devolve a frase que o cartão da fotografia mostra a seguir.
+  function juntarPratosLidos({ pratos: lidos, precoMenuCompleto }) {
+    setMensagem(null);
+
+    // um prato que já está no menu não entra outra vez (por exemplo, ao fotografar o mesmo quadro duas vezes)
+    const jaNoMenu = new Set(pratos.map((prato) => prato.nome.toLowerCase()));
+    const novos = lidos
+      .filter((lido) => !jaNoMenu.has(lido.nome.toLowerCase()))
+      .map((lido) => {
+        const chave = `novo-${proximaChave.current}`;
+        proximaChave.current += 1;
+        return { ...lido, chave };
+      });
+    if (novos.length > 0) setPratos((lista) => [...lista, ...novos]);
+
+    // o preço do menu completo só é preenchido se o campo estiver vazio: não apaga o que o dono escreveu
+    if (precoMenuCompleto && !precoMenu.trim()) setPrecoMenu(precoParaCampo(precoMenuCompleto));
+
+    if (lidos.length === 0) {
+      return 'Não foi possível ler nenhum prato nesta fotografia. Tenta com mais luz e com o menu a ocupar a imagem toda.';
+    }
+    if (novos.length === 0) return 'Os pratos desta fotografia já estavam no menu.';
+
+    let frase = novos.length === 1 ? 'Foi lido 1 prato.' : `Foram lidos ${novos.length} pratos.`;
+    frase += ' Confirma os nomes, as categorias e os preços antes de publicar.';
+    const quantosSemPreco = novos.filter(semPreco).length;
+    if (quantosSemPreco === 1) frase += ' Falta o preço de 1 prato: toca nele para o escrever.';
+    if (quantosSemPreco > 1) frase += ` Falta o preço de ${quantosSemPreco} pratos: toca neles para o escrever.`;
+    return frase;
   }
 
   // 3) Publicar ----------------------------------------------------------------
@@ -191,6 +232,15 @@ export default function Publicar() {
     }
     if (pratos.length === 0) {
       setMensagem('Adiciona pelo menos um prato antes de publicar.');
+      return;
+    }
+    const quantosSemPreco = pratos.filter(semPreco).length;
+    if (quantosSemPreco > 0) {
+      setMensagem(
+        quantosSemPreco === 1
+          ? 'Falta o preço de 1 prato. Toca nele para o escrever.'
+          : `Falta o preço de ${quantosSemPreco} pratos. Toca neles para o escrever.`
+      );
       return;
     }
     // o preço do menu completo é opcional, mas se estiver escrito tem de ser um preço
@@ -263,6 +313,8 @@ export default function Publicar() {
           {/* Enquanto está a publicar, nada aceita toques: o que é gravado é o que está no ecrã. */}
           <View style={estilos.campos} pointerEvents={aPublicar ? 'none' : 'auto'}>
             <Text style={texto.pequeno}>{diaPorExtenso()}</Text>
+
+            <LerMenuDaFoto aoLer={juntarPratosLidos} />
 
             <View style={estilos.cartao}>
               <Text style={texto.subtitulo} accessibilityRole="header">
@@ -354,14 +406,18 @@ export default function Publicar() {
                       <Pressable
                         onPress={() => editarPrato(prato)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Alterar ${prato.nome}, ${formatarPreco(prato.preco)}`}
+                        accessibilityLabel={`Alterar ${prato.nome}, ${semPreco(prato) ? 'falta o preço' : formatarPreco(prato.preco)}`}
                         style={estilos.pratoInfo}
                       >
                         <View style={estilos.ocuparTudo}>
                           <Text style={estilos.pratoNome}>{prato.nome}</Text>
                           <Text style={estilos.pratoCategoria}>{nomeDaCategoria(prato.categoria)}</Text>
                         </View>
-                        <Text style={estilos.pratoPreco}>{formatarPreco(prato.preco)}</Text>
+                        {semPreco(prato) ? (
+                          <Text style={estilos.pratoSemPreco}>Falta o preço</Text>
+                        ) : (
+                          <Text style={estilos.pratoPreco}>{formatarPreco(prato.preco)}</Text>
+                        )}
                       </Pressable>
                       <Pressable
                         onPress={() => removerPrato(prato.chave)}
@@ -444,6 +500,7 @@ const estilos = StyleSheet.create({
   pratoNome: { ...texto.corpo, fontWeight: '500' },
   pratoCategoria: { fontSize: 12, color: cores.textoSecundario },
   pratoPreco: { ...texto.corpo, fontWeight: '600' },
+  pratoSemPreco: { ...texto.pequeno, color: cores.erro, fontWeight: '600' },
   remover: { width: 48, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   barra: {
     gap: espaco.s,

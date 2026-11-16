@@ -81,3 +81,21 @@ Cada ecrã por fazer mostra uma caixa "Por fazer" com a lista do que falta.
 - Em desenvolvimento, desliga a confirmação por email no painel do Supabase: **Authentication → Sign In / Providers → Email → Confirm email (desligar)**. O serviço de email gratuito do Supabase só envia para os membros da equipa, por isso, com a confirmação ligada, as contas novas ficam bloqueadas.
 - **Recuperar a palavra-passe (RF01):** a app pede um **código** que chega por email. Para o email trazer o código, é preciso mudar o modelo uma vez no painel do Supabase: **Authentication → Emails → Reset Password** e pôr `{{ .Token }}` no texto, por exemplo `<p>O teu código da Emmmenta é: <b>{{ .Token }}</b></p>`. Tal como na confirmação, o email gratuito só chega a membros da equipa.
 - No plano gratuito o projeto é pausado ao fim de 7 dias sem uso. Antes da defesa, abre o painel do Supabase e, se for preciso, carrega em "Restore".
+
+## Serviços externos
+
+Além do Supabase, a app usa dois serviços. Nenhum recebe dados pessoais dos utilizadores.
+
+- **Encontrar a morada no mapa (RF02):** o botão do perfil do restaurante envia o texto da morada ao [Nominatim](https://nominatim.org/), o serviço público do OpenStreetMap, e recebe as coordenadas. É gratuito e não precisa de chave. A morada de um restaurante é um dado público do negócio. Se o serviço falhar, o pin põe-se à mão.
+- **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA (Claude, da Anthropic). A fotografia não fica guardada.
+
+### Ativar a leitura por fotografia
+
+Enquanto isto não for feito, a app diz "A leitura por fotografia ainda não está ativada" e os pratos escrevem-se à mão.
+
+1. Criar uma chave em https://platform.claude.com (é um serviço pago ao uso; convém definir lá um limite de gastos).
+2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `ANTHROPIC_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
+3. Publicar a função `ler-menu` no projeto Supabase, com a verificação da sessão ligada ("Verify JWT").
+4. (Opcional) O segredo `MODELO_LER_MENU` escolhe outro modelo, por exemplo `claude-haiku-5-5`, que é mais barato.
+
+Só as contas de restaurante conseguem usar a função.

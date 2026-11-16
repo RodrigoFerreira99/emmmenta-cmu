@@ -152,6 +152,8 @@ export async function buscarMenuDeHoje(restauranteId) {
  */
 export async function publicarMenu(restauranteId, { precoMenuCompleto = null, pratos }) {
   if (!pratos || pratos.length === 0) throw new Error('Adiciona pelo menos um prato antes de publicar.');
+  // defesa extra: um prato lido de uma fotografia pode vir sem preço, e sem preço não se publica (RN03)
+  if (pratos.some((prato) => !(prato.preco > 0))) throw new Error('Há pratos sem preço. Escreve o preço de todos antes de publicar.');
 
   try {
     const { data: menu, error: erroDoMenu } = await supabase
