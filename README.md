@@ -90,14 +90,18 @@ Cada ecrã por fazer mostra uma caixa "Por fazer" com a lista do que falta.
 Além do Supabase, a app usa dois serviços. Nenhum recebe dados pessoais dos utilizadores.
 
 - **Encontrar a morada no mapa (RF02):** o botão do perfil do restaurante envia o texto da morada ao [Nominatim](https://nominatim.org/), o serviço público do OpenStreetMap, e recebe as coordenadas. É gratuito e não precisa de chave. A morada de um restaurante é um dado público do negócio. Se o serviço falhar, o pin põe-se à mão.
-- **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA (Claude, da Anthropic). A fotografia não fica guardada.
+- **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA no serviço Groq (plano gratuito). A fotografia não fica guardada.
 
 ### Ativar a leitura por fotografia
 
-A função `ler-menu` já está publicada no Supabase (17 nov 2026). Falta a chave: enquanto não existir, a app diz "A leitura por fotografia ainda não está configurada" e os pratos escrevem-se à mão.
+A função `ler-menu` já está publicada no Supabase. Falta a chave: enquanto não existir, a app diz "A leitura por fotografia ainda não está configurada" e os pratos escrevem-se à mão.
 
-1. Criar uma chave em https://platform.claude.com (é um serviço pago ao uso; convém definir lá um limite de gastos).
-2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `ANTHROPIC_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
-3. (Opcional) O segredo `MODELO_LER_MENU` escolhe outro modelo, por exemplo `claude-haiku-5-5`, que é mais barato.
+1. Criar uma conta gratuita em https://console.groq.com (não pede cartão) e, em **API Keys**, criar uma chave.
+2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `GROQ_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
 
-Só as contas de restaurante conseguem usar a função. Se o código em `supabase/functions/ler-menu/index.js` mudar, a função tem de ser publicada outra vez no Supabase (com "Verify JWT" ligado).
+O que convém saber:
+
+- O plano gratuito do Groq tem um limite de pedidos por minuto e por dia. Quando é atingido, a app avisa e os pratos escrevem-se à mão.
+- O modelo usado, `qwen/qwen3.8-27b`, está em fase "Preview" no Groq, que avisa que estes modelos podem ser retirados. Se a leitura deixar de funcionar, escolher outro modelo que aceite imagens em https://console.groq.com/docs/vision e pôr o nome dele no segredo `MODELO_LER_MENU` (não é preciso mexer no código).
+- Só as contas de restaurante conseguem usar a função.
+- Se o código em `supabase/functions/ler-menu/index.js` mudar, a função tem de ser publicada outra vez no Supabase (com "Verify JWT" ligado).
