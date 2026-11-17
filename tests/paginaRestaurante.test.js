@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { useLocalSearchParams } from 'expo-router';
 
 import PaginaRestaurante from '@/app/restaurante/[id]';
+import { alternarFavorito } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { buscarMenuDeHoje } from '@/services/menus';
 import { ouvirAlteracoesPratos } from '@/services/pratos';
@@ -14,6 +15,20 @@ import { buscarRestaurante } from '@/services/restaurantes';
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
 jest.mock('@expo/vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useLocalSearchParams: jest.fn() }));
+// Favoritos simulados: alternarFavorito muda mockFavoritos e o ecrã volta a ser desenhado.
+const mockFavoritos = { ids: new Set(), avisar: null };
+jest.mock('@/lib/favoritos', () => {
+  const mockReact = require('react');
+  const alternarFavorito = jest.fn();
+  return {
+    alternarFavorito,
+    useFavoritos: () => {
+      const [, redesenhar] = mockReact.useReducer((n) => n + 1, 0);
+      mockFavoritos.avisar = redesenhar;
+      return { favoritos: mockFavoritos.ids, eFavorito: (id) => mockFavoritos.ids.has(id), alternarFavorito };
+    },
+  };
+});
 jest.mock('@/lib/ligacoes', () => ({ abrirDirecoes: jest.fn(), ligar: jest.fn() }));
 jest.mock('@/services/restaurantes', () => ({
   ...jest.requireActual('@/services/restaurantes'),
@@ -49,6 +64,14 @@ const pararDeOuvir = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockFavoritos.ids = new Set();
+  alternarFavorito.mockImplementation(async (id) => {
+    const novos = new Set(mockFavoritos.ids);
+    if (novos.has(id)) novos.delete(id);
+    else novos.add(id);
+    mockFavoritos.ids = novos;
+    mockFavoritos.avisar();
+  });
   useLocalSearchParams.mockReturnValue({ id: ID, distancia: '0.35' });
   buscarRestaurante.mockResolvedValue(TASCA);
   buscarMenuDeHoje.mockResolvedValue(MENU);
@@ -153,5 +176,42 @@ describe('Página do restaurante — esgotados em tempo real (RF04)', () => {
     await screen.findByText('Menu de hoje');
     await unmount();
     expect(pararDeOuvir).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Página do restaurante — horário e favoritos', () => {
+  test('diz se está aberto agora (a frase depende da hora a que o teste corre)', async () => {
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    expect(
+      screen.getByText(/^(Aberto agora · fecha às 15:00|Fechado agora · abre às 12:00|Fechado agora · o almoço de hoje já terminou)$/)
+    ).toBeTruthy();
+  });
+
+  test('sem horário, não diz se está aberto', async () => {
+    buscarRestaurante.mockResolvedValue({ ...TASCA, hora_abertura: null, hora_fecho: null });
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    expect(screen.queryByText(/agora/)).toBeNull();
+  });
+
+  test('o coração guarda e tira dos favoritos', async () => {
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Guardar nos favoritos' }));
+    expect(alternarFavorito).toHaveBeenCalledWith(ID);
+    expect(screen.getByRole('button', { name: 'Tirar dos favoritos' })).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tirar dos favoritos' }));
+    expect(screen.getByRole('button', { name: 'Guardar nos favoritos' })).toBeTruthy();
+  });
+
+  test('se não for possível guardar, a página explica', async () => {
+    alternarFavorito.mockRejectedValue(new Error('Não foi possível guardar os favoritos neste telemóvel.'));
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    await fireEvent.press(screen.getByRole('button', { name: 'Guardar nos favoritos' }));
+    expect(await screen.findByText('Não foi possível guardar os favoritos neste telemóvel.')).toBeTruthy();
   });
 });

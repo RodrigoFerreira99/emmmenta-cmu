@@ -14,6 +14,11 @@ import { buscarPratosPerto, ouvirAlteracoesPratos } from '@/services/pratos';
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
 jest.mock('@expo/vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+// Os favoritos do telemóvel são simulados: mockFavoritos diz quais são.
+const mockFavoritos = { ids: new Set() };
+jest.mock('@/lib/favoritos', () => ({
+  useFavoritos: () => ({ favoritos: mockFavoritos.ids, eFavorito: (id) => mockFavoritos.ids.has(id), alternarFavorito: jest.fn() }),
+}));
 jest.mock('@/services/localizacao', () => ({ estadoDaPermissao: jest.fn(), pedirPermissao: jest.fn(), lerLocalizacao: jest.fn() }));
 jest.mock('@/services/pratos', () => ({
   ...jest.requireActual('@/services/pratos'),
@@ -42,6 +47,7 @@ const ultimoPedido = () => buscarPratosPerto.mock.calls.at(-1)[0];
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockFavoritos.ids = new Set();
   estadoDaPermissao.mockResolvedValue('concedida');
   pedirPermissao.mockResolvedValue(true);
   lerLocalizacao.mockResolvedValue(AQUI);
@@ -184,7 +190,7 @@ describe('Início — filtros e pesquisa (RF07)', () => {
     await screen.findByText('Bacalhau à Brás');
     expect(screen.queryByText('Preço máximo')).toBeNull(); // o painel começa fechado
 
-    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço e distância'));
+    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço, distância e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Até 8 €' }));
     await waitFor(() => expect(ultimoPedido().precoMax).toBe(8));
 
@@ -219,5 +225,49 @@ describe('Início — filtros e pesquisa (RF07)', () => {
     buscarPratosPerto.mockResolvedValue([SOPA]);
     await fireEvent.press(screen.getByRole('button', { name: 'Limpar filtros' }));
     expect(await screen.findByText('1 prato a menos de 2 km de ti')).toBeTruthy();
+  });
+});
+
+describe('Início — favoritos', () => {
+  test('os pratos dos restaurantes favoritos têm um coração', async () => {
+    mockFavoritos.ids = new Set(['r2']);
+    await abrir();
+    expect(await screen.findByLabelText('Francesinha, Café Central (favorito), a 1,4 km, esgotado')).toBeTruthy();
+    expect(screen.getByLabelText('Bacalhau à Brás, Tasca do Manuel, a 350 m, 8,50 €')).toBeTruthy();
+  });
+
+  test('"Só os meus favoritos" mostra só esses restaurantes, sem voltar à base de dados', async () => {
+    mockFavoritos.ids = new Set(['r1']);
+    await abrir();
+    await screen.findByText('Francesinha');
+    const pedidosAntes = buscarPratosPerto.mock.calls.length;
+
+    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Só os meus favoritos' }));
+
+    expect(screen.queryByText('Francesinha')).toBeNull(); // o Café Central não é favorito
+    expect(screen.getByText('Bacalhau à Brás')).toBeTruthy();
+    expect(screen.getByText('2 pratos a menos de 2 km de ti')).toBeTruthy();
+    expect(buscarPratosPerto.mock.calls.length).toBe(pedidosAntes); // filtrou o que já tinha
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Todos' }));
+    expect(screen.getByText('Francesinha')).toBeTruthy();
+  });
+
+  test('sem favoritos, explica como os guardar', async () => {
+    await abrir();
+    await screen.findByText('Francesinha');
+    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Só os meus favoritos' }));
+    expect(screen.getByText('Ainda não tens restaurantes favoritos. Abre um restaurante e toca no coração para o guardar.')).toBeTruthy();
+  });
+
+  test('favoritos sem pratos de hoje por perto', async () => {
+    mockFavoritos.ids = new Set(['outro-restaurante']);
+    await abrir();
+    await screen.findByText('Francesinha');
+    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Só os meus favoritos' }));
+    expect(screen.getByText('Nenhum dos teus restaurantes favoritos tem pratos de hoje a menos de 2 km de ti.')).toBeTruthy();
   });
 });

@@ -14,6 +14,9 @@ import { buscarPratosPerto, ouvirAlteracoesPratos } from '@/services/pratos';
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
 jest.mock('@expo/vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('@/lib/favoritos', () => ({
+  useFavoritos: () => ({ favoritos: new Set(), eFavorito: () => false, alternarFavorito: jest.fn() }),
+}));
 jest.mock('@/services/localizacao', () => ({ estadoDaPermissao: jest.fn(), pedirPermissao: jest.fn(), lerLocalizacao: jest.fn() }));
 jest.mock('@/services/pratos', () => ({
   ...jest.requireActual('@/services/pratos'),
@@ -108,7 +111,7 @@ describe('Mapa — os mesmos filtros da lista (RF07)', () => {
     await fireEvent.press(screen.getByRole('radio', { name: 'Peixe' }));
     await waitFor(() => expect(buscarPratosPerto.mock.calls.at(-1)[0].categoria).toBe('peixe'));
 
-    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço e distância'));
+    await fireEvent.press(screen.getByLabelText('Mostrar os filtros de preço, distância e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Até 5 km' }));
     await waitFor(() => expect(buscarPratosPerto.mock.calls.at(-1)[0]).toMatchObject({ categoria: 'peixe', raioKm: 5 }));
     expect(screen.getByTestId('circulo').props.radius).toBe(5000);

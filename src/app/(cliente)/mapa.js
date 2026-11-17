@@ -126,7 +126,11 @@ export default function Mapa() {
           </View>
         ) : restaurantes.length === 0 ? (
           <View style={estilos.aviso}>
-            <Text style={texto.pequeno}>Não há restaurantes com menu hoje a menos de {raioKm} km. Experimenta aumentar a distância nos filtros.</Text>
+            <Text style={texto.pequeno}>
+              {filtros.soFavoritos
+                ? `Nenhum dos teus restaurantes favoritos tem menu hoje a menos de ${raioKm} km.`
+                : `Não há restaurantes com menu hoje a menos de ${raioKm} km. Experimenta aumentar a distância nos filtros.`}
+            </Text>
           </View>
         ) : null}
 

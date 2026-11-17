@@ -19,8 +19,19 @@ import { cores, espaco, texto } from '@/theme';
 //  2. Este ecrã só desenha: cabeçalho com o sítio, pesquisa e filtros (RF07) e a lista (RF05).
 //  3. Tocar num prato abre a página do restaurante: chega-se a um menu com 1 toque (RNF06).
 export default function Inicio() {
-  const { local, estadoDoLocal, pratos, aCarregar, erro, recarregar, filtros, filtrosAtivos, mudarFiltros, limparFiltros } =
-    usePerto();
+  const {
+    local,
+    estadoDoLocal,
+    pratos,
+    favoritos,
+    aCarregar,
+    erro,
+    recarregar,
+    filtros,
+    filtrosAtivos,
+    mudarFiltros,
+    limparFiltros,
+  } = usePerto();
   const [aMudarLocal, setAMudarLocal] = useState(false);
 
   // Ainda não se sabe onde procurar: ou a app está a ver se já tem permissão, ou o cliente tem de escolher.
@@ -69,12 +80,17 @@ export default function Inicio() {
     // o raio a seguir ao atual (por exemplo, de 2 km para 5 km), se ainda houver um maior
     const raioMaior = OPCOES_DE_RAIO_KM.find((km) => km > filtros.raioKm);
     const haOutrosFiltros = filtros.precoMax !== null || filtros.categoria !== null || filtros.pesquisa.trim() !== '';
+    let mensagem = haOutrosFiltros ? `Nenhum prato de hoje corresponde ao que procuras ${perto}.` : `Ainda não há pratos publicados hoje ${perto}.`;
+    if (filtros.soFavoritos) {
+      mensagem =
+        favoritos.size === 0
+          ? 'Ainda não tens restaurantes favoritos. Abre um restaurante e toca no coração para o guardar.'
+          : `Nenhum dos teus restaurantes favoritos tem pratos de hoje ${perto}${haOutrosFiltros ? ' com estes filtros' : ''}.`;
+    }
     return (
       <View style={estilos.vazio}>
         <Ionicons name="restaurant-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
-        <Text style={[texto.corpo, estilos.textoCentro]}>
-          {haOutrosFiltros ? `Nenhum prato de hoje corresponde ao que procuras ${perto}.` : `Ainda não há pratos publicados hoje ${perto}.`}
-        </Text>
+        <Text style={[texto.corpo, estilos.textoCentro]}>{mensagem}</Text>
         {raioMaior ? (
           <Botao tipo="secundario" icone="resize-outline" titulo={`Procurar até ${raioMaior} km`} onPress={() => mudarFiltros({ raioKm: raioMaior })} />
         ) : null}
@@ -96,7 +112,9 @@ export default function Inicio() {
       <FlatList
         data={pratos}
         keyExtractor={(prato) => prato.prato_id}
-        renderItem={({ item }) => <CartaoDePrato prato={item} onPress={() => abrirRestaurante(item)} />}
+        renderItem={({ item }) => (
+          <CartaoDePrato prato={item} favorito={favoritos.has(item.restaurante_id)} onPress={() => abrirRestaurante(item)} />
+        )}
         contentContainerStyle={estilos.lista}
         ItemSeparatorComponent={Separador}
         ListHeaderComponent={

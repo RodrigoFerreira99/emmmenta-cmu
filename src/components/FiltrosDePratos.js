@@ -18,7 +18,8 @@ export function FiltrosDePratos() {
   const [painelAberto, setPainelAberto] = useState(false);
 
   // quantos filtros do painel estão a ser usados (aparece numa bolinha no botão)
-  const filtrosDoPainel = (filtros.precoMax !== null ? 1 : 0) + (filtros.raioKm !== RAIO_POR_OMISSAO_KM ? 1 : 0);
+  const filtrosDoPainel =
+    (filtros.precoMax !== null ? 1 : 0) + (filtros.raioKm !== RAIO_POR_OMISSAO_KM ? 1 : 0) + (filtros.soFavoritos ? 1 : 0);
 
   return (
     <View style={estilos.grupo}>
@@ -51,7 +52,7 @@ export function FiltrosDePratos() {
         <Pressable
           onPress={() => setPainelAberto((aberto) => !aberto)}
           accessibilityRole="button"
-          accessibilityLabel={painelAberto ? 'Esconder os filtros de preço e distância' : 'Mostrar os filtros de preço e distância'}
+          accessibilityLabel={painelAberto ? 'Esconder os filtros de preço, distância e favoritos' : 'Mostrar os filtros de preço, distância e favoritos'}
           accessibilityState={{ expanded: painelAberto }}
           style={[estilos.botaoDosFiltros, painelAberto && estilos.botaoDosFiltrosAberto]}
         >
@@ -91,6 +92,12 @@ export function FiltrosDePratos() {
             {OPCOES_DE_RAIO_KM.map((km) => (
               <Chip key={km} titulo={`Até ${km} km`} ativo={filtros.raioKm === km} onPress={() => mudarFiltros({ raioKm: km })} />
             ))}
+          </View>
+
+          <Text style={texto.etiqueta}>Restaurantes</Text>
+          <View style={estilos.chipsDoPainel} accessibilityRole="radiogroup">
+            <Chip titulo="Todos" ativo={!filtros.soFavoritos} onPress={() => mudarFiltros({ soFavoritos: false })} />
+            <Chip titulo="Só os meus favoritos" ativo={filtros.soFavoritos} onPress={() => mudarFiltros({ soFavoritos: true })} />
           </View>
 
           {filtrosAtivos > 0 ? (
