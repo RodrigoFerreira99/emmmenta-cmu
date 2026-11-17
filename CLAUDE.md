@@ -34,7 +34,7 @@ São **7 requisitos funcionais, todos obrigatórios**. RF03 e RF05 são o núcle
 | RF06 | Mapa com os restaurantes com menu hoje; página do restaurante com menu, horário, morada e botões Ligar e Direções (abre a app de mapas) | `(cliente)/mapa.js`, `restaurante/[id].js` | André | **feito** no ramo `rf05-rf07-cliente` (falta testar no telemóvel) |
 | RF07 | Filtros e pesquisa: preço máximo, raio, categoria e pesquisa pelo nome do prato | `(cliente)/index.js`, `(cliente)/mapa.js` | André | **feito** no ramo `rf05-rf07-cliente` (falta testar no telemóvel) |
 
-Trabalho futuro (só depois dos 7 estarem a funcionar): favoritos, notificações, reutilizar pratos de dias anteriores.
+Trabalho futuro (só depois dos 7 estarem a funcionar): favoritos, notificações. **Reutilizar pratos de dias anteriores: feito** no ramo `rf05-rf07-cliente` — cartão "Repetir o menu de ontem" no Publicar (`src/components/RepetirMenu.js`), com `buscarUltimoMenuAnterior()` em `src/services/menus.js` (o último menu antes de hoje; os pratos vêm sem id, por isso são publicados como pratos novos de hoje) e `descreverDia()` em `src/lib/datas.js`.
 
 **Regras de negócio:** RN01 — um menu só vale no dia em que é publicado (fuso Europe/Lisbon). RN02 — só contas restaurante publicam, e cada uma só altera os seus menus. RN03 — preços em euros com 2 casas decimais (`formatarPreco`).
 

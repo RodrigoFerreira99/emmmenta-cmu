@@ -5,7 +5,7 @@ import { router, usePreventRemove } from 'expo-router';
 import Publicar from '@/app/publicar';
 import { escolherImagem } from '@/lib/fotografias';
 import { lerMenuDaFoto } from '@/services/lerMenu';
-import { buscarMenuDeHoje, publicarMenu } from '@/services/menus';
+import { buscarMenuDeHoje, buscarUltimoMenuAnterior, publicarMenu } from '@/services/menus';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
 
 // RF03 — testes ao ecrã Publicar menu, a carregar nos botões como um utilizador faria.
@@ -27,6 +27,7 @@ jest.mock('@/services/restaurantes', () => ({ buscarMeuRestaurante: jest.fn() })
 jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
   buscarMenuDeHoje: jest.fn(),
+  buscarUltimoMenuAnterior: jest.fn(),
   publicarMenu: jest.fn(),
 }));
 // Ler o menu de uma fotografia: a câmara e a função que lê a imagem são simuladas.
@@ -51,6 +52,7 @@ beforeEach(() => {
   router.canGoBack.mockReturnValue(true);
   buscarMeuRestaurante.mockResolvedValue({ id: 'r1', nome: 'Tasca do Manuel' });
   buscarMenuDeHoje.mockResolvedValue(null);
+  buscarUltimoMenuAnterior.mockResolvedValue(null);
   publicarMenu.mockResolvedValue({ id: 'm1', pratos: [] });
   escolherImagem.mockResolvedValue('file:///fotos/quadro.jpg');
   lerMenuDaFoto.mockResolvedValue({ pratos: [], precoMenuCompleto: null });
@@ -345,5 +347,81 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
     expect(await screen.findByText(/Sem acesso à câmara/)).toBeTruthy();
     expect(lerMenuDaFoto).not.toHaveBeenCalled();
+  });
+});
+
+describe('Publicar menu — repetir o menu anterior', () => {
+  // como vem do serviço: sem id e sem "esgotado"
+  const ANTERIOR = {
+    dia: '2026-11-13',
+    precoMenuCompleto: 9.5,
+    pratos: [
+      { nome: 'Caldo verde', categoria: 'sopa', preco: 1.8 },
+      { nome: 'Arroz de pato', categoria: 'carne', preco: 8.5 },
+    ],
+  };
+
+  test('mostra o último menu e, com um toque, copia os pratos para hoje', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue(ANTERIOR);
+    await render(<Publicar />);
+
+    expect(await screen.findByText(/^Repetir o menu de /)).toBeTruthy();
+    expect(buscarUltimoMenuAnterior).toHaveBeenCalledWith('r1');
+    expect(screen.getByText('Caldo verde · Arroz de pato')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Usar estes 2 pratos' }));
+    expect(screen.getByText(/^Foram copiados 2 pratos\. Muda o que for diferente/)).toBeTruthy();
+    expect(screen.getByText('1,80 €')).toBeTruthy();
+    expect(screen.getByText('8,50 €')).toBeTruthy();
+    expect(screen.getByLabelText('Preço do menu completo (opcional)').props.value).toBe('9,50');
+    expect(saidaTravada()).toBe(true); // há alterações por publicar
+    expect(publicarMenu).not.toHaveBeenCalled(); // nada é publicado sozinho
+  });
+
+  test('os pratos copiados são publicados como pratos novos de hoje (sem o id do menu antigo)', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue({ ...ANTERIOR, pratos: ANTERIOR.pratos.map((prato, i) => ({ ...prato, id: `antigo-${i}` })) });
+    await render(<Publicar />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Usar estes 2 pratos' }));
+
+    // alterar o preço de um prato copiado, como o dono faria
+    await fireEvent.press(screen.getByLabelText('Alterar Arroz de pato, 8,50 €'));
+    await fireEvent.changeText(screen.getByLabelText('Preço do prato em euros'), '9');
+    await fireEvent.press(screen.getByRole('button', { name: 'Guardar prato' }));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
+    const { pratos } = publicarMenu.mock.calls[0][1];
+    expect(pratos).toEqual([
+      expect.objectContaining({ nome: 'Caldo verde', categoria: 'sopa', preco: 1.8 }),
+      expect.objectContaining({ nome: 'Arroz de pato', categoria: 'carne', preco: 9 }),
+    ]);
+    for (const prato of pratos) expect(prato.id).toBeUndefined();
+  });
+
+  test('carregar duas vezes não duplica os pratos', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue(ANTERIOR);
+    await render(<Publicar />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Usar estes 2 pratos' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Usar estes 2 pratos' }));
+    expect(screen.getByText('Esses pratos já estão no menu de hoje.')).toBeTruthy();
+    expect(screen.getAllByText('Caldo verde')).toHaveLength(1);
+  });
+
+  test('não aparece quando o menu de hoje já foi publicado', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ id: 'm1', preco_menu_completo: null, pratos: [SOPA] });
+    buscarUltimoMenuAnterior.mockResolvedValue(ANTERIOR);
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
+  });
+
+  test('sem menus anteriores, ou se a procura falhar, o ecrã abre na mesma sem o cartão', async () => {
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
+
+    buscarUltimoMenuAnterior.mockRejectedValue(new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.'));
+    await render(<Publicar />);
+    expect(await screen.findByText('Pratos de hoje')).toBeTruthy();
+    expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
   });
 });
