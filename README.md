@@ -50,11 +50,14 @@ src/
     (restaurante)/painel.js 5 · Painel                   RF04
     publicar.js            6 · Publicar menu             RF03
     (restaurante)/perfil.js 7 · Perfil do restaurante    RF02
-  components/ui.js         botões, campos, logo… (iguais ao Figma)
+  components/              botões, campos, filtros, cartões… (ui.js tem os do Figma)
   context/AuthContext.js   sessão e perfil (useAuth)
-  lib/supabase.js          ligação ao Supabase (sessão no SecureStore)
-  services/pratos.js       pesquisa de pratos perto, tempo real, formatação
+  context/PertoContext.js  onde se procura, filtros e pratos perto (usePerto)
+  lib/                     ligação ao Supabase, datas, erros, zonas, ligações a outras apps
+  services/                acesso aos dados: restaurantes, menus, pratos, localização, ler menu
   theme.js                 cores e medidas do Figma
+supabase/functions/        código que corre no servidor do Supabase (ler o menu por fotografia)
+tests/                     testes automáticos (npm test)
 ```
 
 ## Quem faz o quê
