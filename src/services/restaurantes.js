@@ -170,6 +170,30 @@ export async function buscarMeuRestaurante(donoId) {
   }
 }
 
+// Os ids da base de dados são UUID: 8-4-4-4-12 caracteres hexadecimais.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * RF06 — um restaurante pelo seu id, para a página que o cliente vê.
+ * Devolve a linha da tabela "restaurantes" ou null se não existir.
+ * Qualquer pessoa pode ler os restaurantes (são informação pública); só o dono os altera.
+ */
+export async function buscarRestaurante(id) {
+  // um id que nem sequer tem o formato certo não existe de certeza: não vale a pena perguntar
+  if (!UUID.test(String(id ?? ''))) return null;
+  try {
+    const { data, error } = await supabase
+      .from('restaurantes')
+      .select('id, nome, tipo_cozinha, morada, latitude, longitude, hora_abertura, hora_fecho, telefone, foto_url')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
 /**
  * RF02 — cria o restaurante na primeira vez e atualiza-o nas seguintes. Devolve a linha guardada.
  *
