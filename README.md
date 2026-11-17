@@ -94,11 +94,10 @@ Além do Supabase, a app usa dois serviços. Nenhum recebe dados pessoais dos ut
 
 ### Ativar a leitura por fotografia
 
-Enquanto isto não for feito, a app diz "A leitura por fotografia ainda não está ativada" e os pratos escrevem-se à mão.
+A função `ler-menu` já está publicada no Supabase (17 nov 2026). Falta a chave: enquanto não existir, a app diz "A leitura por fotografia ainda não está configurada" e os pratos escrevem-se à mão.
 
 1. Criar uma chave em https://platform.claude.com (é um serviço pago ao uso; convém definir lá um limite de gastos).
 2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `ANTHROPIC_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
-3. Publicar a função `ler-menu` no projeto Supabase, com a verificação da sessão ligada ("Verify JWT").
-4. (Opcional) O segredo `MODELO_LER_MENU` escolhe outro modelo, por exemplo `claude-haiku-5-5`, que é mais barato.
+3. (Opcional) O segredo `MODELO_LER_MENU` escolhe outro modelo, por exemplo `claude-haiku-5-5`, que é mais barato.
 
-Só as contas de restaurante conseguem usar a função.
+Só as contas de restaurante conseguem usar a função. Se o código em `supabase/functions/ler-menu/index.js` mudar, a função tem de ser publicada outra vez no Supabase (com "Verify JWT" ligado).
