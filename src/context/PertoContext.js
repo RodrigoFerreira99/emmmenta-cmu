@@ -128,28 +128,28 @@ export function PertoProvider({ children }) {
 
   // --- Pratos perto (RF05) -------------------------------------------------
   const [recarregamentos, setRecarregamentos] = useState(0); // aumenta em "Tentar outra vez" e ao puxar a lista
-  const recarregar = useCallback(() => setRecarregamentos((n) => n + 1), []);
+
+  // Voltar a procurar. Quem está a usar a localização do telemóvel pode ter andado entretanto,
+  // por isso a localização também é lida outra vez (continua só em memória — RNF04).
+  const recarregar = useCallback(() => {
+    setRecarregamentos((n) => n + 1);
+    if (localAtual.current?.origem === 'gps') localizar();
+  }, [localizar]);
 
   // "chave" identifica a pesquisa que queremos neste momento. O resultado guarda a chave da pesquisa
   // que o produziu: se forem diferentes, é porque a resposta da pesquisa atual ainda não chegou.
+  const latitude = local?.latitude ?? null;
+  const longitude = local?.longitude ?? null;
   const { raioKm, precoMax, categoria } = filtros;
-  const chave = local
-    ? [local.latitude, local.longitude, raioKm, precoMax, categoria, pesquisaAplicada, recarregamentos].join('|')
-    : null;
+  const chave = local ? [latitude, longitude, raioKm, precoMax, categoria, pesquisaAplicada, recarregamentos].join('|') : null;
   const [resultado, setResultado] = useState({ chave: null, pratos: [], erro: null });
 
+  // Corre sempre que a chave muda, ou seja, quando muda o sítio, um filtro ou se pede para recarregar.
   useEffect(() => {
-    if (!local) return;
+    if (chave === null) return;
     let ativo = true; // se os filtros mudarem a meio, a resposta antiga é ignorada
 
-    buscarPratosPerto({
-      latitude: local.latitude,
-      longitude: local.longitude,
-      raioKm,
-      precoMax,
-      categoria,
-      pesquisa: pesquisaAplicada,
-    })
+    buscarPratosPerto({ latitude, longitude, raioKm, precoMax, categoria, pesquisa: pesquisaAplicada })
       .then((pratos) => {
         if (ativo) setResultado({ chave, pratos, erro: null });
       })
@@ -160,7 +160,7 @@ export function PertoProvider({ children }) {
     return () => {
       ativo = false;
     };
-  }, [local, raioKm, precoMax, categoria, pesquisaAplicada, chave]);
+  }, [chave, latitude, longitude, raioKm, precoMax, categoria, pesquisaAplicada]);
 
   // RF04 visto pelo cliente: quando um restaurante marca um prato como esgotado, a lista muda logo.
   useEffect(() => {

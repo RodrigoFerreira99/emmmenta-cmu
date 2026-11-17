@@ -1,0 +1,157 @@
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { useLocalSearchParams } from 'expo-router';
+
+import PaginaRestaurante from '@/app/restaurante/[id]';
+import { abrirDirecoes, ligar } from '@/lib/ligacoes';
+import { buscarMenuDeHoje } from '@/services/menus';
+import { ouvirAlteracoesPratos } from '@/services/pratos';
+import { buscarRestaurante } from '@/services/restaurantes';
+
+// RF06 — testes à página do restaurante que o cliente vê.
+// A base de dados, o tempo real e as outras apps (telefone, mapas) são simulados. Correr com: npm test
+
+jest.mock('@/lib/supabase', () => ({ supabase: {} }));
+jest.mock('@expo/vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useLocalSearchParams: jest.fn() }));
+jest.mock('@/lib/ligacoes', () => ({ abrirDirecoes: jest.fn(), ligar: jest.fn() }));
+jest.mock('@/services/restaurantes', () => ({
+  ...jest.requireActual('@/services/restaurantes'),
+  buscarRestaurante: jest.fn(),
+}));
+jest.mock('@/services/menus', () => ({
+  ...jest.requireActual('@/services/menus'),
+  buscarMenuDeHoje: jest.fn(),
+}));
+jest.mock('@/services/pratos', () => ({
+  ...jest.requireActual('@/services/pratos'),
+  ouvirAlteracoesPratos: jest.fn(),
+}));
+
+const ID = '11111111-2222-3333-4444-555555555555';
+const TASCA = {
+  id: ID,
+  nome: 'Tasca do Manuel',
+  tipo_cozinha: 'Portuguesa',
+  morada: 'Rua de Cedofeita, 123, Porto',
+  latitude: 41.1496,
+  longitude: -8.611,
+  hora_abertura: '12:00:00',
+  hora_fecho: '15:00:00',
+  telefone: '+351222000000',
+  foto_url: null,
+};
+const SOPA = { id: 'p1', nome: 'Caldo verde', categoria: 'sopa', preco: 1.8, esgotado: false };
+const BACALHAU = { id: 'p2', nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 8.5, esgotado: true };
+const MENU = { id: 'm1', dia: '2026-11-17', preco_menu_completo: 10, pratos: [SOPA, BACALHAU] };
+
+const pararDeOuvir = jest.fn();
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  useLocalSearchParams.mockReturnValue({ id: ID, distancia: '0.35' });
+  buscarRestaurante.mockResolvedValue(TASCA);
+  buscarMenuDeHoje.mockResolvedValue(MENU);
+  ouvirAlteracoesPratos.mockReturnValue(pararDeOuvir);
+  abrirDirecoes.mockResolvedValue();
+  ligar.mockResolvedValue();
+});
+
+describe('Página do restaurante (RF06)', () => {
+  test('mostra o restaurante: tipo de cozinha, distância, horário, morada e telefone', async () => {
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText('Tasca do Manuel')).toBeTruthy();
+    expect(buscarRestaurante).toHaveBeenCalledWith(ID);
+    expect(screen.getByText('Portuguesa · a 350 m')).toBeTruthy();
+    expect(screen.getByText('12:00 – 15:00')).toBeTruthy();
+    expect(screen.getByText('Rua de Cedofeita, 123, Porto')).toBeTruthy();
+    expect(screen.getByText('222 000 000')).toBeTruthy();
+  });
+
+  test('mostra o menu de hoje com os preços e o esgotado riscado', async () => {
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText('Menu de hoje')).toBeTruthy();
+    expect(buscarMenuDeHoje).toHaveBeenCalledWith(ID);
+    expect(screen.getByText('Caldo verde')).toBeTruthy();
+    expect(screen.getByText('1,80 €')).toBeTruthy();
+    expect(screen.getByLabelText('Bacalhau à Brás, Peixe, esgotado')).toBeTruthy();
+    expect(screen.getAllByText('Esgotado')).toHaveLength(1);
+    expect(screen.getByText(/Menu completo/)).toBeTruthy();
+    expect(screen.getByText('10,00 €')).toBeTruthy();
+  });
+
+  test('o botão Ligar abre o telefone e o botão Direções abre a app de mapas', async () => {
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Ligar' }));
+    expect(ligar).toHaveBeenCalledWith('+351222000000');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Direções' }));
+    expect(abrirDirecoes).toHaveBeenCalledWith(expect.objectContaining({ latitude: 41.1496, longitude: -8.611 }));
+  });
+
+  test('se a outra app não abrir, a página explica em vez de não acontecer nada', async () => {
+    abrirDirecoes.mockRejectedValue(new Error('Não foi possível abrir a app de mapas.'));
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    await fireEvent.press(screen.getByRole('button', { name: 'Direções' }));
+    expect(await screen.findByText('Não foi possível abrir a app de mapas.')).toBeTruthy();
+  });
+
+  test('restaurante sem telefone nem horário: não mostra o botão Ligar nem a linha do horário', async () => {
+    buscarRestaurante.mockResolvedValue({ ...TASCA, telefone: null, hora_abertura: null, hora_fecho: null, tipo_cozinha: null });
+    useLocalSearchParams.mockReturnValue({ id: ID }); // aberto sem a distância
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    expect(screen.queryByRole('button', { name: 'Ligar' })).toBeNull();
+    expect(screen.queryByText('Horário de almoço')).toBeNull();
+    expect(screen.queryByText(/ a \d/)).toBeNull(); // sem distância, não inventa nenhuma
+    expect(screen.getByRole('button', { name: 'Direções' })).toBeTruthy();
+  });
+
+  test('restaurante que hoje ainda não publicou o menu', async () => {
+    buscarMenuDeHoje.mockResolvedValue(null);
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText('Este restaurante ainda não publicou o menu de hoje.')).toBeTruthy();
+    expect(ouvirAlteracoesPratos).not.toHaveBeenCalled(); // sem menu não há pratos para ouvir
+  });
+
+  test('restaurante que não existe', async () => {
+    buscarRestaurante.mockResolvedValue(null);
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText('Este restaurante já não está disponível.')).toBeTruthy();
+    expect(buscarMenuDeHoje).not.toHaveBeenCalled();
+  });
+
+  test('falha ao carregar: mostra a mensagem e deixa tentar outra vez (RNF08)', async () => {
+    buscarRestaurante.mockRejectedValueOnce(new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.'));
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText('Sem ligação à internet. Verifica a rede e tenta outra vez.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar outra vez' }));
+    expect(await screen.findByText('Menu de hoje')).toBeTruthy();
+  });
+});
+
+describe('Página do restaurante — esgotados em tempo real (RF04)', () => {
+  test('ouve só os pratos deste menu e mostra logo o que mudou', async () => {
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    expect(ouvirAlteracoesPratos).toHaveBeenCalledWith(expect.any(Function), { menuId: 'm1' });
+
+    const aoAlterar = ouvirAlteracoesPratos.mock.calls[0][0];
+    await act(async () => aoAlterar({ ...SOPA, esgotado: true }));
+    expect(screen.getAllByText('Esgotado')).toHaveLength(2);
+
+    await act(async () => aoAlterar({ ...BACALHAU, esgotado: false }));
+    expect(screen.getAllByText('Esgotado')).toHaveLength(1);
+    expect(screen.getByLabelText('Bacalhau à Brás, Peixe, 8,50 €')).toBeTruthy();
+  });
+
+  test('ao sair da página deixa de ouvir', async () => {
+    const { unmount } = await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    await unmount();
+    expect(pararDeOuvir).toHaveBeenCalledTimes(1);
+  });
+});
