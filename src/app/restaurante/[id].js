@@ -1,15 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { EtiquetaEsgotado } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { Botao, Carregar, Ecra } from '@/components/ui';
+import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { buscarMenuDeHoje, nomeDaCategoria } from '@/services/menus';
 import { formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
-import { buscarRestaurante, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
+import { buscarRestaurante, estadoDoHorario, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // Ecrã 4 · Página do restaurante (RF06) — responsável: André
@@ -25,7 +26,8 @@ export default function PaginaRestaurante() {
   const [tentativa, setTentativa] = useState(0); // aumenta quando se carrega em "Tentar outra vez"
   const [restaurante, setRestaurante] = useState(null);
   const [menu, setMenu] = useState(null); // null = hoje ainda não publicou
-  const [aviso, setAviso] = useState(null); // quando Ligar ou Direções não conseguem abrir a outra app
+  const [aviso, setAviso] = useState(null); // quando Ligar, Direções ou os favoritos não resultam
+  const { eFavorito, alternarFavorito } = useFavoritos();
 
   // 1) Ler o restaurante e, se existir, o menu de hoje.
   useEffect(() => {
@@ -86,6 +88,16 @@ export default function PaginaRestaurante() {
     }
   }
 
+  // Coração: guardar ou tirar dos favoritos (ficam só neste telemóvel — src/lib/favoritos.js).
+  async function mudarFavorito() {
+    setAviso(null);
+    try {
+      await alternarFavorito(restaurante.id);
+    } catch (erro) {
+      setAviso(erro.message);
+    }
+  }
+
   if (estado === 'aCarregar') return <Carregar />;
   if (estado === 'erro') return <EcraDeErro mensagem={erroAoCarregar} aoTentar={tentarOutraVez} />;
   if (estado === 'naoExiste') {
@@ -109,6 +121,8 @@ export default function PaginaRestaurante() {
     .filter(Boolean)
     .join(' · ');
   const pratos = menu?.pratos ?? [];
+  const agora = estadoDoHorario(restaurante.hora_abertura, restaurante.hora_fecho);
+  const favorito = eFavorito(restaurante.id);
 
   return (
     <Ecra bordas={['bottom']}>
@@ -124,15 +138,26 @@ export default function PaginaRestaurante() {
           </View>
         )}
 
-        <View style={estilos.grupo}>
-          <Text style={texto.titulo} accessibilityRole="header">
-            {restaurante.nome}
-          </Text>
-          {subtitulo ? <Text style={texto.pequeno}>{subtitulo}</Text> : null}
+        <View style={estilos.linhaDoTitulo}>
+          <View style={[estilos.grupo, estilos.ocuparTudo]}>
+            <Text style={texto.titulo} accessibilityRole="header">
+              {restaurante.nome}
+            </Text>
+            {subtitulo ? <Text style={texto.pequeno}>{subtitulo}</Text> : null}
+          </View>
+          <Pressable
+            onPress={mudarFavorito}
+            accessibilityRole="button"
+            accessibilityLabel={favorito ? 'Tirar dos favoritos' : 'Guardar nos favoritos'}
+            accessibilityState={{ selected: favorito }}
+            style={estilos.coracao}
+          >
+            <Ionicons name={favorito ? 'heart' : 'heart-outline'} size={26} color={cores.acento} />
+          </Pressable>
         </View>
 
         <View style={estilos.cartao}>
-          {horario ? <Linha icone="time-outline" titulo="Horário de almoço" valor={horario} /> : null}
+          {horario ? <Linha icone="time-outline" titulo="Horário de almoço" valor={horario} nota={agora?.texto} notaBoa={agora?.aberto} /> : null}
           <Linha icone="location-outline" titulo="Morada" valor={restaurante.morada} />
           {restaurante.telefone ? <Linha icone="call-outline" titulo="Telefone" valor={telefoneParaEcra(restaurante.telefone)} /> : null}
         </View>
@@ -189,14 +214,15 @@ export default function PaginaRestaurante() {
   );
 }
 
-// Uma linha de informação: ícone, título pequeno e valor.
-function Linha({ icone, titulo, valor }) {
+// Uma linha de informação: ícone, título pequeno e valor. "nota" aparece por baixo, a verde se "notaBoa".
+function Linha({ icone, titulo, valor, nota, notaBoa = false }) {
   return (
     <View style={estilos.linha}>
       <Ionicons name={icone} size={20} color={cores.acento} />
       <View style={estilos.ocuparTudo}>
         <Text style={estilos.linhaTitulo}>{titulo}</Text>
         <Text style={texto.corpo}>{valor}</Text>
+        {nota ? <Text style={[estilos.nota, notaBoa && estilos.notaBoa]}>{nota}</Text> : null}
       </View>
     </View>
   );
@@ -221,6 +247,11 @@ const estilos = StyleSheet.create({
   },
   linha: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco.m },
   linhaTitulo: { fontSize: 12, color: cores.textoSecundario },
+  nota: { ...texto.pequeno, fontWeight: '600' },
+  notaBoa: { color: cores.sucesso },
+  linhaDoTitulo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco.m },
+  // 48 x 48: área de toque confortável (RNF06)
+  coracao: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   botoes: { flexDirection: 'row', gap: espaco.m },
   aviso: { ...texto.pequeno, color: cores.erro },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },

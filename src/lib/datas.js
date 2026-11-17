@@ -44,6 +44,12 @@ export function horaCurta(instante) {
   return `${hour}h${minute}`;
 }
 
+/** A hora atual em Lisboa, como nos campos de horário: "13:05". */
+export function horaEmLisboa(agora = new Date()) {
+  const { hour, minute } = partes(agora, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  return `${hour}:${minute}`;
+}
+
 /** "Bom dia", "Boa tarde" ou "Boa noite", conforme a hora em Lisboa. */
 export function saudacao(agora = new Date()) {
   const hora = Number(partes(agora, { hour: '2-digit', hourCycle: 'h23' }).hour);

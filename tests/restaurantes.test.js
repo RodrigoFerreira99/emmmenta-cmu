@@ -482,3 +482,28 @@ describe('procurar a morada no mapa', () => {
     await verificacao;
   });
 });
+
+describe('estadoDoHorario (RF06: aberto agora?)', () => {
+  // em novembro Lisboa = UTC, por isso estas horas são as de Lisboa
+  const as = (hora) => new Date(`2026-11-17T${hora}:00Z`);
+
+  test('antes de abrir, durante o almoço e depois de fechar', () => {
+    expect(s.estadoDoHorario('12:00:00', '15:00:00', as('11:30'))).toEqual({ aberto: false, texto: 'Fechado agora · abre às 12:00' });
+    expect(s.estadoDoHorario('12:00:00', '15:00:00', as('12:00'))).toEqual({ aberto: true, texto: 'Aberto agora · fecha às 15:00' });
+    expect(s.estadoDoHorario('12:00:00', '15:00:00', as('14:59'))).toEqual({ aberto: true, texto: 'Aberto agora · fecha às 15:00' });
+    expect(s.estadoDoHorario('12:00:00', '15:00:00', as('15:00'))).toEqual({
+      aberto: false,
+      texto: 'Fechado agora · o almoço de hoje já terminou',
+    });
+  });
+
+  test('conta pela hora de Lisboa, também no verão', () => {
+    // 11h30 UTC em julho são 12h30 em Lisboa
+    expect(s.estadoDoHorario('12:00:00', '15:00:00', new Date('2026-07-14T11:30:00Z')).aberto).toBe(true);
+  });
+
+  test('sem horário não diz nada', () => {
+    expect(s.estadoDoHorario(null, null)).toBeNull();
+    expect(s.estadoDoHorario('12:00:00', null)).toBeNull();
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { descreverDia, diaPorExtenso, hojeEmLisboa, horaCurta, saudacao } from '@/lib/datas';
+import { descreverDia, diaPorExtenso, hojeEmLisboa, horaCurta, horaEmLisboa, saudacao } from '@/lib/datas';
 
 // RN01 — o "hoje" da app é sempre o dia em Lisboa, seja qual for a hora do telemóvel.
 // Os instantes abaixo estão em UTC (o "Z" no fim). No inverno Lisboa = UTC; no verão Lisboa = UTC+1.
@@ -83,5 +83,13 @@ describe('descreverDia', () => {
   test('a passagem de mês e de ano também conta como "ontem"', () => {
     expect(descreverDia('2026-11-30', new Date('2026-12-01T12:00:00Z'))).toBe('ontem');
     expect(descreverDia('2026-12-31', new Date('2027-01-01T12:00:00Z'))).toBe('ontem');
+  });
+});
+
+describe('horaEmLisboa', () => {
+  test('dá a hora de Lisboa no formato dos campos de horário', () => {
+    expect(horaEmLisboa(new Date('2026-11-17T13:05:00Z'))).toBe('13:05'); // inverno: Lisboa = UTC
+    expect(horaEmLisboa(new Date('2026-07-14T13:05:00Z'))).toBe('14:05'); // verão: Lisboa = UTC+1
+    expect(horaEmLisboa(new Date('2026-11-17T00:07:00Z'))).toBe('00:07'); // meia-noite com dois dígitos
   });
 });

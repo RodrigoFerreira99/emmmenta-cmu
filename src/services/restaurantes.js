@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 
+import { horaEmLisboa } from '@/lib/datas';
 import { traduzirErro } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
 
@@ -82,6 +83,22 @@ export function telefoneParaEcra(telefoneBd) {
   const digitos = telefoneBd.replace('+351', '');
   if (digitos.length !== 9) return telefoneBd;
   return `${digitos.slice(0, 3)} ${digitos.slice(3, 6)} ${digitos.slice(6)}`;
+}
+
+/**
+ * RF06 — o restaurante está aberto agora? Usa o horário de almoço e a hora de Lisboa (não a do telemóvel).
+ * Recebe as horas como vêm da base de dados ("12:00:00"). Devolve null se o restaurante não tiver horário,
+ * ou { aberto, texto }, por exemplo { aberto: true, texto: 'Aberto agora · fecha às 15:00' }.
+ */
+export function estadoDoHorario(horaAbertura, horaFecho, agora = new Date()) {
+  if (!horaAbertura || !horaFecho) return null;
+  const abre = horaParaEcra(horaAbertura);
+  const fecha = horaParaEcra(horaFecho);
+  const hora = horaEmLisboa(agora);
+  // "12:00" < "15:00" compara-se como texto porque as horas têm sempre dois dígitos
+  if (hora < abre) return { aberto: false, texto: `Fechado agora · abre às ${abre}` };
+  if (hora < fecha) return { aberto: true, texto: `Aberto agora · fecha às ${fecha}` };
+  return { aberto: false, texto: 'Fechado agora · o almoço de hoje já terminou' };
 }
 
 /** Linha da tabela "restaurantes" (ou null) → objeto "dados" para preencher o formulário. */
