@@ -1,7 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { escolherImagem } from '@/lib/fotografias';
+import { CameraNaApp } from '@/components/CameraNaApp';
+import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // RF02 — fotografia do restaurante: pré-visualização e botões para tirar, escolher ou remover.
@@ -18,17 +20,28 @@ import { cores, espaco, raio, texto } from '@/theme';
 
 const TAMANHO = 72; // lado do quadrado da pré-visualização, como no mock-up
 
-// As mesmas opções para a câmara e para a galeria.
-const OPCOES = {
+// Opções da galeria.
+const OPCOES_DA_GALERIA = {
   allowsEditing: true, // deixa recortar a imagem antes de a aceitar
   aspect: [4, 3], // proporção do recorte (só no Android; no iPhone o recorte é sempre quadrado)
 };
 
 export function SeletorFoto({ uri, aoEscolher, aoRemover, aEnviar = false }) {
-  // origem: 'camara' ou 'galeria'. A permissão da câmara é tratada em escolherImagem().
-  async function obterImagem(origem) {
+  const [cameraAberta, setCameraAberta] = useState(false);
+
+  // "Tirar": pede a permissão e abre a câmara dentro da app (ver CameraNaApp: porque não a app da câmara do telemóvel).
+  async function tirar() {
     try {
-      const caminho = await escolherImagem(origem, OPCOES);
+      await pedirAcessoACamara();
+      setCameraAberta(true);
+    } catch (erro) {
+      Alert.alert('Fotografia', erro.message);
+    }
+  }
+
+  async function daGaleria() {
+    try {
+      const caminho = await escolherDaGaleria(OPCOES_DA_GALERIA);
       if (caminho) aoEscolher(caminho); // null = a pessoa desistiu
     } catch (erro) {
       Alert.alert('Fotografia', erro.message);
@@ -58,14 +71,25 @@ export function SeletorFoto({ uri, aoEscolher, aoRemover, aEnviar = false }) {
           </View>
         ) : (
           <View style={estilos.botoes}>
-            <BotaoDeTexto icone="camera-outline" titulo="Tirar" rotulo="Tirar fotografia" onPress={() => obterImagem('camara')} />
-            <BotaoDeTexto icone="images-outline" titulo="Galeria" rotulo="Escolher fotografia da galeria" onPress={() => obterImagem('galeria')} />
+            <BotaoDeTexto icone="camera-outline" titulo="Tirar" rotulo="Tirar fotografia" onPress={tirar} />
+            <BotaoDeTexto icone="images-outline" titulo="Galeria" rotulo="Escolher fotografia da galeria" onPress={daGaleria} />
             {uri && aoRemover ? (
               <BotaoDeTexto icone="trash-outline" titulo="Remover" rotulo="Remover fotografia" cor={cores.textoSecundario} onPress={aoRemover} />
             ) : null}
           </View>
         )}
       </View>
+
+      {cameraAberta ? (
+        <CameraNaApp
+          dica="Fotografa a fachada ou a sala do restaurante"
+          aoTirar={(caminho) => {
+            setCameraAberta(false);
+            aoEscolher(caminho);
+          }}
+          aoFechar={() => setCameraAberta(false)}
+        />
+      ) : null}
     </View>
   );
 }

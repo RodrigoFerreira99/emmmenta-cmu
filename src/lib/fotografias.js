@@ -1,40 +1,45 @@
 import * as ImagePicker from 'expo-image-picker';
 
-// Tirar uma fotografia ou escolher uma imagem da galeria.
-// É usado em dois sítios: na fotografia do restaurante (RF02, SeletorFoto) e na leitura do menu
-// por fotografia (LerMenuDaFoto). Assim a regra da permissão da câmara está escrita uma só vez.
+// Tirar ou escolher fotografias. É usado em dois sítios: na fotografia do restaurante (RF02, SeletorFoto)
+// e na leitura do menu por fotografia (LerMenuDaFoto).
+//
+// Para TIRAR uma fotografia usamos a câmara dentro da própria app (componente CameraNaApp), e não a app da
+// câmara do telemóvel: no Android, enquanto a outra app está aberta, o sistema pode fechar a Emmmenta para
+// libertar memória, e a fotografia perdia-se. Aqui fica só o pedido de permissão.
 
 /**
- * origem: 'camara' ou 'galeria'.
+ * Pede a permissão da câmara (o sistema só mostra o pedido da primeira vez).
+ * Não devolve nada se ficar concedida; senão lança um Error com mensagem em português (RNF08).
+ * A permissão da câmara é uma só no telemóvel: serve tanto para o expo-image-picker como para o expo-camera.
+ */
+export async function pedirAcessoACamara() {
+  let concedida = false;
+  try {
+    ({ granted: concedida } = await ImagePicker.requestCameraPermissionsAsync());
+  } catch (erro) {
+    console.warn('Erro técnico (permissão da câmara):', erro?.message ?? erro);
+  }
+  if (!concedida) {
+    throw new Error('Sem acesso à câmara não é possível tirar a fotografia. Podes escolher uma imagem da galeria.');
+  }
+}
+
+/**
+ * Escolher uma imagem da galeria. A galeria não precisa de permissão: o seletor é do próprio sistema
+ * e a app só recebe a imagem que a pessoa escolher.
  * opcoes: opções do expo-image-picker, por exemplo { allowsEditing: true, aspect: [4, 3] }.
  *
  * Devolve o caminho local da imagem, ou null se a pessoa desistiu.
- * Lança um Error com mensagem em português se não houver acesso à câmara ou se algo falhar.
+ * Lança um Error com mensagem em português se algo falhar.
  */
-export async function escolherImagem(origem, opcoes = {}) {
-  // quality 1: sem compressão aqui — quem usa a imagem comprime-a uma só vez, no serviço
-  const todasAsOpcoes = { mediaTypes: 'images', quality: 1, ...opcoes };
-
-  let semCamara = false;
-  let resultado = null;
+export async function escolherDaGaleria(opcoes = {}) {
+  let resultado;
   try {
-    if (origem === 'camara') {
-      // A câmara precisa de permissão. Só é pedida aqui, quando a pessoa carrega no botão.
-      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-      semCamara = !granted;
-      if (granted) resultado = await ImagePicker.launchCameraAsync(todasAsOpcoes);
-    } else {
-      // A galeria não precisa de permissão: o seletor é do próprio sistema
-      // e a app só recebe a imagem que a pessoa escolher.
-      resultado = await ImagePicker.launchImageLibraryAsync(todasAsOpcoes);
-    }
+    // quality 1: sem compressão aqui — quem usa a imagem comprime-a uma só vez, no serviço
+    resultado = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 1, ...opcoes });
   } catch (erro) {
-    console.warn('Erro técnico (obter fotografia):', erro?.message ?? erro);
-    throw new Error('Não foi possível obter a fotografia. Tenta outra vez.');
-  }
-
-  if (semCamara) {
-    throw new Error('Sem acesso à câmara não é possível tirar a fotografia. Podes escolher uma imagem da galeria.');
+    console.warn('Erro técnico (escolher fotografia):', erro?.message ?? erro);
+    throw new Error('Não foi possível abrir a galeria. Tenta outra vez.');
   }
   if (!resultado || resultado.canceled) return null;
   return resultado.assets[0].uri;
