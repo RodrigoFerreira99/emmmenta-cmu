@@ -12,6 +12,7 @@ import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
+import { lerEmVozAlta, pararDeLer, textoDoMenuParaOuvir } from '@/lib/ouvirMenu';
 import { partilhar, textoDoConvite } from '@/lib/partilhar';
 import { vibrarLeve } from '@/lib/vibrar';
 import { CATEGORIAS_EM_INGLES, traduzirPratos } from '@/services/assistente';
@@ -28,6 +29,7 @@ import { cores, espaco, raio, texto } from '@/theme';
 // O botão "English" mostra o menu em inglês para turistas (traduzido pelo assistente de IA).
 // Também em tempo real: "Há mesa" / "Cheio agora" e as "Últimas doses". Tocar na fotografia de um
 // prato mostra-a em grande. "Ver o caminho a pé" mostra no mapa o percurso até ao restaurante (CaminhoAPe).
+// O botão do altifalante lê o menu em voz alta (em português ou, no menu em inglês, em inglês).
 export default function PaginaRestaurante() {
   const { id, distancia } = useLocalSearchParams();
 
@@ -42,6 +44,10 @@ export default function PaginaRestaurante() {
   const [aTraduzir, setATraduzir] = useState(false);
   const [traducoes, setTraducoes] = useState({}); // nome em português → nome em inglês
   const [caminhoAberto, setCaminhoAberto] = useState(false);
+  const [aFalar, setAFalar] = useState(false); // o telemóvel está a ler o menu em voz alta
+
+  // ao sair da página, a voz cala-se
+  useEffect(() => () => pararDeLer(), []);
 
   // 1) Ler o restaurante e, se existir, o menu de hoje.
   useEffect(() => {
@@ -144,6 +150,24 @@ export default function PaginaRestaurante() {
     } finally {
       setATraduzir(false);
     }
+  }
+
+  // Ouvir o menu: lê os pratos, os preços e o que está esgotado; tocar outra vez pára.
+  function alternarVoz() {
+    if (aFalar) {
+      pararDeLer();
+      setAFalar(false);
+      return;
+    }
+    const texto = textoDoMenuParaOuvir({
+      nomeDoRestaurante: restaurante.nome,
+      pratos: menu?.pratos ?? [],
+      precoMenuCompleto: menu?.preco_menu_completo,
+      emIngles,
+      traducoes,
+    });
+    setAFalar(true);
+    lerEmVozAlta(texto, { emIngles, aoAcabar: () => setAFalar(false) });
   }
 
   if (estado === 'aCarregar') {
@@ -256,6 +280,16 @@ export default function PaginaRestaurante() {
           <Text style={[texto.subtitulo, estilos.ocuparTudo]} accessibilityRole="header">
             {emIngles ? "Today's menu" : 'Menu de hoje'}
           </Text>
+          {pratos.length > 0 ? (
+            <Pressable
+              onPress={alternarVoz}
+              accessibilityRole="button"
+              accessibilityLabel={aFalar ? (emIngles ? 'Stop reading the menu' : 'Parar de ler o menu') : emIngles ? 'Listen to the menu' : 'Ouvir o menu em voz alta'}
+              style={estilos.botaoDeIdioma}
+            >
+              <Ionicons name={aFalar ? 'stop-circle-outline' : 'volume-high-outline'} size={24} color={cores.acento} />
+            </Pressable>
+          ) : null}
           {pratos.length > 0 ? (
             <Pressable
               onPress={alternarIngles}

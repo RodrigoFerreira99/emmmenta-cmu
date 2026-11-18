@@ -44,6 +44,8 @@ jest.mock('@/services/menus', () => ({
   buscarMenuDeHoje: jest.fn(),
   ouvirLotacao: jest.fn(),
 }));
+// A voz do telemóvel (ouvir o menu) é simulada.
+jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }));
 // O mapa só existe no telemóvel: aqui é trocado por caixas simples (a linha do caminho guarda os pontos).
 jest.mock('react-native-maps', () => {
   const mockReact = require('react');
@@ -425,5 +427,27 @@ describe('Página do restaurante — caminho a pé', () => {
     await abrirOCaminho();
     expect(await screen.findByText('56 min a pé · 4,2 km')).toBeTruthy();
     expect(screen.getByText(/É longe para ir a pé/)).toBeTruthy();
+  });
+});
+
+describe('Página do restaurante — ouvir o menu em voz alta', () => {
+  test('o altifalante lê o menu; tocar outra vez pára; ao acabar o botão volta ao normal', async () => {
+    const Speech = jest.requireMock('expo-speech');
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Ouvir o menu em voz alta' }));
+    expect(Speech.speak).toHaveBeenCalledWith(expect.stringContaining('Menu de hoje: Tasca do Manuel. Caldo verde, Sopa, 1 euro e 80.'), expect.anything());
+    expect(screen.getByRole('button', { name: 'Parar de ler o menu' })).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Parar de ler o menu' }));
+    expect(Speech.stop).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Ouvir o menu em voz alta' })).toBeTruthy();
+
+    // quando a voz acaba sozinha, o botão também volta a "Ouvir"
+    await fireEvent.press(screen.getByRole('button', { name: 'Ouvir o menu em voz alta' }));
+    const { onDone } = Speech.speak.mock.calls.at(-1)[1];
+    await act(async () => onDone());
+    expect(screen.getByRole('button', { name: 'Ouvir o menu em voz alta' })).toBeTruthy();
   });
 });
