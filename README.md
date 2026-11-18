@@ -144,6 +144,12 @@ node scripts/demonstracao.mjs estado
 
 mostra quais têm menu hoje, sem mudar nada. `retirar` apaga o menu de hoje de todos.
 
+```bash
+node scripts/demonstracao.mjs sala
+```
+
+mesmo antes de mostrar a lista ao júri: põe "Há mesa" ou "Cheio agora" nos restaurantes de demonstração (o aviso só aparece durante 45 minutos). Os pratos de demonstração já têm etiquetas (Vegano, Sem glúten…), para o filtro "Dieta e sabor" ter resultados.
+
 ### 3. O telemóvel tem de chegar ao computador
 
 O Expo Go carrega a app a partir do computador. Na rede da escola isso pode estar bloqueado, por isso convém experimentar antes, por esta ordem:
@@ -188,3 +194,5 @@ Dois telemóveis: um com uma conta de restaurante e outro com uma conta de clien
 4. **Cliente:** botão com estrelas → "Diz o que te apetece" → por exemplo "peixe até 8 euros aqui perto": a app põe os filtros sozinha.
 5. **Cliente:** "Escolhe por mim" (ou abanar o telemóvel): a app sorteia o almoço.
 6. **Cliente (turista):** na página do restaurante, o botão "English" mostra o menu em inglês.
+7. **Restaurante:** no Painel, "Últimas doses" num prato e "Cheio" em "Como está a sala agora?". No telemóvel do cliente aparecem logo a etiqueta laranja e "Cheio agora".
+8. **Cliente:** filtros → "Dieta e sabor" → "Vegano" (ou dizer "sou celíaco, quero peixe" ao assistente). Tocar na fotografia de um prato mostra-a em grande.

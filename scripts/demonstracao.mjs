@@ -12,6 +12,8 @@
 //   node scripts/demonstracao.mjs criar      cria as contas e os restaurantes (só da primeira vez)
 //   node scripts/demonstracao.mjs publicar   publica o menu de hoje em todos (no próprio dia da demonstração)
 //   node scripts/demonstracao.mjs estado     mostra quais têm menu hoje (não muda nada)
+//   node scripts/demonstracao.mjs sala       põe "Há mesa" / "Cheio agora" nos menus de hoje (vale 45 minutos:
+//                                            correr mesmo antes de mostrar a lista ao júri)
 //   node scripts/demonstracao.mjs retirar    apaga o menu de hoje de todos (os restaurantes ficam)
 //
 // Segurança: usa só a chave pública (a mesma da app, do ficheiro .env) e as regras de segurança (RLS)
@@ -28,7 +30,8 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 
 // Cada restaurante tem dois menus que alternam de dia para dia, para a demonstração não parecer parada.
 // Os campos dos pratos são os da tabela "pratos": nome, categoria ('sopa' | 'carne' | 'peixe' |
-// 'vegetariano' | 'sobremesa') e preco (euros).
+// 'vegetariano' | 'sobremesa'), preco (euros) e, se houver, as etiquetas ('vegano', 'sem-gluten',
+// 'sem-lactose', 'picante') — assim o filtro "Dieta e sabor" também tem pratos na demonstração.
 const RESTAURANTES = [
   {
     conta: 'tasca-do-sancho',
@@ -43,7 +46,7 @@ const RESTAURANTES = [
       {
         precoMenuCompleto: 9.5,
         pratos: [
-          ['Caldo verde', 'sopa', 1.8],
+          ['Caldo verde', 'sopa', 1.8, ['sem-gluten', 'sem-lactose']],
           ['Rojões à moda do Minho', 'carne', 8.5],
           ['Bacalhau à Brás', 'peixe', 9],
           ['Arroz doce', 'sobremesa', 2],
@@ -52,8 +55,8 @@ const RESTAURANTES = [
       {
         precoMenuCompleto: 9,
         pratos: [
-          ['Sopa de legumes', 'sopa', 1.5],
-          ['Frango assado', 'carne', 7.5],
+          ['Sopa de legumes', 'sopa', 1.5, ['vegano', 'sem-gluten', 'sem-lactose']],
+          ['Frango assado', 'carne', 7.5, ['sem-gluten', 'sem-lactose']],
           ['Pescada cozida com todos', 'peixe', 8.5],
           ['Leite-creme', 'sobremesa', 2.2],
         ],
@@ -74,8 +77,8 @@ const RESTAURANTES = [
         precoMenuCompleto: null,
         pratos: [
           ['Sopa de peixe', 'sopa', 2.5],
-          ['Sardinhas assadas', 'peixe', 9.5],
-          ['Polvo à lagareiro', 'peixe', 13.5],
+          ['Sardinhas assadas', 'peixe', 9.5, ['sem-gluten', 'sem-lactose']],
+          ['Polvo à lagareiro', 'peixe', 13.5, ['sem-gluten']],
           ['Bolo de bolacha', 'sobremesa', 2.5],
         ],
       },
@@ -84,7 +87,7 @@ const RESTAURANTES = [
         pratos: [
           ['Sopa de marisco', 'sopa', 3],
           ['Caldeirada de peixe', 'peixe', 11],
-          ['Dourada grelhada', 'peixe', 10.5],
+          ['Dourada grelhada', 'peixe', 10.5, ['sem-gluten', 'sem-lactose']],
           ['Pudim', 'sobremesa', 2.2],
         ],
       },
@@ -104,18 +107,18 @@ const RESTAURANTES = [
         precoMenuCompleto: 10,
         pratos: [
           ['Canja', 'sopa', 1.8],
-          ['Picanha grelhada', 'carne', 11],
+          ['Picanha grelhada', 'carne', 11, ['sem-gluten', 'sem-lactose']],
           ['Febras de porco', 'carne', 7],
           ['Espetada mista', 'carne', 9.5],
-          ['Salada de fruta', 'sobremesa', 2],
+          ['Salada de fruta', 'sobremesa', 2, ['vegano', 'sem-gluten', 'sem-lactose']],
         ],
       },
       {
         precoMenuCompleto: 10,
         pratos: [
-          ['Sopa de feijão', 'sopa', 1.8],
+          ['Sopa de feijão', 'sopa', 1.8, ['vegano', 'sem-gluten']],
           ['Costeleta de novilho', 'carne', 12.5],
-          ['Entrecosto grelhado', 'carne', 8],
+          ['Entrecosto grelhado', 'carne', 8, ['sem-gluten']],
           ['Mousse de chocolate', 'sobremesa', 2.2],
         ],
       },
@@ -134,8 +137,8 @@ const RESTAURANTES = [
       {
         precoMenuCompleto: 9.5,
         pratos: [
-          ['Creme de abóbora', 'sopa', 2],
-          ['Caril de grão e legumes', 'vegetariano', 8],
+          ['Creme de abóbora', 'sopa', 2, ['vegano', 'sem-gluten']],
+          ['Caril de grão e legumes', 'vegetariano', 8, ['vegano', 'sem-gluten', 'picante']],
           ['Lasanha de espinafres', 'vegetariano', 8.5],
           ['Bolo de cenoura', 'sobremesa', 2],
         ],
@@ -143,9 +146,9 @@ const RESTAURANTES = [
       {
         precoMenuCompleto: 9.5,
         pratos: [
-          ['Sopa de lentilhas', 'sopa', 2],
-          ['Hambúrguer de feijão-preto', 'vegetariano', 8.5],
-          ['Risotto de cogumelos', 'vegetariano', 9],
+          ['Sopa de lentilhas', 'sopa', 2, ['vegano', 'sem-gluten', 'sem-lactose']],
+          ['Hambúrguer de feijão-preto', 'vegetariano', 8.5, ['vegano']],
+          ['Risotto de cogumelos', 'vegetariano', 9, ['sem-gluten']],
           ['Tarte de maçã', 'sobremesa', 2.5],
         ],
       },
@@ -167,16 +170,16 @@ const RESTAURANTES = [
           ['Sopa do dia', 'sopa', 1.2],
           ['Arroz de pato', 'carne', 6.5],
           ['Pescada frita com arroz de tomate', 'peixe', 6.5],
-          ['Fruta da época', 'sobremesa', 1],
+          ['Fruta da época', 'sobremesa', 1, ['vegano', 'sem-gluten', 'sem-lactose']],
         ],
       },
       {
         precoMenuCompleto: 7.5,
         pratos: [
-          ['Sopa de grão', 'sopa', 1.2],
+          ['Sopa de grão', 'sopa', 1.2, ['vegano', 'sem-gluten']],
           ['Feijoada', 'carne', 6.5],
           ['Filetes de pescada', 'peixe', 6.5],
-          ['Gelatina', 'sobremesa', 1],
+          ['Gelatina', 'sobremesa', 1, ['sem-gluten', 'sem-lactose']],
         ],
       },
     ],
@@ -194,7 +197,7 @@ const RESTAURANTES = [
       {
         precoMenuCompleto: null,
         pratos: [
-          ['Francesinha', 'carne', 9.5],
+          ['Francesinha', 'carne', 9.5, ['picante']],
           ['Prego no pão', 'carne', 5.5],
           ['Bacalhau com natas', 'peixe', 8.5],
           ['Natas do céu', 'sobremesa', 2.5],
@@ -203,9 +206,9 @@ const RESTAURANTES = [
       {
         precoMenuCompleto: null,
         pratos: [
-          ['Francesinha especial', 'carne', 11],
-          ['Cachorro à moda do Porto', 'carne', 6],
-          ['Salada de atum', 'peixe', 6.5],
+          ['Francesinha especial', 'carne', 11, ['picante']],
+          ['Cachorro à moda do Porto', 'carne', 6, ['picante']],
+          ['Salada de atum', 'peixe', 6.5, ['sem-gluten', 'sem-lactose']],
           ['Baba de camelo', 'sobremesa', 2.5],
         ],
       },
@@ -360,7 +363,7 @@ async function publicar() {
       // começa sempre do zero: tira os pratos que lá estivessem e põe os do menu de hoje (nenhum esgotado)
       const apagar = await cliente.from('pratos').delete().eq('menu_id', menu.id);
       if (apagar.error) throw new Error(apagar.error.message);
-      const pratos = menuDeHoje.pratos.map(([nome, categoria, preco]) => ({ menu_id: menu.id, nome, categoria, preco }));
+      const pratos = menuDeHoje.pratos.map(([nome, categoria, preco, etiquetas = []]) => ({ menu_id: menu.id, nome, categoria, preco, etiquetas }));
       const inserir = await cliente.from('pratos').insert(pratos);
       if (inserir.error) throw new Error(inserir.error.message);
 
@@ -393,6 +396,35 @@ async function estado() {
   }
 }
 
+// "Há mesa" / "Cheio agora" nos menus de hoje (como no Painel da app). Um em cada três fica "Cheio".
+// O aviso só aparece aos clientes durante 45 minutos, por isso corre-se mesmo antes da demonstração.
+async function sala() {
+  const senha = palavraPasse({ podeCriar: false });
+  for (const [indice, restaurante] of RESTAURANTES.entries()) {
+    const cliente = novoCliente();
+    try {
+      const utilizador = await entrar(cliente, restaurante, senha);
+      const guardado = await buscarRestaurante(cliente, utilizador.id);
+      if (!guardado) throw new Error('o restaurante não existe — corre primeiro "criar"');
+      const lotacao = indice % 3 === 0 ? 'cheio' : 'ha-mesa';
+      // a hora (lotacao_em) é posta pela base de dados; só se muda o menu de HOJE (RN01)
+      const { data, error } = await cliente
+        .from('menus')
+        .update({ lotacao })
+        .eq('restaurante_id', guardado.id)
+        .eq('dia', hojeEmLisboa())
+        .select('id');
+      if (error) throw new Error(error.message);
+      if (!data?.length) throw new Error('ainda não tem menu hoje — corre primeiro "publicar"');
+      console.log(`✔ ${restaurante.nome}: ${lotacao === 'cheio' ? 'Cheio agora' : 'Há mesa'} (durante 45 minutos)`);
+    } catch (erro) {
+      console.log(`✖ ${restaurante.nome}: ${erro.message}`);
+    } finally {
+      await cliente.auth.signOut();
+    }
+  }
+}
+
 async function retirar() {
   const senha = palavraPasse({ podeCriar: false });
   for (const restaurante of RESTAURANTES) {
@@ -414,9 +446,9 @@ async function retirar() {
   }
 }
 
-const COMANDOS = { criar, publicar, estado, retirar };
+const COMANDOS = { criar, publicar, estado, sala, retirar };
 const comando = COMANDOS[process.argv[2]];
 if (!comando) {
-  falhar('Usa: node scripts/demonstracao.mjs criar | publicar | estado | retirar');
+  falhar('Usa: node scripts/demonstracao.mjs criar | publicar | estado | sala | retirar');
 }
 await comando();
