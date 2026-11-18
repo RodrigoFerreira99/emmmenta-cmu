@@ -88,11 +88,12 @@ Os sete requisitos estão feitos e já estão no `main`. O que falta testar em c
 
 ## Serviços externos
 
-Além do Supabase, a app usa dois serviços. Nenhum recebe dados pessoais dos utilizadores.
+Além do Supabase, a app usa três serviços. Só o de caminhos recebe a localização do cliente, e só quando ele pede o caminho a pé (arredondada a cerca de 100 m, sem ficar guardada pela app).
 
 - **Encontrar a morada no mapa (RF02):** o botão do perfil do restaurante envia o texto da morada ao [Nominatim](https://nominatim.org/), o serviço público do OpenStreetMap, e recebe as coordenadas. É gratuito e não precisa de chave. A morada de um restaurante é um dado público do negócio. Se o serviço falhar, o pin põe-se à mão.
 - **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA no serviço Groq (plano gratuito). A fotografia não fica guardada.
 - **Assistente (pesquisa por frase e menu em inglês):** o texto que o cliente escreve em "Diz o que te apetece" e os nomes dos pratos do menu são enviados à função `assistente` do Supabase (`supabase/functions/assistente/index.js`), que usa o mesmo serviço Groq. Não vai a localização nem nenhum dado da conta. Se o serviço falhar, a pesquisa por frase usa regras simples no próprio telemóvel e o botão "English" avisa que não foi possível traduzir.
+- **Caminho a pé até ao restaurante:** o botão "Ver o caminho a pé" da página do restaurante mostra, num mapa dentro da app, o percurso pelas ruas, com o tempo e a distância ("12 min a pé · 870 m"). O percurso é pedido ao serviço de caminhos do OpenStreetMap ([routing.openstreetmap.de](https://routing.openstreetmap.de/about.html), gratuito e sem chave), com a localização do cliente arredondada a cerca de 100 m. As regras desse serviço pedem no máximo um pedido por segundo (a app faz um por toque), que a app se identifique e que se mostre a atribuição ao OpenStreetMap com a ligação "Corrigir o mapa". Se o serviço falhar, aparece uma linha reta com uma estimativa. Para ser guiado passo a passo, continua a haver o botão "Direções" (abre a app de mapas).
 
 ### Ativar a IA (leitura por fotografia e assistente)
 
@@ -196,3 +197,4 @@ Dois telemóveis: um com uma conta de restaurante e outro com uma conta de clien
 6. **Cliente (turista):** na página do restaurante, o botão "English" mostra o menu em inglês.
 7. **Restaurante:** no Painel, "Últimas doses" num prato e "Cheio" em "Como está a sala agora?". No telemóvel do cliente aparecem logo a etiqueta laranja e "Cheio agora".
 8. **Cliente:** filtros → "Dieta e sabor" → "Vegano" (ou dizer "sou celíaco, quero peixe" ao assistente). Tocar na fotografia de um prato mostra-a em grande.
+9. **Cliente:** na página do restaurante, "Ver o caminho a pé": o percurso aparece no mapa com o tempo a pé.

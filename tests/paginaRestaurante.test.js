@@ -7,6 +7,8 @@ import PaginaRestaurante from '@/app/restaurante/[id]';
 import { alternarFavorito } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { traduzirPratos } from '@/services/assistente';
+import { calcularCaminhoAPe } from '@/services/caminho';
+import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
 import { buscarMenuDeHoje, ouvirLotacao } from '@/services/menus';
 import { ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante } from '@/services/restaurantes';
@@ -42,6 +44,18 @@ jest.mock('@/services/menus', () => ({
   buscarMenuDeHoje: jest.fn(),
   ouvirLotacao: jest.fn(),
 }));
+// O mapa só existe no telemóvel: aqui é trocado por caixas simples (a linha do caminho guarda os pontos).
+jest.mock('react-native-maps', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+  const MapView = (props) => mockReact.createElement(View, { testID: 'mapa-do-caminho', ...props });
+  const Marker = (props) => mockReact.createElement(View, { testID: 'marcador-do-restaurante', ...props });
+  const Polyline = (props) => mockReact.createElement(View, { testID: 'linha-do-caminho', ...props });
+  return { __esModule: true, default: MapView, Marker, Polyline };
+});
+// A localização do telemóvel e o serviço de caminhos também são simulados.
+jest.mock('@/services/localizacao', () => ({ estadoDaPermissao: jest.fn(), pedirPermissao: jest.fn(), lerLocalizacao: jest.fn() }));
+jest.mock('@/services/caminho', () => ({ ...jest.requireActual('@/services/caminho'), calcularCaminhoAPe: jest.fn() }));
 jest.mock('@/services/assistente', () => ({
   ...jest.requireActual('@/services/assistente'),
   traduzirPratos: jest.fn(),
@@ -336,5 +350,80 @@ describe('Página do restaurante — lotação, fotografias, etiquetas e última
     expect(screen.getByLabelText('Fotografia de Caldo verde')).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Fechar a fotografia' }));
     expect(screen.queryByLabelText('Fotografia de Caldo verde')).toBeNull();
+  });
+});
+
+describe('Página do restaurante — caminho a pé', () => {
+  const AQUI = { latitude: 41.152, longitude: -8.613 };
+  const PELAS_RUAS = { pontos: [AQUI, { latitude: 41.1496, longitude: -8.611 }], distanciaM: 872, duracaoMin: 12, emLinhaReta: false };
+
+  async function abrirOCaminho() {
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver o caminho a pé' }));
+  }
+
+  beforeEach(() => {
+    estadoDaPermissao.mockResolvedValue('concedida');
+    lerLocalizacao.mockResolvedValue(AQUI);
+    pedirPermissao.mockResolvedValue(true);
+    calcularCaminhoAPe.mockResolvedValue(PELAS_RUAS);
+  });
+
+  test('com a permissão já dada, mostra o tempo, a distância e a linha do caminho no mapa', async () => {
+    await abrirOCaminho();
+    expect(await screen.findByText('12 min a pé · 870 m')).toBeTruthy();
+    expect(calcularCaminhoAPe).toHaveBeenCalledWith(AQUI, { latitude: 41.1496, longitude: -8.611 });
+    expect(screen.getByTestId('linha-do-caminho').props.coordinates).toEqual(PELAS_RUAS.pontos);
+    expect(screen.getByText('Corrigir o mapa')).toBeTruthy(); // atribuição ao OpenStreetMap (regra do serviço)
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Ser guiado pela app de mapas' }));
+    expect(abrirDirecoes).toHaveBeenCalledWith(expect.objectContaining({ latitude: 41.1496, longitude: -8.611 }));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Esconder o caminho a pé' }));
+    expect(screen.queryByTestId('mapa-do-caminho')).toBeNull();
+  });
+
+  test('sem permissão, explica porque precisa da localização e só pede quando o cliente carrega (RNF04)', async () => {
+    estadoDaPermissao.mockResolvedValue('porPedir');
+    await abrirOCaminho();
+    expect(await screen.findByText(/precisa de saber onde estás/)).toBeTruthy();
+    expect(pedirPermissao).not.toHaveBeenCalled();
+    expect(lerLocalizacao).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Usar a minha localização' }));
+    expect(pedirPermissao).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('12 min a pé · 870 m')).toBeTruthy();
+  });
+
+  test('com a permissão recusada, explica e sugere as Direções', async () => {
+    estadoDaPermissao.mockResolvedValue('negada');
+    await abrirOCaminho();
+    expect(await screen.findByText(/A permissão de localização está desligada/)).toBeTruthy();
+    expect(calcularCaminhoAPe).not.toHaveBeenCalled();
+  });
+
+  test('se não souber onde o cliente está, deixa tentar outra vez', async () => {
+    lerLocalizacao.mockRejectedValueOnce(new Error('Não foi possível saber onde estás.'));
+    await abrirOCaminho();
+    expect(await screen.findByText(/Não foi possível saber onde estás/)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar outra vez' }));
+    expect(await screen.findByText('12 min a pé · 870 m')).toBeTruthy();
+    expect(lerLocalizacao).toHaveBeenCalledTimes(2);
+  });
+
+  test('plano B: sem o caminho pelas ruas, mostra a linha reta e avisa (RNF08)', async () => {
+    calcularCaminhoAPe.mockResolvedValue({ pontos: PELAS_RUAS.pontos, distanciaM: 350, duracaoMin: 5, emLinhaReta: true });
+    await abrirOCaminho();
+    expect(await screen.findByText('cerca de 5 min a pé · 350 m')).toBeTruthy();
+    expect(screen.getByText(/a linha no mapa é em linha reta/)).toBeTruthy();
+    expect(screen.queryByText('Corrigir o mapa')).toBeNull();
+  });
+
+  test('longe demais para ir a pé: sugere a app de mapas', async () => {
+    calcularCaminhoAPe.mockResolvedValue({ ...PELAS_RUAS, distanciaM: 4200, duracaoMin: 56 });
+    await abrirOCaminho();
+    expect(await screen.findByText('56 min a pé · 4,2 km')).toBeTruthy();
+    expect(screen.getByText(/É longe para ir a pé/)).toBeTruthy();
   });
 });

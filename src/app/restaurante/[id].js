@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CaminhoAPe } from '@/components/CaminhoAPe';
 import { EtiquetaEsgotado, EtiquetaUltimasDoses } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { PaginaFantasma } from '@/components/Esqueleto';
@@ -26,7 +27,7 @@ import { cores, espaco, raio, texto } from '@/theme';
 // e o menu de hoje. Os pratos esgotados aparecem riscados e mudam em tempo real (RF04).
 // O botão "English" mostra o menu em inglês para turistas (traduzido pelo assistente de IA).
 // Também em tempo real: "Há mesa" / "Cheio agora" e as "Últimas doses". Tocar na fotografia de um
-// prato mostra-a em grande.
+// prato mostra-a em grande. "Ver o caminho a pé" mostra no mapa o percurso até ao restaurante (CaminhoAPe).
 export default function PaginaRestaurante() {
   const { id, distancia } = useLocalSearchParams();
 
@@ -40,6 +41,7 @@ export default function PaginaRestaurante() {
   const [emIngles, setEmIngles] = useState(false);
   const [aTraduzir, setATraduzir] = useState(false);
   const [traducoes, setTraducoes] = useState({}); // nome em português → nome em inglês
+  const [caminhoAberto, setCaminhoAberto] = useState(false);
 
   // 1) Ler o restaurante e, se existir, o menu de hoje.
   useEffect(() => {
@@ -175,6 +177,8 @@ export default function PaginaRestaurante() {
   const pratos = menu?.pratos ?? [];
   const agora = estadoDoHorario(restaurante.hora_abertura, restaurante.hora_fecho);
   const favorito = eFavorito(restaurante.id);
+  // o caminho a pé só se pode mostrar se o restaurante tiver o ponto no mapa
+  const temPonto = Number.isFinite(restaurante.latitude) && Number.isFinite(restaurante.longitude);
 
   return (
     <Ecra bordas={['bottom']}>
@@ -233,6 +237,15 @@ export default function PaginaRestaurante() {
             <Botao icone="navigate-outline" titulo="Direções" onPress={() => abrirOutraApp(() => abrirDirecoes(restaurante))} />
           </View>
         </View>
+        {temPonto ? (
+          <Botao
+            tipo="secundario"
+            icone="walk-outline"
+            titulo={caminhoAberto ? 'Esconder o caminho a pé' : 'Ver o caminho a pé'}
+            onPress={() => setCaminhoAberto((aberto) => !aberto)}
+          />
+        ) : null}
+        {caminhoAberto ? <CaminhoAPe restaurante={restaurante} aoAbrirDirecoes={() => abrirOutraApp(() => abrirDirecoes(restaurante))} /> : null}
         {aviso ? (
           <Text style={estilos.aviso} accessibilityRole="alert">
             {aviso}
