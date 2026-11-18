@@ -196,27 +196,44 @@ export function PertoProvider({ children }) {
     };
   }, [chave, latitude, longitude, raioKm, precoMax, categoria, etiqueta, pesquisaAplicada]);
 
-  // RF04 visto pelo cliente: quando um restaurante marca um prato como esgotado, a lista muda logo.
+  // Tempo real: só se ouvem os menus que estão na lista, e não as mudanças de todos os restaurantes.
+  // "idsDosMenus" é um texto ("m1,m2"): só muda quando entram ou saem menus da lista, e não quando
+  // um prato muda (assim não se volta a ligar o tempo real a cada esgotado).
+  const idsDosMenus = useMemo(
+    () => [...new Set(resultado.pratos.map((prato) => prato.menu_id).filter(Boolean))].sort().join(','),
+    [resultado.pratos]
+  );
   useEffect(() => {
-    return ouvirAlteracoesPratos((alterado) => {
-      setResultado((atual) => {
-        const pratos = aplicarAlteracaoDePrato(atual.pratos, alterado);
-        if (pratos === atual.pratos) return atual;
-        animarProximaMudanca(); // o prato que esgotou desce para o fim a deslizar, em vez de saltar
-        return { ...atual, pratos };
-      });
-    });
-  }, []);
+    if (!idsDosMenus) return;
+    const menuIds = idsDosMenus.split(',');
 
-  // "Há mesa" / "Cheio agora": quando um restaurante muda a lotação, os cartões dele mudam logo.
-  useEffect(() => {
-    return ouvirLotacao((alterado) => {
-      setResultado((atual) => {
-        const pratos = aplicarAlteracaoDeMenu(atual.pratos, alterado);
-        return pratos === atual.pratos ? atual : { ...atual, pratos };
-      });
-    });
-  }, []);
+    // RF04 visto pelo cliente: quando um restaurante marca um prato como esgotado, a lista muda logo.
+    const pararPratos = ouvirAlteracoesPratos(
+      (alterado) =>
+        setResultado((atual) => {
+          const pratos = aplicarAlteracaoDePrato(atual.pratos, alterado);
+          if (pratos === atual.pratos) return atual;
+          animarProximaMudanca(); // o prato que esgotou desce para o fim a deslizar, em vez de saltar
+          return { ...atual, pratos };
+        }),
+      { menuIds }
+    );
+
+    // "Há mesa" / "Cheio agora": quando um restaurante muda a lotação, os cartões dele mudam logo.
+    const pararLotacao = ouvirLotacao(
+      (alterado) =>
+        setResultado((atual) => {
+          const pratos = aplicarAlteracaoDeMenu(atual.pratos, alterado);
+          return pratos === atual.pratos ? atual : { ...atual, pratos };
+        }),
+      { menuIds }
+    );
+
+    return () => {
+      pararPratos();
+      pararLotacao();
+    };
+  }, [idsDosMenus]);
 
   const aCarregar = chave !== null && resultado.chave !== chave;
 

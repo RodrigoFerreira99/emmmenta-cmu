@@ -524,3 +524,15 @@ describe('buscarRestauranteDoMenu (aviso dos favoritos)', () => {
     await expect(m.buscarRestauranteDoMenu('m1')).rejects.toThrow('Sem ligação à internet');
   });
 });
+
+describe('revisão do código', () => {
+  test('etiquetas repetidas contam: [vegano, vegano] não é igual a [vegano, picante]', () => {
+    const guardada = { ...SOPA, etiquetas: ['vegano', 'vegano'], foto_url: null };
+    expect(m.haAlteracoesNosPratos([guardada], [{ ...guardada, etiquetas: ['vegano', 'picante'] }])).toBe(true);
+  });
+
+  test('ouvirLotacao com vários menus só ouve esses (filtro "in")', () => {
+    m.ouvirLotacao(jest.fn(), { menuIds: ['m1', 'm2'] });
+    expect(mockBd.canais[0].oQueOuvir.filter).toBe('id=in.(m1,m2)');
+  });
+});

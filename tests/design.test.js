@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
@@ -68,5 +68,19 @@ describe('etiqueta do mapa', () => {
 
     await render(<EtiquetaDoMapa restaurante={{ disponiveis: 0, precoMinimo: null }} />);
     expect(screen.getByText('Esgotado')).toBeTruthy();
+  });
+});
+
+describe('EtiquetaDeLotacao com o ecrã aberto', () => {
+  test('o "há X min" avança e o aviso desaparece ao fim de 45 minutos, sem fechar o ecrã', async () => {
+    jest.useFakeTimers({ now: new Date('2026-11-18T12:00:30Z') });
+    const { EtiquetaDeLotacao } = require('@/components/Lotacao');
+    const menu = { lotacao: 'cheio', lotacao_em: '2026-11-18T11:16:00Z' }; // dito há 44 minutos
+    await render(<EtiquetaDeLotacao menu={menu} />);
+    expect(screen.getByLabelText('Cheio agora · há 44 min')).toBeTruthy();
+
+    await act(async () => jest.advanceTimersByTime(2 * 60 * 1000));
+    expect(screen.queryByLabelText(/Cheio agora/)).toBeNull();
+    jest.useRealTimers();
   });
 });

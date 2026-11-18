@@ -1,11 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAgora } from '@/lib/relogio';
 import { descreverLotacao, LOTACAO_VALIDA_MINUTOS, lotacaoAtual } from '@/services/menus';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // "Há mesa" / "Cheio agora" — o restaurante diz como está a sala e os clientes veem em tempo real.
 // O aviso só vale 45 minutos (lotacaoAtual): depois disso desaparece sozinho, para não enganar ninguém.
+// useAgora() faz estes componentes voltarem a desenhar-se uma vez por minuto, por isso o "há 12 min"
+// avança e o aviso desaparece mesmo com o ecrã aberto.
 
 /**
  * Para os clientes (página do restaurante, cartões da lista): uma etiqueta verde ou vermelha.
@@ -14,7 +17,7 @@ import { cores, espaco, raio, texto } from '@/theme';
  *   emIngles  true no menu em inglês
  */
 export function EtiquetaDeLotacao({ menu, emIngles = false }) {
-  const atual = lotacaoAtual(menu);
+  const atual = lotacaoAtual(menu, useAgora());
   if (!atual) return null;
   const cheio = atual.valor === 'cheio';
   const frase = descreverLotacao(atual, { emIngles });
@@ -33,7 +36,7 @@ export function EtiquetaDeLotacao({ menu, emIngles = false }) {
  *   aGravar     true enquanto a escolha está a ser gravada (os botões ficam bloqueados)
  */
 export function EscolherLotacao({ menu, aoEscolher, aGravar = false }) {
-  const atual = lotacaoAtual(menu);
+  const atual = lotacaoAtual(menu, useAgora());
   const explicacao = atual
     ? `Os clientes veem: ${descreverLotacao(atual)}. Desaparece sozinho ao fim de ${LOTACAO_VALIDA_MINUTOS} minutos.`
     : `Diz aos clientes se há mesa. O aviso desaparece sozinho ao fim de ${LOTACAO_VALIDA_MINUTOS} minutos.`;

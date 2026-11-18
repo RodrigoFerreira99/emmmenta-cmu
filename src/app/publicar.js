@@ -86,6 +86,9 @@ export default function Publicar() {
   const campoNome = useRef(null);
   const campoPreco = useRef(null);
   const proximaChave = useRef(1); // para dar uma chave única aos pratos novos (ainda sem id)
+  // Muda sempre que o formulário passa a ser de outro prato (limpar ou tocar noutro prato). Uma fotografia
+  // que acabe de ser enviada depois disso já não é deste formulário, e é ignorada.
+  const versaoDoFormulario = useRef(0);
 
   // Fica a false quando o ecrã é desmontado; confirmamos antes de mexer no estado depois de um "await".
   const montado = useRef(true);
@@ -148,6 +151,7 @@ export default function Publicar() {
   // 2) Formulário do prato ---------------------------------------------------
 
   function limparFormulario() {
+    versaoDoFormulario.current += 1;
     setNome('');
     setPreco('');
     setChaveAEditar(null);
@@ -163,13 +167,15 @@ export default function Publicar() {
 
   // Fotografia do prato: é comprimida e enviada logo (pode demorar uns segundos); o prato fica só com o link.
   async function escolherFotoDoPrato(caminho) {
+    const versao = versaoDoFormulario.current;
+    const aindaEOMesmoPrato = () => montado.current && versaoDoFormulario.current === versao;
     setErrosDoPrato((atuais) => ({ ...atuais, foto: undefined }));
     setAEnviarFoto(true);
     try {
       const link = await enviarFotoDoPrato(donoId, caminho);
-      if (montado.current) setFoto(link);
+      if (aindaEOMesmoPrato()) setFoto(link);
     } catch (erro) {
-      if (montado.current) setErrosDoPrato((atuais) => ({ ...atuais, foto: erro.message }));
+      if (aindaEOMesmoPrato()) setErrosDoPrato((atuais) => ({ ...atuais, foto: erro.message }));
     } finally {
       if (montado.current) setAEnviarFoto(false);
     }
@@ -206,6 +212,7 @@ export default function Publicar() {
 
   // Tocar num prato da lista: os dados sobem para o formulário, para serem alterados.
   function editarPrato(prato) {
+    versaoDoFormulario.current += 1;
     setNome(prato.nome);
     setPreco(precoParaCampo(prato.preco));
     setCategoria(prato.categoria);

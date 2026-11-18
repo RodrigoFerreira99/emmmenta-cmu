@@ -554,3 +554,31 @@ describe('Publicar menu — etiquetas e fotografia de cada prato', () => {
     });
   });
 });
+
+describe('Publicar menu — revisão do código', () => {
+  test('uma fotografia que acaba de ser enviada depois de se mudar de prato não vai para o prato errado', async () => {
+    let acabarEnvio;
+    escolherDaGaleria.mockResolvedValue('file:///galeria/arroz.jpg');
+    enviarFotoDoPrato.mockImplementation(
+      () =>
+        new Promise((resolver) => {
+          acabarEnvio = resolver;
+        })
+    );
+    buscarMenuDeHoje.mockResolvedValue({ id: 'm1', preco_menu_completo: null, pratos: [SOPA] });
+    await render(<Publicar />);
+    await screen.findByText('Sopa de legumes');
+
+    // começa a enviar a fotografia de um prato novo e, antes de acabar, toca na sopa para a alterar
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher fotografia do prato da galeria' }));
+    await fireEvent.press(screen.getByLabelText('Alterar Sopa de legumes, 1,50 €'));
+    await act(async () => acabarEnvio('https://fotos/u1/pratos/arroz.jpg'));
+
+    // a sopa continua sem fotografia
+    expect(screen.queryByLabelText('Fotografia do prato')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Guardar prato' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Guardar alterações' }));
+    const [sopa] = publicarMenu.mock.calls[0][1].pratos;
+    expect(sopa.foto_url ?? null).toBeNull(); // antes da correção, a sopa ficava com a fotografia do arroz
+  });
+});

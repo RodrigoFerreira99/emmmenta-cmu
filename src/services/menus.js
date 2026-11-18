@@ -1,7 +1,7 @@
 import { hojeEmLisboa } from '@/lib/datas';
 import { traduzirErro } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
-import { CATEGORIAS } from '@/services/pratos';
+import { CATEGORIAS, filtroDeTempoReal } from '@/services/pratos';
 
 // RF03 (publicar o menu do dia) e RF04 (marcar pratos esgotados).
 // Os ecrãs publicar.js e painel.js só falam com a base de dados através destas funções (RNF09).
@@ -129,10 +129,10 @@ export function calcularAlteracoes(guardados, doEcra) {
 }
 
 // As mesmas etiquetas, por qualquer ordem? (['vegano', 'picante'] é igual a ['picante', 'vegano'])
+// Ordenam-se as duas listas e comparam-se como texto (assim as repetidas também contam).
 function mesmasEtiquetas(a, b) {
-  const primeiras = a ?? [];
-  const segundas = b ?? [];
-  return primeiras.length === segundas.length && primeiras.every((etiqueta) => segundas.includes(etiqueta));
+  const emTexto = (lista) => [...(lista ?? [])].sort().join('|');
+  return emTexto(a) === emTexto(b);
 }
 
 /** true se o que está no ecrã for diferente do que está guardado (há alguma coisa por publicar). */
@@ -352,13 +352,15 @@ let numeroDoCanal = 0;
 
 /**
  * Ouvir em tempo real as mudanças da lotação ("Há mesa" / "Cheio agora").
- * Com { menuId } só chegam as mudanças desse menu (página de um restaurante); sem ele, chegam todas (lista).
+ * Com { menuId } só chegam as mudanças desse menu (página de um restaurante); com { menuIds }, só as
+ * desses menus (a lista do cliente).
  * "aoMudar" recebe a linha da tabela menus como ficou. Devolve uma função que pára de ouvir.
  */
-export function ouvirLotacao(aoMudar, { menuId = null } = {}) {
+export function ouvirLotacao(aoMudar, { menuId = null, menuIds = null } = {}) {
   numeroDoCanal += 1;
   const oQueOuvir = { event: 'UPDATE', schema: 'public', table: 'menus' };
-  if (menuId) oQueOuvir.filter = `id=eq.${menuId}`;
+  const filtro = menuId ? `id=eq.${menuId}` : filtroDeTempoReal('id', menuIds);
+  if (filtro) oQueOuvir.filter = filtro;
 
   const canal = supabase
     .channel(`menus-lotacao-${numeroDoCanal}`)

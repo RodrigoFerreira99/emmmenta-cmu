@@ -229,3 +229,25 @@ describe('PesquisaComIa — o painel "Diz o que te apetece"', () => {
     expect(screen.getByText(/Usa inteligência artificial/)).toBeTruthy();
   });
 });
+
+describe('revisão do código', () => {
+  test('uma palavra acabada em "ate" seguida de um número não é um preço (chocolate, tomate)', () => {
+    expect(interpretarPesquisaSemIa('mousse de chocolate 2 pessoas')).toBeNull(); // antes dava preço máximo de 2 €
+    expect(interpretarPesquisaSemIa('sopa de tomate até 4 euros')).toEqual({ ...NADA, categoria: 'sopa', precoMax: 4 });
+  });
+
+  test('um menu com mais de 40 pratos é traduzido em vários pedidos, pela mesma ordem', async () => {
+    const nomes = Array.from({ length: 45 }, (_item, indice) => `Prato ${indice + 1}`);
+    const supabase = jest.requireMock('@/lib/supabase').supabase;
+    const invocar = jest.spyOn(supabase.functions, 'invoke').mockImplementation(async (_nome, { body }) => ({
+      data: { traducoes: body.pratos.map((nome) => `${nome} (EN)`) },
+      error: null,
+    }));
+    const traducoes = await traduzirPratos(nomes);
+    expect(invocar).toHaveBeenCalledTimes(2);
+    expect(invocar.mock.calls[0][1].body.pratos).toHaveLength(40);
+    expect(invocar.mock.calls[1][1].body.pratos).toEqual(['Prato 41', 'Prato 42', 'Prato 43', 'Prato 44', 'Prato 45']);
+    expect(traducoes[44]).toBe('Prato 45 (EN)');
+    invocar.mockRestore();
+  });
+});

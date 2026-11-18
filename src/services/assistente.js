@@ -81,9 +81,10 @@ export function interpretarPesquisaSemIa(texto) {
       : (PALAVRAS_DAS_CATEGORIAS.find(([, palavras]) => palavras.some((palavra) => frase.includes(palavra)))?.[0] ?? null);
 
   // preço: "até 8", "menos de 8,5", "máximo 8", "8 euros", "8€"; "barato" sem número → 8
-  // (o "(?!…)" impede que "até 3 km" seja lido como um preço de 3 €)
+  // (o "\b" exige que "até" seja uma palavra inteira: "chocolate 2" não é um preço;
+  //  o "(?!…)" impede que "até 3 km" seja lido como um preço de 3 €)
   const valorDoPreco =
-    frase.match(/(?:ate|menos de|maximo|max\.?)\s*(\d+(?:[.,]\d{1,2})?)(?!\d|[.,]\d|\s*km)/)?.[1] ??
+    frase.match(/\b(?:ate|menos de|maximo|max\.?)\s*(\d+(?:[.,]\d{1,2})?)(?!\d|[.,]\d|\s*km)/)?.[1] ??
     frase.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|eur)/)?.[1];
   let precoMax = valorDoPreco ? Number(valorDoPreco.replace(',', '.')) : null;
   if (precoMax === null && frase.includes('barat')) precoMax = 8;
@@ -137,8 +138,22 @@ export async function interpretarPesquisa(texto) {
   throw new Error('Não percebi. Experimenta, por exemplo: "peixe até 8 € aqui perto".');
 }
 
-/** Os nomes dos pratos em inglês, pela mesma ordem. Lança um Error em português se não for possível. */
+// A função "assistente" traduz no máximo 40 pratos de cada vez (para cada pedido à IA ser pequeno e rápido).
+export const PRATOS_POR_TRADUCAO = 40;
+
+/**
+ * Os nomes dos pratos em inglês, pela mesma ordem. Lança um Error em português se não for possível.
+ * Um menu com mais de 40 pratos é traduzido em vários pedidos, um a seguir ao outro.
+ */
 export async function traduzirPratos(nomes) {
+  const traducoes = [];
+  for (let inicio = 0; inicio < nomes.length; inicio += PRATOS_POR_TRADUCAO) {
+    traducoes.push(...(await traduzirUmGrupo(nomes.slice(inicio, inicio + PRATOS_POR_TRADUCAO))));
+  }
+  return traducoes;
+}
+
+async function traduzirUmGrupo(nomes) {
   const { data, error } = await supabase.functions.invoke('assistente', { body: { tarefa: 'traduzir-pratos', pratos: nomes } });
   if (error) {
     throw await traduzirErroDeFuncao(error, {

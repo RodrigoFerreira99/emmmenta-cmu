@@ -192,17 +192,31 @@ export function aplicarAlteracaoDeMenu(lista, alterado) {
 // o mesmo nome, o Supabase devolvia o canal que já existia e o segundo ecrã dava erro.
 let numeroDoCanal = 0;
 
+// O Supabase aceita até 100 valores num filtro "in" do tempo real.
+const MAXIMO_NO_FILTRO = 100;
+
+/**
+ * O filtro do tempo real para só chegarem as mudanças de certas linhas: "menu_id=in.(m1,m2)".
+ * Devolve null (ouvir tudo) se não houver ids ou se houver mais do que o Supabase aceita.
+ */
+export function filtroDeTempoReal(coluna, ids) {
+  if (!ids?.length || ids.length > MAXIMO_NO_FILTRO) return null;
+  return ids.length === 1 ? `${coluna}=eq.${ids[0]}` : `${coluna}=in.(${ids.join(',')})`;
+}
+
 /**
  * RF04 — ouvir em tempo real quando um prato muda (por exemplo, fica esgotado).
  * Uso num ecrã:
  *   useEffect(() => ouvirAlteracoesPratos((prato) => { ...atualizar a lista... }), []);
- * Com { menuId } só chegam as alterações aos pratos desse menu (página de um restaurante).
+ * Com { menuId } só chegam as alterações aos pratos desse menu (página de um restaurante);
+ * com { menuIds } só as dos pratos desses menus (a lista do cliente). Sem nada, chegam todas (Painel).
  * Devolve uma função que pára de ouvir.
  */
-export function ouvirAlteracoesPratos(aoAlterar, { menuId = null } = {}) {
+export function ouvirAlteracoesPratos(aoAlterar, { menuId = null, menuIds = null } = {}) {
   numeroDoCanal += 1;
   const oQueOuvir = { event: 'UPDATE', schema: 'public', table: 'pratos' };
-  if (menuId) oQueOuvir.filter = `menu_id=eq.${menuId}`;
+  const filtro = menuId ? `menu_id=eq.${menuId}` : filtroDeTempoReal('menu_id', menuIds);
+  if (filtro) oQueOuvir.filter = filtro;
 
   const canal = supabase
     .channel(`pratos-alteracoes-${numeroDoCanal}`)

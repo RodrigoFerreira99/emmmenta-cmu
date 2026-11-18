@@ -326,3 +326,14 @@ describe('tempo real: últimas doses e lotação', () => {
     expect(grupo).toMatchObject({ lotacao: 'ha-mesa', lotacao_em: '2026-11-18T12:30:00Z' });
   });
 });
+
+describe('filtroDeTempoReal', () => {
+  test('um id, vários ids, nenhum ou demasiados', () => {
+    expect(p.filtroDeTempoReal('menu_id', ['m1'])).toBe('menu_id=eq.m1');
+    expect(p.filtroDeTempoReal('menu_id', ['m1', 'm2'])).toBe('menu_id=in.(m1,m2)');
+    expect(p.filtroDeTempoReal('menu_id', [])).toBeNull();
+    expect(p.filtroDeTempoReal('menu_id', null)).toBeNull();
+    const muitos = Array.from({ length: 101 }, (_item, indice) => `m${indice}`);
+    expect(p.filtroDeTempoReal('menu_id', muitos)).toBeNull(); // o Supabase só aceita 100: ouve-se tudo
+  });
+});

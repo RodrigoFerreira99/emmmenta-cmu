@@ -51,8 +51,8 @@ jest.mock('@/services/pratos', () => ({
   ouvirAlteracoesPratos: jest.fn(),
 }));
 
-const TASCA = { restaurante_id: 'r1', restaurante: 'Tasca do Manuel', latitude: 41.15, longitude: -8.61, distancia_km: 0.35 };
-const CAFE = { restaurante_id: 'r2', restaurante: 'Café Central', latitude: 41.16, longitude: -8.62, distancia_km: 1.4 };
+const TASCA = { menu_id: 'm1', restaurante_id: 'r1', restaurante: 'Tasca do Manuel', latitude: 41.15, longitude: -8.61, distancia_km: 0.35 };
+const CAFE = { menu_id: 'm2', restaurante_id: 'r2', restaurante: 'Café Central', latitude: 41.16, longitude: -8.62, distancia_km: 1.4 };
 const SOPA = { ...TASCA, prato_id: 'p2', prato: 'Caldo verde', categoria: 'sopa', preco: 1.8, esgotado: false };
 const BACALHAU = { ...TASCA, prato_id: 'p1', prato: 'Bacalhau à Brás', categoria: 'peixe', preco: 8.5, esgotado: false };
 // o cartão do bacalhau na lista (o texto que o leitor de ecrã diz começa assim)
@@ -451,5 +451,13 @@ describe('Início — etiquetas, últimas doses e lotação', () => {
 
     await fireEvent.press(screen.getByRole('radio', { name: 'Qualquer prato' }));
     await waitFor(() => expect(ultimoPedido().etiqueta).toBeNull());
+  });
+});
+
+describe('Início — tempo real só dos menus da lista', () => {
+  test('ouve os pratos e a lotação só dos menus que estão na lista', async () => {
+    await abrir();
+    await screen.findByLabelText(CARTAO_DO_BACALHAU);
+    expect(ouvirAlteracoesPratos).toHaveBeenLastCalledWith(expect.any(Function), { menuIds: ['m1', 'm2'] });
   });
 });

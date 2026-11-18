@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAgora } from '@/lib/relogio';
 import { descreverLotacao, lotacaoAtual, nomeDaCategoria } from '@/services/menus';
 import { descreverEtiquetas, formatarDistancia, formatarPreco } from '@/services/pratos';
 import { cores, espaco, raio, texto } from '@/theme';
@@ -19,7 +20,7 @@ export function CartaoDePrato({ prato, onPress, favorito = false }) {
   const ultimasDoses = prato.ultimas_doses && !esgotado;
   const distancia = formatarDistancia(prato.distancia_km);
   const etiquetas = descreverEtiquetas(prato.etiquetas);
-  const lotacao = lotacaoAtual(prato);
+  const lotacao = lotacaoAtual(prato, useAgora()); // volta a ser calculada a cada minuto (o aviso só vale 45 min)
 
   // o que o leitor de ecrã diz (as partes novas vão no fim, para o início ser sempre igual)
   const rotulo = [
