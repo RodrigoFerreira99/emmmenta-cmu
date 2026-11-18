@@ -30,7 +30,8 @@ jest.mock('react-native-maps', () => {
     mockReact.useImperativeHandle(ref, () => ({ animateToRegion: () => {} }));
     return mockReact.createElement(View, { testID: 'mapa', ...props });
   });
-  const Marker = (props) => mockReact.createElement(View, { testID: `marcador:${props.title}`, ...props });
+  // o nome do restaurante é o início do texto que o leitor de ecrã diz ("Tasca do Manuel: 2 pratos · ...")
+  const Marker = (props) => mockReact.createElement(View, { testID: `marcador:${props.accessibilityLabel.split(':')[0]}`, ...props });
   const Circle = (props) => mockReact.createElement(View, { testID: 'circulo', ...props });
   return { __esModule: true, default: MapView, Marker, Circle };
 });
@@ -62,8 +63,11 @@ describe('Mapa (RF06)', () => {
     await abrir();
     const tasca = await screen.findByTestId('marcador:Tasca do Manuel');
     expect(tasca.props.coordinate).toEqual({ latitude: 41.15, longitude: -8.61 });
-    expect(tasca.props.description).toBe('2 pratos · desde 1,80 €'); // o preço mais baixo
-    expect(screen.getByTestId('marcador:Café Central').props.description).toBe('Tudo esgotado');
+    expect(tasca.props.accessibilityLabel).toBe('Tasca do Manuel: 2 pratos · desde 1,80 €');
+    expect(screen.getByTestId('marcador:Café Central').props.accessibilityLabel).toBe('Café Central: Tudo esgotado');
+    // a etiqueta do marcador mostra o preço mais baixo (ou "Esgotado") em vez do alfinete
+    expect(screen.getByText('1,80 €')).toBeTruthy();
+    expect(screen.getByText('Esgotado')).toBeTruthy();
     expect(screen.getByTestId('circulo').props.radius).toBe(2000); // 2 km, em metros
     expect(screen.getByTestId('mapa').props.showsUserLocation).toBe(true);
   });

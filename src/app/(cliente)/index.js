@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { CartaoDePrato } from '@/components/CartaoDePrato';
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
+import { ListaFantasma } from '@/components/Esqueleto';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
@@ -63,7 +64,8 @@ export default function Inicio() {
 
   // O que aparece quando a lista está vazia: a carregar, um erro, ou a explicação de não haver pratos (RNF08).
   function listaVazia() {
-    if (aCarregar) return <ActivityIndicator size="large" color={cores.acento} style={estilos.aCarregar} />;
+    // enquanto procura: cartões cinzentos com a forma dos cartões de prato (em vez de um círculo a rodar)
+    if (aCarregar) return <ListaFantasma />;
 
     if (erro) {
       return (
@@ -143,7 +145,6 @@ const estilos = StyleSheet.create({
   lista: { paddingHorizontal: espaco.xl, paddingBottom: espaco.xl, flexGrow: 1 },
   contagem: { marginBottom: espaco.m },
   separador: { height: espaco.m },
-  aCarregar: { marginTop: espaco.xxl },
   vazio: { gap: espaco.l, paddingTop: espaco.xxl },
   icone: { alignSelf: 'center' },
   textoCentro: { textAlign: 'center' },

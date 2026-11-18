@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
+import { EtiquetaDoMapa } from '@/components/EtiquetaDoMapa';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
@@ -14,7 +15,8 @@ import { cores, espaco, raio, texto } from '@/theme';
 //
 // Mostra no mapa os restaurantes que têm menu hoje, perto do cliente. Usa os mesmos pratos e os mesmos
 // filtros da lista do Início (vêm do PertoContext), só que juntos por restaurante: um marcador por
-// restaurante. Tocar num marcador mostra um cartão em baixo, com o botão "Ver menu de hoje".
+// restaurante, com o preço do prato mais barato (EtiquetaDoMapa). Tocar num marcador mostra um cartão
+// em baixo, com o botão "Ver menu de hoje".
 // O mapa é o react-native-maps, que funciona no Expo Go sem configuração.
 
 // A parte do mapa que fica à vista, para caber o círculo do raio de pesquisa com alguma folga.
@@ -102,12 +104,13 @@ export default function Mapa() {
             <Marker
               key={restaurante.id}
               coordinate={{ latitude: restaurante.latitude, longitude: restaurante.longitude }}
-              title={restaurante.nome}
-              description={resumoDoRestaurante(restaurante)}
-              // cinzento quando já está tudo esgotado
-              pinColor={restaurante.disponiveis > 0 ? cores.acento : cores.textoTerciario}
+              // a ponta do "bico" da etiqueta fica em cima do restaurante
+              anchor={{ x: 0.5, y: 1 }}
+              accessibilityLabel={`${restaurante.nome}: ${resumoDoRestaurante(restaurante)}`}
               onPress={() => setEscolhidoId(restaurante.id)}
-            />
+            >
+              <EtiquetaDoMapa restaurante={restaurante} escolhido={restaurante.id === escolhidoId} />
+            </Marker>
           ))}
         </MapView>
 

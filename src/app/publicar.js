@@ -13,6 +13,7 @@ import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { confirmar } from '@/lib/confirmar';
 import { diaPorExtenso } from '@/lib/datas';
+import { vibrarSucesso } from '@/lib/vibrar';
 import {
   buscarMenuDeHoje,
   buscarUltimoMenuAnterior,
@@ -279,6 +280,7 @@ export default function Publicar() {
     setAPublicar(true);
     try {
       await publicarMenu(restauranteId, { precoMenuCompleto, pratos });
+      vibrarSucesso(); // o telemóvel confirma que ficou publicado
       if (!montado.current) return;
       setPodeSair(true);
       setPublicado(true); // o efeito abaixo volta ao Painel

@@ -1,0 +1,72 @@
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { render, screen } from '@testing-library/react-native';
+import * as Haptics from 'expo-haptics';
+import { Platform } from 'react-native';
+
+import { ListaFantasma, PaginaFantasma } from '@/components/Esqueleto';
+import { EtiquetaDoMapa } from '@/components/EtiquetaDoMapa';
+import { vibrarLeve, vibrarSucesso } from '@/lib/vibrar';
+
+// Peças de design: vibração, esqueletos de carregamento e etiquetas do mapa. Correr com: npm test
+
+jest.mock('@/lib/supabase', () => ({ supabase: {} }));
+jest.mock('expo-haptics', () => ({
+  ImpactFeedbackStyle: { Light: 'light' },
+  NotificationFeedbackType: { Success: 'success' },
+  impactAsync: jest.fn(async () => {}),
+  notificationAsync: jest.fn(async () => {}),
+  selectionAsync: jest.fn(async () => {}),
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.restoreAllMocks();
+});
+
+describe('vibrar', () => {
+  test('pede ao telemóvel a vibração certa', () => {
+    vibrarLeve();
+    vibrarSucesso();
+    expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
+  });
+
+  test('no browser não faz nada', () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    vibrarLeve();
+    expect(Haptics.impactAsync).not.toHaveBeenCalled();
+  });
+
+  test('uma vibração que falhe nunca estraga a ação que a pediu', () => {
+    Haptics.impactAsync.mockImplementationOnce(() => {
+      throw new Error('sem motor de vibração');
+    });
+    Haptics.notificationAsync.mockImplementationOnce(async () => {
+      throw new Error('falhou');
+    });
+    expect(() => vibrarLeve()).not.toThrow();
+    expect(() => vibrarSucesso()).not.toThrow();
+  });
+});
+
+describe('esqueletos de carregamento', () => {
+  test('a lista fantasma diz ao leitor de ecrã que está a carregar', async () => {
+    await render(<ListaFantasma quantos={3} />);
+    expect(screen.getByLabelText('A carregar os pratos')).toBeTruthy();
+  });
+
+  test('a página fantasma do restaurante também', async () => {
+    await render(<PaginaFantasma />);
+    expect(screen.getByLabelText('A carregar o restaurante')).toBeTruthy();
+  });
+});
+
+describe('etiqueta do mapa', () => {
+  test('mostra o preço mais baixo, ou "Esgotado" quando já não há nada', async () => {
+    await render(<EtiquetaDoMapa restaurante={{ disponiveis: 2, precoMinimo: 6.5 }} />);
+    expect(screen.getByText('6,50 €')).toBeTruthy();
+
+    await render(<EtiquetaDoMapa restaurante={{ disponiveis: 0, precoMinimo: null }} />);
+    expect(screen.getByText('Esgotado')).toBeTruthy();
+  });
+});

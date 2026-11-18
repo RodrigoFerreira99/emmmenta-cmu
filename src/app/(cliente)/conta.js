@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { LinhasFantasma } from '@/components/Esqueleto';
 import { Botao, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useFavoritos } from '@/lib/favoritos';
@@ -48,7 +49,7 @@ export default function Conta() {
     if (favoritos.size === 0) {
       return <Text style={texto.pequeno}>Ainda não tens favoritos. Abre um restaurante e toca no coração para o guardar.</Text>;
     }
-    if (aCarregar) return <ActivityIndicator color={cores.acento} style={estilos.aCarregar} />;
+    if (aCarregar) return <LinhasFantasma quantas={Math.min(favoritos.size, 3)} />;
     if (resultado.erro) {
       return (
         <View style={estilos.grupo}>
@@ -121,7 +122,6 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderColor: cores.linha,
   },
-  aCarregar: { alignSelf: 'flex-start' },
   erro: { ...texto.pequeno, color: cores.erro },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },
   // minHeight 56: área de toque confortável (RNF06)

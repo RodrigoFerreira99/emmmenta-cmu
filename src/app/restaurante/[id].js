@@ -5,10 +5,12 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { EtiquetaEsgotado } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
-import { Botao, Carregar, Ecra } from '@/components/ui';
+import { PaginaFantasma } from '@/components/Esqueleto';
+import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { partilhar, textoDoConvite } from '@/lib/partilhar';
+import { vibrarLeve } from '@/lib/vibrar';
 import { buscarMenuDeHoje, nomeDaCategoria } from '@/services/menus';
 import { formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante, estadoDoHorario, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
@@ -92,6 +94,7 @@ export default function PaginaRestaurante() {
   // Coração: guardar ou tirar dos favoritos (ficam só neste telemóvel — src/lib/favoritos.js).
   async function mudarFavorito() {
     setAviso(null);
+    vibrarLeve();
     try {
       await alternarFavorito(restaurante.id);
     } catch (erro) {
@@ -99,7 +102,13 @@ export default function PaginaRestaurante() {
     }
   }
 
-  if (estado === 'aCarregar') return <Carregar />;
+  if (estado === 'aCarregar') {
+    return (
+      <Ecra bordas={['bottom']}>
+        <PaginaFantasma />
+      </Ecra>
+    );
+  }
   if (estado === 'erro') return <EcraDeErro mensagem={erroAoCarregar} aoTentar={tentarOutraVez} />;
   if (estado === 'naoExiste') {
     return (

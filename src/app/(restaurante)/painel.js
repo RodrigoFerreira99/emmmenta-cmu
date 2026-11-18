@@ -8,6 +8,7 @@ import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { diaPorExtenso, horaCurta, saudacao } from '@/lib/datas';
 import { partilhar, textoDoMenuDeHoje } from '@/lib/partilhar';
+import { vibrarLeve } from '@/lib/vibrar';
 import { buscarMenuDeHoje, marcarEsgotado } from '@/services/menus';
 import { formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
@@ -98,6 +99,7 @@ export default function Painel() {
   // 3) Interruptor "Esgotado".
   async function alternarEsgotado(prato, esgotado) {
     setAviso(null);
+    vibrarLeve(); // o telemóvel confirma o toque
     mudarPratoNoEcra(prato.id, { esgotado }); // o ecrã responde logo...
     setAMudar((ids) => [...ids, prato.id]); // ...e o interruptor fica bloqueado até a gravação acabar
     try {

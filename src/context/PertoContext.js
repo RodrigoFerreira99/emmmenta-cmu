@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { animarProximaMudanca } from '@/lib/animacoes';
 import { useFavoritos } from '@/lib/favoritos';
 import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
 import {
@@ -125,7 +126,11 @@ export function PertoProvider({ children }) {
 
   // --- Filtros (RF07) ------------------------------------------------------
   const [filtros, setFiltros] = useState(FILTROS_INICIAIS);
-  const mudarFiltros = useCallback((alteracoes) => setFiltros((atuais) => ({ ...atuais, ...alteracoes })), []);
+  const mudarFiltros = useCallback((alteracoes) => {
+    // a ordem e o "só favoritos" mudam a lista logo, no telemóvel: os cartões deslizam para o novo lugar
+    if ('ordem' in alteracoes || 'soFavoritos' in alteracoes) animarProximaMudanca();
+    setFiltros((atuais) => ({ ...atuais, ...alteracoes }));
+  }, []);
   const limparFiltros = useCallback(() => setFiltros(FILTROS_INICIAIS), []);
 
   // O texto da pesquisa só é "aplicado" quando o cliente pára de escrever.
@@ -185,7 +190,9 @@ export function PertoProvider({ children }) {
     return ouvirAlteracoesPratos((alterado) => {
       setResultado((atual) => {
         const pratos = aplicarAlteracaoDePrato(atual.pratos, alterado);
-        return pratos === atual.pratos ? atual : { ...atual, pratos };
+        if (pratos === atual.pratos) return atual;
+        animarProximaMudanca(); // o prato que esgotou desce para o fim a deslizar, em vez de saltar
+        return { ...atual, pratos };
       });
     });
   }, []);
