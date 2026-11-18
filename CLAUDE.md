@@ -28,8 +28,8 @@ São **7 requisitos funcionais, todos obrigatórios**. RF03 e RF05 são o núcle
 |---|---|---|---|---|
 | RF01 | Registo e autenticação (criar conta com perfil Cliente/Restaurante, entrar, sair, recuperar palavra-passe) | `login.js`, `(cliente)/conta.js` | Rodrigo | **feito** (a recuperação é por código enviado por email: falta pôr `{{ .Token }}` no modelo de email do Supabase — ver README — e testar) |
 | RF02 | Perfil do restaurante: nome, tipo de cozinha, morada com ponto ajustável no mapa, horário de almoço, telefone, fotografia | `(restaurante)/perfil.js` | Rodrigo | **feito** (falta testar no telemóvel) |
-| RF03 | Publicar o menu do dia: pratos com nome, categoria e preço; o menu fica associado à data e desaparece à meia-noite; pode ser editado | `publicar.js` | José | por fazer |
-| RF04 | Marcar prato esgotado; os clientes veem logo (tempo real) | `(restaurante)/painel.js` | José | por fazer |
+| RF03 | Publicar o menu do dia: pratos com nome, categoria e preço; o menu fica associado à data e desaparece à meia-noite; pode ser editado | `publicar.js` | José | **feito** no ramo `rf03-rf04-menu-do-dia` (falta testar no telemóvel) |
+| RF04 | Marcar prato esgotado; os clientes veem logo (tempo real) | `(restaurante)/painel.js` | José | **feito** no ramo `rf03-rf04-menu-do-dia` (falta testar no telemóvel; o lado do cliente é o RF06) |
 | RF05 | Pratos do dia perto de mim: lista num raio de 2 km por omissão, ordenada por distância, com preço, restaurante e distância | `(cliente)/index.js` | André | por fazer |
 | RF06 | Mapa com os restaurantes com menu hoje; página do restaurante com menu, horário, morada e botões Ligar e Direções (abre a app de mapas) | `(cliente)/mapa.js`, `restaurante/[id].js` | André | por fazer |
 | RF07 | Filtros e pesquisa: preço máximo, raio, categoria e pesquisa pelo nome do prato | `(cliente)/index.js`, `(cliente)/mapa.js` | André | por fazer |
@@ -66,6 +66,8 @@ Mock-ups no Figma: https://www.figma.com/design/TpDXtsdeNOmMZfTgOCPvMd (7 ecrãs
 Navegação (`src/app/_layout.js`, com `Stack.Protected`): sem sessão → `login`; cliente → separadores Início / Mapa / Conta + `restaurante/[id]`; restaurante → separadores Painel / Perfil + `publicar`. Cada `Stack.Protected` tem `redirectTo` com o primeiro ecrã do percurso (`rotaInicial()` em `src/lib/navegacao.js`): sem isso, as contas de restaurante iam parar a "Unmatched Route", porque o grupo `(restaurante)` não tem ecrã `index`. Quem mudar o nome a um ecrã inicial tem de atualizar essa função (o teste `tests/navegacao.test.js` avisa).
 
 Dados do restaurante (RF02): `src/services/restaurantes.js` — `buscarMeuRestaurante(donoId)` devolve o restaurante da conta ou `null` (o Painel e o Publicar precisam disto), `guardarRestaurante`, `enviarFotoRestaurante`, `validarRestaurante`. O telefone é guardado como `+351XXXXXXXXX` (pronto para `tel:`) e as horas como `HH:MM:SS`.
+
+Menu do dia (RF03/RF04): `src/services/menus.js` — `buscarMenuDeHoje(restauranteId)` devolve o menu de hoje com os pratos ordenados (ou `null`), `publicarMenu(restauranteId, { precoMenuCompleto, pratos })` cria o menu ou guarda as alterações mexendo só nos pratos que mudaram (os outros mantêm o id e o `esgotado`), `marcarEsgotado(pratoId, esgotado)`. O dia do menu nunca é enviado pela app: é a base de dados que o preenche no fuso de Lisboa (RN01). Para ler "hoje" usa-se `hojeEmLisboa()` de `src/lib/datas.js`, nunca a data do telemóvel. Os erros do Supabase são traduzidos por `traduzirErro()` em `src/lib/erros.js`. Outros componentes: `Chip` (escolha de categoria, igual ao Figma) e `confirmar()` em `src/lib/confirmar.js` (pergunta antes de perder alterações; também funciona no browser).
 
 ## Planeamento
 

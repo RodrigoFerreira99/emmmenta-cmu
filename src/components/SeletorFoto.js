@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as ImagePicker from 'expo-image-picker';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { escolherImagem } from '@/lib/fotografias';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // RF02 — fotografia do restaurante: pré-visualização e botões para tirar, escolher ou remover.
@@ -20,35 +20,18 @@ const TAMANHO = 72; // lado do quadrado da pré-visualização, como no mock-up
 
 // As mesmas opções para a câmara e para a galeria.
 const OPCOES = {
-  mediaTypes: 'images',
   allowsEditing: true, // deixa recortar a imagem antes de a aceitar
   aspect: [4, 3], // proporção do recorte (só no Android; no iPhone o recorte é sempre quadrado)
-  quality: 1, // sem compressão aqui: a compressão é feita uma só vez, no serviço
 };
 
 export function SeletorFoto({ uri, aoEscolher, aoRemover, aEnviar = false }) {
-  // origem: 'camara' ou 'galeria'
+  // origem: 'camara' ou 'galeria'. A permissão da câmara é tratada em escolherImagem().
   async function obterImagem(origem) {
     try {
-      let resultado;
-      if (origem === 'camara') {
-        // A câmara precisa de permissão. Só é pedida aqui, quando a pessoa carrega em "Tirar".
-        const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-        if (!granted) {
-          Alert.alert('Câmara', 'Sem acesso à câmara não é possível tirar a fotografia. Podes escolher uma imagem da galeria.');
-          return;
-        }
-        resultado = await ImagePicker.launchCameraAsync(OPCOES);
-      } else {
-        // A galeria não precisa de permissão: o seletor é do próprio sistema
-        // e a app só recebe a imagem que a pessoa escolher.
-        resultado = await ImagePicker.launchImageLibraryAsync(OPCOES);
-      }
-      if (resultado.canceled) return;
-      aoEscolher(resultado.assets[0].uri);
+      const caminho = await escolherImagem(origem, OPCOES);
+      if (caminho) aoEscolher(caminho); // null = a pessoa desistiu
     } catch (erro) {
-      console.warn('Erro técnico (obter fotografia):', erro?.message ?? erro);
-      Alert.alert('Fotografia', 'Não foi possível obter a fotografia. Tenta outra vez.');
+      Alert.alert('Fotografia', erro.message);
     }
   }
 

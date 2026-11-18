@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampoComErro } from '@/components/CampoComErro';
 import { EcraDeErro } from '@/components/EcraDeErro';
@@ -8,6 +8,7 @@ import { SeletorFoto } from '@/components/SeletorFoto';
 import { SeletorLocal } from '@/components/SeletorLocal';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { confirmar } from '@/lib/confirmar';
 import {
   buscarMeuRestaurante,
   enviarFotoRestaurante,
@@ -196,10 +197,13 @@ export default function PerfilRestaurante() {
       sair();
       return;
     }
-    Alert.alert('Alterações por guardar', 'Se terminares a sessão agora, perdes o que alteraste no perfil.', [
-      { text: 'Continuar a editar', style: 'cancel' },
-      { text: 'Terminar sessão', style: 'destructive', onPress: sair },
-    ]);
+    confirmar({
+      titulo: 'Alterações por guardar',
+      mensagem: 'Se terminares a sessão agora, perdes o que alteraste no perfil.',
+      textoCancelar: 'Continuar a editar',
+      textoConfirmar: 'Terminar sessão',
+      aoConfirmar: sair,
+    });
   }
 
   // null enquanto o restaurante não tiver ponto marcado (o mapa abre centrado no Porto, sem pin)

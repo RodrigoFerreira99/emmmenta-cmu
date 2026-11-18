@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Keyboard, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 import { Botao } from '@/components/ui';
-import {
-  faltaPermissaoParaProcurarMorada,
-  pedirPermissaoDeLocalizacao,
-  procurarMoradaNoMapa,
-} from '@/services/restaurantes';
+import { procurarMoradaNoMapa } from '@/services/restaurantes';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // RF02 — escolher no mapa o ponto exato do restaurante.
@@ -18,8 +14,9 @@ import { cores, espaco, raio, texto } from '@/theme';
 //   morada        texto do campo Morada (para o botão "Encontrar a morada no mapa")
 //   erro          mensagem de validação a mostrar (ou undefined)
 //
-// Privacidade (RNF04): este componente nunca lê a localização do telemóvel.
+// Privacidade (RNF04): este componente nunca lê a localização do telemóvel nem pede a permissão.
 // Só se guarda o ponto escolhido para o restaurante, que é um dado do negócio.
+// O botão "Encontrar a morada no mapa" envia apenas o texto da morada ao serviço de moradas.
 
 // Centro do Porto: onde o mapa abre quando o restaurante ainda não tem ponto marcado.
 const PORTO = { latitude: 41.1496, longitude: -8.611 };
@@ -59,17 +56,6 @@ export function SeletorLocal({ ponto, aoMudarPonto, morada, erro }) {
     setAviso(null);
     setAProcurar(true);
     try {
-      // No Android esta procura exige a permissão de localização.
-      // Só a pedimos aqui, quando o utilizador carrega no botão, e explicamos primeiro porquê (RNF04).
-      if (await faltaPermissaoParaProcurarMorada()) {
-        const aceitou = (await explicarPermissao()) && (await pedirPermissaoDeLocalizacao());
-        if (!aceitou) {
-          // RNF08: sem permissão a app continua a funcionar — o pin põe-se à mão
-          if (montado.current) setAviso('Sem a permissão não é possível procurar a morada. Toca no mapa para pôr o pin à mão.');
-          return;
-        }
-      }
-
       const encontrado = await procurarMoradaNoMapa(morada);
       if (!montado.current) return;
       if (!encontrado) {
@@ -78,7 +64,7 @@ export function SeletorLocal({ ponto, aoMudarPonto, morada, erro }) {
       }
       aoMudarPonto(encontrado);
       mapa.current?.animateToRegion({ ...encontrado, ...ZOOM_RUA }, 500);
-      setAviso('Morada encontrada. Confirma se o pin está no sítio certo e ajusta-o se for preciso.');
+      setAviso('Morada encontrada (dados © OpenStreetMap). Confirma se o pin está no sítio certo e ajusta-o se for preciso.');
     } catch (erroAoProcurar) {
       if (montado.current) setAviso(erroAoProcurar.message);
     } finally {
@@ -119,23 +105,6 @@ export function SeletorLocal({ ponto, aoMudarPonto, morada, erro }) {
       {aviso ? <Text style={texto.pequeno}>{aviso}</Text> : null}
     </View>
   );
-}
-
-// Explica porque é precisa a permissão ANTES de aparecer o pedido do sistema (RNF04).
-// Devolve uma Promise com true ("Continuar") ou false ("Agora não" ou fechar o aviso).
-function explicarPermissao() {
-  return new Promise((resolver) => {
-    Alert.alert(
-      'Permissão de localização',
-      'Para encontrar a morada no mapa, o Android exige a permissão de localização. ' +
-        'A Emmmenta não guarda a tua localização: só fica guardado o ponto que escolheres para o restaurante.',
-      [
-        { text: 'Agora não', style: 'cancel', onPress: () => resolver(false) },
-        { text: 'Continuar', onPress: () => resolver(true) },
-      ],
-      { cancelable: true, onDismiss: () => resolver(false) }
-    );
-  });
 }
 
 const estilos = StyleSheet.create({

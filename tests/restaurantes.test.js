@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { Platform } from 'react-native';
 
 import * as s from '@/services/restaurantes';
 
 // RF02 — testes ao serviço src/services/restaurantes.js. Correr com: npm test
 //
-// O Supabase e os módulos do telemóvel (ficheiros, imagens, localização) são substituídos por
+// O Supabase, os módulos do telemóvel (ficheiros, imagens) e o serviço de moradas são substituídos por
 // imitações ("mocks") controladas pelo objeto mockEstado. Assim os testes correm no computador,
 // sem rede e sem mexer na base de dados verdadeira.
 
@@ -15,10 +15,6 @@ const mockEstado = {
   ultimoUpload: null, // o que foi enviado para o Storage
   tamanhos: [], // tamanho (em bytes) do ficheiro em cada tentativa de compressão
   tentativas: [], // opções usadas em cada tentativa de compressão
-  permissao: false, // permissão de localização concedida?
-  geocode: [], // resultado da procura da morada
-  geocodeFalha: false,
-  ultimaPesquisa: null,
 };
 
 jest.mock('@/lib/supabase', () => {
@@ -86,16 +82,6 @@ jest.mock('expo-image-manipulator', () => ({
   },
 }));
 
-jest.mock('expo-location', () => ({
-  getForegroundPermissionsAsync: async () => ({ granted: mockEstado.permissao }),
-  requestForegroundPermissionsAsync: async () => ({ granted: mockEstado.permissao }),
-  geocodeAsync: async (pesquisa) => {
-    mockEstado.ultimaPesquisa = pesquisa;
-    if (mockEstado.geocodeFalha) throw new Error('Not authorized to use location services');
-    return mockEstado.geocode;
-  },
-}));
-
 const VALIDO = {
   nome: 'Tasca do Manuel',
   tipoCozinha: 'Portuguesa',
@@ -122,10 +108,6 @@ beforeEach(() => {
     ultimoUpload: null,
     tamanhos: [],
     tentativas: [],
-    permissao: false,
-    geocode: [],
-    geocodeFalha: false,
-    ultimaPesquisa: null,
   });
   // os avisos técnicos na consola são esperados nos testes de erro
   jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -423,40 +405,80 @@ describe('enviarFotoRestaurante', () => {
 });
 
 describe('procurar a morada no mapa', () => {
-  test('a permissão só é precisa no Android (RNF04)', async () => {
-    jest.replaceProperty(Platform, 'OS', 'android');
-    await expect(s.faltaPermissaoParaProcurarMorada()).resolves.toBe(true);
-    mockEstado.permissao = true;
-    await expect(s.faltaPermissaoParaProcurarMorada()).resolves.toBe(false);
-
-    mockEstado.permissao = false;
-    jest.replaceProperty(Platform, 'OS', 'ios');
-    await expect(s.faltaPermissaoParaProcurarMorada()).resolves.toBe(false);
+  // O serviço de moradas é pedido com fetch(); aqui trocamos o fetch por uma imitação.
+  const fetchVerdadeiro = global.fetch;
+  afterEach(() => {
+    global.fetch = fetchVerdadeiro;
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
-  test('pedirPermissaoDeLocalizacao devolve o que o utilizador respondeu', async () => {
-    await expect(s.pedirPermissaoDeLocalizacao()).resolves.toBe(false);
-    mockEstado.permissao = true;
-    await expect(s.pedirPermissaoDeLocalizacao()).resolves.toBe(true);
-  });
+  function servicoResponde(resultados, { ok = true, status = 200 } = {}) {
+    global.fetch = jest.fn(async () => ({ ok, status, json: async () => resultados }));
+  }
+  // o endereço completo do último pedido, já separado em partes
+  const ultimoPedido = () => new URL(global.fetch.mock.calls.at(-1)[0]);
 
-  test('devolve só a latitude e a longitude, e acrescenta o país à pesquisa', async () => {
-    mockEstado.geocode = [{ latitude: 41.15, longitude: -8.61, altitude: 0, accuracy: 10 }];
+  test('devolve a latitude e a longitude em número e procura só em Portugal', async () => {
+    servicoResponde([{ lat: '41.15', lon: '-8.61', display_name: 'Rua de Cedofeita, Porto' }]);
     await expect(s.procurarMoradaNoMapa(' Rua de Cedofeita,  123, Porto ')).resolves.toEqual({ latitude: 41.15, longitude: -8.61 });
-    expect(mockEstado.ultimaPesquisa).toBe('Rua de Cedofeita, 123, Porto, Portugal');
+
+    const pedido = ultimoPedido();
+    expect(pedido.origin + pedido.pathname).toBe('https://nominatim.openstreetmap.org/search');
+    expect(pedido.searchParams.get('q')).toBe('Rua de Cedofeita, 123, Porto, Portugal');
+    expect(pedido.searchParams.get('countrycodes')).toBe('pt');
+    expect(pedido.searchParams.get('limit')).toBe('1');
 
     await s.procurarMoradaNoMapa('Rua X, Porto, Portugal');
-    expect(mockEstado.ultimaPesquisa).toBe('Rua X, Porto, Portugal'); // não repete o país
+    expect(ultimoPedido().searchParams.get('q')).toBe('Rua X, Porto, Portugal'); // não repete o país
+  });
+
+  test('no telemóvel a app identifica-se; no browser é o browser que o faz', async () => {
+    servicoResponde([]);
+    await s.procurarMoradaNoMapa('Rua X');
+    expect(global.fetch.mock.calls[0][1].headers).toEqual({ 'User-Agent': 'Emmmenta/1.0' });
+
+    jest.replaceProperty(Platform, 'OS', 'web');
+    await s.procurarMoradaNoMapa('Rua X');
+    expect(global.fetch.mock.calls[1][1].headers).toEqual({});
   });
 
   test('morada que não existe devolve null (o pin põe-se à mão)', async () => {
+    servicoResponde([]);
     await expect(s.procurarMoradaNoMapa('Rua que não existe')).resolves.toBeNull();
+    servicoResponde([{ lat: 'abc', lon: '' }]); // resposta estranha: também não serve
+    await expect(s.procurarMoradaNoMapa('Rua X')).resolves.toBeNull();
   });
 
-  test('morada vazia ou falha do telemóvel dão mensagens claras', async () => {
+  test('morada vazia: avisa e nem chega a fazer o pedido', async () => {
+    servicoResponde([]);
     await esperarErro(s.procurarMoradaNoMapa('   '), 'Escreve primeiro a morada');
-    mockEstado.geocodeFalha = true;
-    await esperarErro(s.procurarMoradaNoMapa('Rua X'), 'Não foi possível procurar a morada');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('sem rede diz que não há ligação', async () => {
+    global.fetch = jest.fn(async () => {
+      throw new TypeError('Network request failed');
+    });
+    await esperarErro(s.procurarMoradaNoMapa('Rua X'), 'Sem ligação à internet');
+  });
+
+  test('serviço em baixo NÃO culpa a rede do utilizador', async () => {
+    servicoResponde(null, { ok: false, status: 503 });
+    const promessa = s.procurarMoradaNoMapa('Rua X');
+    await esperarErro(promessa, 'O serviço de moradas não está a responder');
+    await expect(promessa).rejects.not.toThrow(/ligação à internet/);
+  });
+
+  test('desiste ao fim de 10 segundos se a rede estiver muito lenta', async () => {
+    jest.useFakeTimers();
+    // um pedido que nunca responde: só termina quando a app o cancela
+    global.fetch = jest.fn(
+      (_endereco, { signal }) =>
+        new Promise((_resolver, rejeitar) => signal.addEventListener('abort', () => rejeitar(new Error('Aborted'))))
+    );
+    const verificacao = expect(s.procurarMoradaNoMapa('Rua X')).rejects.toThrow('demorou demasiado');
+    await jest.advanceTimersByTimeAsync(10 * 1000);
+    await verificacao;
   });
 });
