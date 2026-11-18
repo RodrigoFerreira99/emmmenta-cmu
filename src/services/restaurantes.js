@@ -2,7 +2,7 @@ import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 
-import { horaEmLisboa } from '@/lib/datas';
+import { hojeEmLisboa, horaEmLisboa } from '@/lib/datas';
 import { traduzirErro } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
 
@@ -206,6 +206,33 @@ export async function buscarRestaurante(id) {
       .maybeSingle();
     if (error) throw error;
     return data;
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
+/**
+ * Favoritos — os restaurantes com estes ids, por ordem alfabética, e se já publicaram o menu de hoje.
+ * Devolve [{ id, nome, tipoCozinha, temMenuHoje }]. Ids que já não existam ficam simplesmente de fora.
+ */
+export async function buscarRestaurantesPorIds(ids) {
+  const validos = (ids ?? []).filter((id) => UUID.test(String(id)));
+  if (validos.length === 0) return [];
+  try {
+    const { data, error } = await supabase
+      .from('restaurantes')
+      .select('id, nome, tipo_cozinha, menus(dia)')
+      .in('id', validos)
+      // filtra os menus embutidos: só vem o de hoje (a lista fica vazia se hoje ainda não publicou)
+      .eq('menus.dia', hojeEmLisboa())
+      .order('nome');
+    if (error) throw error;
+    return (data ?? []).map((linha) => ({
+      id: linha.id,
+      nome: linha.nome,
+      tipoCozinha: linha.tipo_cozinha,
+      temMenuHoje: (linha.menus ?? []).length > 0,
+    }));
   } catch (erro) {
     throw traduzirErro(erro);
   }

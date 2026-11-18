@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { Platform } from 'react-native';
 
+import { hojeEmLisboa } from '@/lib/datas';
 import * as s from '@/services/restaurantes';
 
 // RF02 — testes ao serviço src/services/restaurantes.js. Correr com: npm test
@@ -13,6 +14,8 @@ const mockEstado = {
   resposta: { data: null, error: null }, // o que o "Supabase" responde
   ultimoUpsert: null, // o que foi enviado para guardar
   ultimoUpload: null, // o que foi enviado para o Storage
+  filtros: {}, // os filtros do último pedido (.eq, .in)
+  ordem: null,
   tamanhos: [], // tamanho (em bytes) do ficheiro em cada tentativa de compressão
   tentativas: [], // opções usadas em cada tentativa de compressão
 };
@@ -22,7 +25,18 @@ jest.mock('@/lib/supabase', () => {
   const cadeia = () => {
     const c = {
       select: () => c,
-      eq: () => c,
+      eq: (coluna, valor) => {
+        mockEstado.filtros[coluna] = valor;
+        return c;
+      },
+      in: (coluna, valores) => {
+        mockEstado.filtros[coluna] = { em: valores };
+        return c;
+      },
+      order: async (coluna) => {
+        mockEstado.ordem = coluna;
+        return mockEstado.resposta;
+      },
       upsert: (linha, opcoes) => {
         mockEstado.ultimoUpsert = { linha, opcoes };
         return c;
@@ -106,6 +120,8 @@ beforeEach(() => {
     resposta: { data: null, error: null },
     ultimoUpsert: null,
     ultimoUpload: null,
+    filtros: {},
+    ordem: null,
     tamanhos: [],
     tentativas: [],
   });
@@ -505,5 +521,37 @@ describe('estadoDoHorario (RF06: aberto agora?)', () => {
   test('sem horário não diz nada', () => {
     expect(s.estadoDoHorario(null, null)).toBeNull();
     expect(s.estadoDoHorario('12:00:00', null)).toBeNull();
+  });
+});
+
+describe('buscarRestaurantesPorIds (favoritos)', () => {
+  const ID1 = '11111111-2222-3333-4444-555555555555';
+  const ID2 = '66666666-7777-8888-9999-000000000000';
+
+  test('pede só esses restaurantes, com o menu de hoje, por ordem alfabética', async () => {
+    mockEstado.resposta = {
+      data: [
+        { id: ID2, nome: 'O Pescador', tipo_cozinha: null, menus: [] },
+        { id: ID1, nome: 'Tasca do Sancho', tipo_cozinha: 'Portuguesa', menus: [{ dia: hojeEmLisboa() }] },
+      ],
+      error: null,
+    };
+    await expect(s.buscarRestaurantesPorIds([ID1, ID2])).resolves.toEqual([
+      { id: ID2, nome: 'O Pescador', tipoCozinha: null, temMenuHoje: false },
+      { id: ID1, nome: 'Tasca do Sancho', tipoCozinha: 'Portuguesa', temMenuHoje: true },
+    ]);
+    expect(mockEstado.filtros).toEqual({ id: { em: [ID1, ID2] }, 'menus.dia': hojeEmLisboa() });
+    expect(mockEstado.ordem).toBe('nome');
+  });
+
+  test('sem favoritos (ou com ids estragados) nem chega a pedir', async () => {
+    await expect(s.buscarRestaurantesPorIds([])).resolves.toEqual([]);
+    await expect(s.buscarRestaurantesPorIds(['isto-nao-e-um-id'])).resolves.toEqual([]);
+    expect(mockEstado.ordem).toBeNull();
+  });
+
+  test('sem rede, a mensagem vem em português', async () => {
+    mockEstado.resposta = { data: null, error: { message: 'TypeError: Network request failed' } };
+    await esperarErro(s.buscarRestaurantesPorIds([ID1]), 'Sem ligação à internet');
   });
 });
