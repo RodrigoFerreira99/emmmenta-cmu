@@ -23,10 +23,31 @@ export function diaPorExtenso(agora = new Date()) {
   return new Intl.DateTimeFormat('pt-PT', { timeZone: FUSO, weekday: 'long', day: 'numeric', month: 'long' }).format(agora);
 }
 
+/**
+ * Um dia da base de dados ("2026-11-14") dito como se fala: "hoje", "ontem" ou "sexta-feira, 13 de novembro".
+ * "agora" só serve para os testes poderem fixar o dia de hoje.
+ */
+export function descreverDia(diaIso, agora = new Date()) {
+  const [ano, mes, dia] = diaIso.split('-').map(Number);
+  const [anoHoje, mesHoje, diaHoje] = hojeEmLisboa(agora).split('-').map(Number);
+  // diferença em dias inteiros entre as duas datas (contas feitas em UTC, sem horas pelo meio)
+  const diferenca = (Date.UTC(anoHoje, mesHoje - 1, diaHoje) - Date.UTC(ano, mes - 1, dia)) / (24 * 60 * 60 * 1000);
+  if (diferenca === 0) return 'hoje';
+  if (diferenca === 1) return 'ontem';
+  // o meio-dia em UTC cai sempre nesse mesmo dia em Lisboa (Lisboa está a 0 ou a +1 hora de UTC)
+  return diaPorExtenso(new Date(Date.UTC(ano, mes - 1, dia, 12)));
+}
+
 /** A hora (em Lisboa) de um instante guardado na base de dados: "2026-11-15T10:12:00+00:00" → "10h12". */
 export function horaCurta(instante) {
   const { hour, minute } = partes(new Date(instante), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   return `${hour}h${minute}`;
+}
+
+/** A hora atual em Lisboa, como nos campos de horário: "13:05". */
+export function horaEmLisboa(agora = new Date()) {
+  const { hour, minute } = partes(agora, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  return `${hour}:${minute}`;
 }
 
 /** "Bom dia", "Boa tarde" ou "Boa noite", conforme a hora em Lisboa. */

@@ -2,8 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { CameraNaApp } from '@/components/CameraNaApp';
 import { Botao } from '@/components/ui';
-import { escolherImagem } from '@/lib/fotografias';
+import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
 import { lerMenuDaFoto } from '@/services/lerMenu';
 import { cores, espaco, raio, texto } from '@/theme';
 
@@ -14,9 +15,10 @@ import { cores, espaco, raio, texto } from '@/theme';
 //   aoLer  função chamada com o resultado da leitura, { pratos, precoMenuCompleto }.
 //          Devolve a frase a mostrar por baixo dos botões (por exemplo "Foram lidos 6 pratos...").
 //
-// Este componente só obtém a fotografia e chama o serviço (lerMenuDaFoto).
-// Quem decide o que fazer com os pratos lidos é o ecrã.
+// Este componente só obtém a fotografia (câmara dentro da app ou galeria) e chama o serviço
+// (lerMenuDaFoto). Quem decide o que fazer com os pratos lidos é o ecrã.
 export function LerMenuDaFoto({ aoLer }) {
+  const [cameraAberta, setCameraAberta] = useState(false);
   const [aLer, setALer] = useState(false);
   const [aviso, setAviso] = useState(null);
   const [correuMal, setCorreuMal] = useState(false);
@@ -30,27 +32,48 @@ export function LerMenuDaFoto({ aoLer }) {
     };
   }, []);
 
-  // origem: 'camara' ou 'galeria'
-  async function ler(origem) {
-    if (aLer) return;
-    setAviso(null);
-    try {
-      const caminho = await escolherImagem(origem);
-      if (!caminho || !montado.current) return; // a pessoa desistiu de escolher a fotografia
+  function mostrarErro(mensagem) {
+    setCorreuMal(true);
+    setAviso(mensagem);
+  }
 
-      setALer(true);
+  // Envia a fotografia para ser lida e mostra o resultado.
+  async function ler(caminho) {
+    setALer(true);
+    try {
       const resultado = await lerMenuDaFoto(caminho);
       if (!montado.current) return;
       setCorreuMal(false);
       setAviso(aoLer(resultado));
     } catch (erro) {
       // RNF08: se a leitura falhar, a app continua a funcionar — os pratos escrevem-se à mão
-      if (montado.current) {
-        setCorreuMal(true);
-        setAviso(erro.message);
-      }
+      if (montado.current) mostrarErro(erro.message);
     } finally {
       if (montado.current) setALer(false);
+    }
+  }
+
+  // "Fotografar": pede a permissão e abre a câmara dentro da app.
+  async function fotografar() {
+    if (aLer) return;
+    setAviso(null);
+    try {
+      await pedirAcessoACamara();
+      if (montado.current) setCameraAberta(true);
+    } catch (erro) {
+      if (montado.current) mostrarErro(erro.message);
+    }
+  }
+
+  // "Galeria": escolher uma fotografia que já esteja no telemóvel.
+  async function daGaleria() {
+    if (aLer) return;
+    setAviso(null);
+    try {
+      const caminho = await escolherDaGaleria();
+      if (caminho && montado.current) await ler(caminho); // null = a pessoa desistiu de escolher
+    } catch (erro) {
+      if (montado.current) mostrarErro(erro.message);
     }
   }
 
@@ -72,10 +95,10 @@ export function LerMenuDaFoto({ aoLer }) {
       ) : (
         <View style={estilos.botoes}>
           <View style={estilos.ocuparTudo}>
-            <Botao tipo="secundario" icone="camera-outline" titulo="Fotografar" onPress={() => ler('camara')} />
+            <Botao tipo="secundario" icone="camera-outline" titulo="Fotografar" onPress={fotografar} />
           </View>
           <View style={estilos.ocuparTudo}>
-            <Botao tipo="secundario" icone="images-outline" titulo="Galeria" onPress={() => ler('galeria')} />
+            <Botao tipo="secundario" icone="images-outline" titulo="Galeria" onPress={daGaleria} />
           </View>
         </View>
       )}
@@ -84,6 +107,17 @@ export function LerMenuDaFoto({ aoLer }) {
         <Text style={correuMal ? estilos.erro : estilos.sucesso} accessibilityRole="alert">
           {aviso}
         </Text>
+      ) : null}
+
+      {cameraAberta ? (
+        <CameraNaApp
+          dica="Enquadra o menu todo, com boa luz"
+          aoTirar={(caminho) => {
+            setCameraAberta(false);
+            ler(caminho);
+          }}
+          aoFechar={() => setCameraAberta(false)}
+        />
       ) : null}
     </View>
   );

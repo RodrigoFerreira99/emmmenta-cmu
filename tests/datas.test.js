@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { diaPorExtenso, hojeEmLisboa, horaCurta, saudacao } from '@/lib/datas';
+import { descreverDia, diaPorExtenso, hojeEmLisboa, horaCurta, horaEmLisboa, saudacao } from '@/lib/datas';
 
 // RN01 — o "hoje" da app é sempre o dia em Lisboa, seja qual for a hora do telemóvel.
 // Os instantes abaixo estão em UTC (o "Z" no fim). No inverno Lisboa = UTC; no verão Lisboa = UTC+1.
@@ -59,5 +59,37 @@ describe('saudacao', () => {
     ['2026-11-15T03:00:00Z', 'Boa noite'],
   ])('%s → %s', (instante, esperado) => {
     expect(saudacao(new Date(instante))).toBe(esperado);
+  });
+});
+
+describe('descreverDia', () => {
+  const AGORA = new Date('2026-11-17T12:00:00Z'); // terça-feira, 17 de novembro
+
+  test('hoje e ontem dizem-se assim mesmo', () => {
+    expect(descreverDia('2026-11-17', AGORA)).toBe('hoje');
+    expect(descreverDia('2026-11-16', AGORA)).toBe('ontem');
+  });
+
+  test('os outros dias vêm por extenso', () => {
+    expect(descreverDia('2026-11-13', AGORA)).toBe('sexta-feira, 13 de novembro');
+    expect(descreverDia('2026-10-31', AGORA)).toBe('sábado, 31 de outubro');
+  });
+
+  test('"ontem" conta pelo dia de Lisboa, não pela hora do telemóvel', () => {
+    // 14 de julho às 23h30 em UTC já é 15 de julho às 00h30 em Lisboa (no verão Lisboa = UTC+1)
+    expect(descreverDia('2026-07-14', new Date('2026-07-14T23:30:00Z'))).toBe('ontem');
+  });
+
+  test('a passagem de mês e de ano também conta como "ontem"', () => {
+    expect(descreverDia('2026-11-30', new Date('2026-12-01T12:00:00Z'))).toBe('ontem');
+    expect(descreverDia('2026-12-31', new Date('2027-01-01T12:00:00Z'))).toBe('ontem');
+  });
+});
+
+describe('horaEmLisboa', () => {
+  test('dá a hora de Lisboa no formato dos campos de horário', () => {
+    expect(horaEmLisboa(new Date('2026-11-17T13:05:00Z'))).toBe('13:05'); // inverno: Lisboa = UTC
+    expect(horaEmLisboa(new Date('2026-07-14T13:05:00Z'))).toBe('14:05'); // verão: Lisboa = UTC+1
+    expect(horaEmLisboa(new Date('2026-11-17T00:07:00Z'))).toBe('00:07'); // meia-noite com dois dígitos
   });
 });

@@ -140,6 +140,36 @@ export async function buscarMenuDeHoje(restauranteId) {
 }
 
 /**
+ * Reutilizar pratos de dias anteriores — o último menu publicado ANTES de hoje
+ * (normalmente o de ontem; se ontem o restaurante não publicou, o do último dia em que publicou).
+ * Devolve { dia, precoMenuCompleto, pratos: [{ nome, categoria, preco }] } ou null se não houver nenhum.
+ *
+ * Os pratos vêm SEM id e sem "esgotado": ao publicar, são pratos novos do menu de hoje,
+ * e o menu antigo fica como estava (RN01: cada menu pertence ao seu dia).
+ */
+export async function buscarUltimoMenuAnterior(restauranteId) {
+  try {
+    const { data, error } = await supabase
+      .from('menus')
+      .select(`dia, preco_menu_completo, pratos(${COLUNAS_DO_PRATO})`)
+      .eq('restaurante_id', restauranteId)
+      .lt('dia', hojeEmLisboa()) // "lt" = less than: só os dias antes de hoje
+      .order('dia', { ascending: false }) // do mais recente para o mais antigo...
+      .limit(1) // ...e só o primeiro
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || !data.pratos?.length) return null;
+    return {
+      dia: data.dia,
+      precoMenuCompleto: data.preco_menu_completo,
+      pratos: ordenarPratos(data.pratos).map(({ nome, categoria, preco }) => ({ nome, categoria, preco: Number(preco) })),
+    };
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
+/**
  * RF03 — publica o menu de hoje, ou guarda as alterações se já estiver publicado.
  * "pratos" é a lista do ecrã: [{ id (se já existia), nome, categoria, preco }]. Devolve o menu como ficou guardado.
  *

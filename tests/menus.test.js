@@ -35,6 +35,15 @@ jest.mock('@/lib/supabase', () => {
       delete: mudar('delete'),
       eq: filtrar,
       in: filtrar,
+      lt: (coluna, valor) => filtrar(coluna, { menorQue: valor }),
+      order: (coluna, opcoes) => {
+        chamada.ordem = { coluna, ...opcoes };
+        return cadeia;
+      },
+      limit: (quantos) => {
+        chamada.limite = quantos;
+        return cadeia;
+      },
       maybeSingle: responder,
       single: responder,
       // permite fazer "await" diretamente ao pedido, como no supabase-js
@@ -318,5 +327,47 @@ describe('marcarEsgotado (RF04)', () => {
   test('um erro chega em português', async () => {
     mockBd.respostas['pratos.update'] = { data: null, error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' } };
     await expect(m.marcarEsgotado('p2', true)).rejects.toThrow('Ocorreu um erro inesperado');
+  });
+});
+
+describe('buscarUltimoMenuAnterior (reutilizar pratos de dias anteriores)', () => {
+  test('pede o menu mais recente antes de hoje e devolve os pratos sem id nem esgotado', async () => {
+    mockBd.respostas['menus.select'] = {
+      data: { dia: '2026-11-14', preco_menu_completo: 10, pratos: [PUDIM, BACALHAU, SOPA] },
+      error: null,
+    };
+
+    await expect(m.buscarUltimoMenuAnterior('r1')).resolves.toEqual({
+      dia: '2026-11-14',
+      precoMenuCompleto: 10,
+      // ordenados como num menu, e só com o que interessa para os copiar para hoje
+      pratos: [
+        { nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5 },
+        { nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 8.5 },
+        { nome: 'Pudim caseiro', categoria: 'sobremesa', preco: 2 },
+      ],
+    });
+
+    const chamada = chamadaDe('menus.select');
+    expect(chamada.filtros).toEqual({ restaurante_id: 'r1', dia: { menorQue: hojeEmLisboa() } }); // só dias antes de hoje
+    expect(chamada.ordem).toEqual({ coluna: 'dia', ascending: false }); // o mais recente primeiro
+    expect(chamada.limite).toBe(1);
+  });
+
+  test('o preço que venha como texto passa a número', async () => {
+    mockBd.respostas['menus.select'] = { data: { dia: '2026-11-14', preco_menu_completo: null, pratos: [{ ...SOPA, preco: '1.50' }] }, error: null };
+    const anterior = await m.buscarUltimoMenuAnterior('r1');
+    expect(anterior.pratos[0].preco).toBe(1.5);
+  });
+
+  test('sem menus anteriores, ou com um menu sem pratos, devolve null', async () => {
+    await expect(m.buscarUltimoMenuAnterior('r1')).resolves.toBeNull();
+    mockBd.respostas['menus.select'] = { data: { dia: '2026-11-14', preco_menu_completo: null, pratos: [] }, error: null };
+    await expect(m.buscarUltimoMenuAnterior('r1')).resolves.toBeNull();
+  });
+
+  test('sem rede, a mensagem vem em português', async () => {
+    mockBd.respostas['menus.select'] = { data: null, error: { message: 'TypeError: Network request failed' } };
+    await expect(m.buscarUltimoMenuAnterior('r1')).rejects.toThrow('Sem ligação à internet');
   });
 });

@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 
+import { horaEmLisboa } from '@/lib/datas';
 import { traduzirErro } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
 
@@ -84,6 +85,22 @@ export function telefoneParaEcra(telefoneBd) {
   return `${digitos.slice(0, 3)} ${digitos.slice(3, 6)} ${digitos.slice(6)}`;
 }
 
+/**
+ * RF06 — o restaurante está aberto agora? Usa o horário de almoço e a hora de Lisboa (não a do telemóvel).
+ * Recebe as horas como vêm da base de dados ("12:00:00"). Devolve null se o restaurante não tiver horário,
+ * ou { aberto, texto }, por exemplo { aberto: true, texto: 'Aberto agora · fecha às 15:00' }.
+ */
+export function estadoDoHorario(horaAbertura, horaFecho, agora = new Date()) {
+  if (!horaAbertura || !horaFecho) return null;
+  const abre = horaParaEcra(horaAbertura);
+  const fecha = horaParaEcra(horaFecho);
+  const hora = horaEmLisboa(agora);
+  // "12:00" < "15:00" compara-se como texto porque as horas têm sempre dois dígitos
+  if (hora < abre) return { aberto: false, texto: `Fechado agora · abre às ${abre}` };
+  if (hora < fecha) return { aberto: true, texto: `Aberto agora · fecha às ${fecha}` };
+  return { aberto: false, texto: 'Fechado agora · o almoço de hoje já terminou' };
+}
+
 /** Linha da tabela "restaurantes" (ou null) → objeto "dados" para preencher o formulário. */
 export function restauranteParaFormulario(linha) {
   if (!linha) return { ...FORMULARIO_VAZIO };
@@ -163,6 +180,30 @@ export function validarRestaurante(dados) {
 export async function buscarMeuRestaurante(donoId) {
   try {
     const { data, error } = await supabase.from('restaurantes').select('*').eq('dono_id', donoId).maybeSingle();
+    if (error) throw error;
+    return data;
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
+// Os ids da base de dados são UUID: 8-4-4-4-12 caracteres hexadecimais.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * RF06 — um restaurante pelo seu id, para a página que o cliente vê.
+ * Devolve a linha da tabela "restaurantes" ou null se não existir.
+ * Qualquer pessoa pode ler os restaurantes (são informação pública); só o dono os altera.
+ */
+export async function buscarRestaurante(id) {
+  // um id que nem sequer tem o formato certo não existe de certeza: não vale a pena perguntar
+  if (!UUID.test(String(id ?? ''))) return null;
+  try {
+    const { data, error } = await supabase
+      .from('restaurantes')
+      .select('id, nome, tipo_cozinha, morada, latitude, longitude, hora_abertura, hora_fecho, telefone, foto_url')
+      .eq('id', id)
+      .maybeSingle();
     if (error) throw error;
     return data;
   } catch (erro) {

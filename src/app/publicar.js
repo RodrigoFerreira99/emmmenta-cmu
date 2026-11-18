@@ -8,12 +8,14 @@ import { CampoComErro } from '@/components/CampoComErro';
 import { Chip } from '@/components/Chip';
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { LerMenuDaFoto } from '@/components/LerMenuDaFoto';
+import { RepetirMenu } from '@/components/RepetirMenu';
 import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { confirmar } from '@/lib/confirmar';
 import { diaPorExtenso } from '@/lib/datas';
 import {
   buscarMenuDeHoje,
+  buscarUltimoMenuAnterior,
   haAlteracoesNosPratos,
   lerPreco,
   limparNome,
@@ -33,8 +35,9 @@ import { cores, espaco, raio, texto } from '@/theme';
 //  2. Os pratos ficam numa lista no ecrã (estado "pratos"). Adicionar, alterar e remover só mexe
 //     nessa lista — nada vai para a base de dados até se carregar em "Publicar menu".
 //  3. "Publicar menu" grava tudo de uma vez (publicarMenu) e volta ao Painel.
-// Em vez de escrever os pratos um a um, o dono pode fotografar o menu (cartão LerMenuDaFoto):
-// os pratos lidos entram na mesma lista, para serem confirmados antes de publicar.
+// Em vez de escrever os pratos um a um, o dono pode repetir o último menu (cartão RepetirMenu)
+// ou fotografar o menu (cartão LerMenuDaFoto): esses pratos entram na mesma lista, para serem
+// confirmados e alterados antes de publicar.
 // O acesso aos dados é todo feito pelas funções de src/services/ (RNF09).
 
 // Um prato lido de uma fotografia pode vir sem preço (preco: null) quando não se conseguiu ler.
@@ -50,6 +53,7 @@ export default function Publicar() {
   const [tentativa, setTentativa] = useState(0); // aumenta quando se carrega em "Tentar outra vez"
   const [restauranteId, setRestauranteId] = useState(null);
   const [jaPublicado, setJaPublicado] = useState(false); // hoje já havia menu?
+  const [menuAnterior, setMenuAnterior] = useState(null); // o último menu antes de hoje, para o repetir
 
   // O menu como está guardado na base de dados (serve para saber se há alterações por publicar)...
   const [pratosGuardados, setPratosGuardados] = useState([]);
@@ -98,13 +102,19 @@ export default function Publicar() {
           setEstado('semRestaurante');
           return;
         }
-        const menu = await buscarMenuDeHoje(restaurante.id);
+        // Os dois pedidos ao mesmo tempo, para o ecrã abrir mais depressa. O menu anterior é só uma ajuda:
+        // se falhar, o ecrã abre na mesma, sem o cartão "Repetir o menu".
+        const [menu, anterior] = await Promise.all([
+          buscarMenuDeHoje(restaurante.id),
+          buscarUltimoMenuAnterior(restaurante.id).catch(() => null),
+        ]);
         if (!ativo) return;
 
         const lista = (menu?.pratos ?? []).map((prato) => ({ ...prato, chave: prato.id }));
         const precoDoMenu = precoParaCampo(menu?.preco_menu_completo);
         setRestauranteId(restaurante.id);
         setJaPublicado(menu !== null);
+        setMenuAnterior(anterior);
         setPratosGuardados(lista);
         setPratos(lista);
         setPrecoMenuGuardado(precoDoMenu);
@@ -181,24 +191,39 @@ export default function Publicar() {
     setMensagem(null);
   }
 
-  // Pratos lidos de uma fotografia: entram na lista do ecrã como se tivessem sido escritos à mão.
-  // Devolve a frase que o cartão da fotografia mostra a seguir.
-  function juntarPratosLidos({ pratos: lidos, precoMenuCompleto }) {
+  // Junta à lista do ecrã pratos que vêm de fora (de uma fotografia ou de um menu anterior), como se
+  // tivessem sido escritos à mão. Devolve os pratos que entraram.
+  function juntarAoMenu(vindos, precoMenuCompleto) {
     setMensagem(null);
 
     // um prato que já está no menu não entra outra vez (por exemplo, ao fotografar o mesmo quadro duas vezes)
     const jaNoMenu = new Set(pratos.map((prato) => prato.nome.toLowerCase()));
-    const novos = lidos
-      .filter((lido) => !jaNoMenu.has(lido.nome.toLowerCase()))
-      .map((lido) => {
+    const novos = vindos
+      .filter((vindo) => !jaNoMenu.has(vindo.nome.toLowerCase()))
+      .map((vindo) => {
         const chave = `novo-${proximaChave.current}`;
         proximaChave.current += 1;
-        return { ...lido, chave };
+        // só o nome, a categoria e o preço: nunca um id de outro menu (seria tratado como um prato a alterar)
+        return { nome: vindo.nome, categoria: vindo.categoria, preco: vindo.preco, chave };
       });
     if (novos.length > 0) setPratos((lista) => [...lista, ...novos]);
 
     // o preço do menu completo só é preenchido se o campo estiver vazio: não apaga o que o dono escreveu
     if (precoMenuCompleto && !precoMenu.trim()) setPrecoMenu(precoParaCampo(precoMenuCompleto));
+    return novos;
+  }
+
+  // Botão "Usar estes pratos" do cartão "Repetir o menu". Devolve a frase que o cartão mostra a seguir.
+  function repetirMenuAnterior() {
+    const novos = juntarAoMenu(menuAnterior.pratos, menuAnterior.precoMenuCompleto);
+    if (novos.length === 0) return 'Esses pratos já estão no menu de hoje.';
+    const frase = novos.length === 1 ? 'Foi copiado 1 prato.' : `Foram copiados ${novos.length} pratos.`;
+    return `${frase} Muda o que for diferente hoje e confirma os preços antes de publicar.`;
+  }
+
+  // Pratos lidos de uma fotografia. Devolve a frase que o cartão da fotografia mostra a seguir.
+  function juntarPratosLidos({ pratos: lidos, precoMenuCompleto }) {
+    const novos = juntarAoMenu(lidos, precoMenuCompleto);
 
     if (lidos.length === 0) {
       return 'Não foi possível ler nenhum prato nesta fotografia. Tenta com mais luz e com o menu a ocupar a imagem toda.';
@@ -313,6 +338,9 @@ export default function Publicar() {
           {/* Enquanto está a publicar, nada aceita toques: o que é gravado é o que está no ecrã. */}
           <View style={estilos.campos} pointerEvents={aPublicar ? 'none' : 'auto'}>
             <Text style={texto.pequeno}>{diaPorExtenso()}</Text>
+
+            {/* só na primeira publicação do dia: ao editar um menu já publicado, já há pratos */}
+            {!jaPublicado && menuAnterior ? <RepetirMenu menu={menuAnterior} aoRepetir={repetirMenuAnterior} /> : null}
 
             <LerMenuDaFoto aoLer={juntarPratosLidos} />
 

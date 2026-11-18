@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { router, usePreventRemove } from 'expo-router';
 
 import Publicar from '@/app/publicar';
-import { escolherImagem } from '@/lib/fotografias';
+import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
 import { lerMenuDaFoto } from '@/services/lerMenu';
-import { buscarMenuDeHoje, publicarMenu } from '@/services/menus';
+import { buscarMenuDeHoje, buscarUltimoMenuAnterior, publicarMenu } from '@/services/menus';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
 
 // RF03 — testes ao ecrã Publicar menu, a carregar nos botões como um utilizador faria.
@@ -27,10 +27,29 @@ jest.mock('@/services/restaurantes', () => ({ buscarMeuRestaurante: jest.fn() })
 jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
   buscarMenuDeHoje: jest.fn(),
+  buscarUltimoMenuAnterior: jest.fn(),
   publicarMenu: jest.fn(),
 }));
-// Ler o menu de uma fotografia: a câmara e a função que lê a imagem são simuladas.
-jest.mock('@/lib/fotografias', () => ({ escolherImagem: jest.fn() }));
+// Ler o menu de uma fotografia: a permissão, a galeria, a câmara e a função que lê a imagem são simuladas.
+jest.mock('@/lib/fotografias', () => ({ escolherDaGaleria: jest.fn(), pedirAcessoACamara: jest.fn() }));
+// A câmara verdadeira só existe no telemóvel: aqui é trocada por dois botões ("Tirar fotografia" e "Cancelar").
+jest.mock('@/components/CameraNaApp', () => {
+  const mockReact = require('react');
+  const { Pressable, View } = require('react-native');
+  return {
+    CameraNaApp: ({ aoTirar, aoFechar }) =>
+      mockReact.createElement(
+        View,
+        null,
+        mockReact.createElement(Pressable, {
+          accessibilityRole: 'button',
+          accessibilityLabel: 'Tirar fotografia',
+          onPress: () => aoTirar('file:///fotos/quadro.jpg'),
+        }),
+        mockReact.createElement(Pressable, { accessibilityRole: 'button', accessibilityLabel: 'Cancelar', onPress: aoFechar })
+      ),
+  };
+});
 jest.mock('@/services/lerMenu', () => ({ lerMenuDaFoto: jest.fn() }));
 
 const SOPA = { id: 'p1', nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5, esgotado: false };
@@ -43,6 +62,12 @@ async function adicionarPrato(nome, preco) {
   await fireEvent.press(screen.getByRole('button', { name: 'Adicionar prato' }));
 }
 
+// Carrega em "Fotografar" e, já com a câmara da app aberta, em "Tirar fotografia".
+async function fotografar() {
+  await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Tirar fotografia' }));
+}
+
 // O que o ecrã disse ao router sobre "travar a saída" na última vez que foi desenhado.
 const saidaTravada = () => usePreventRemove.mock.calls.at(-1)[0];
 
@@ -51,8 +76,10 @@ beforeEach(() => {
   router.canGoBack.mockReturnValue(true);
   buscarMeuRestaurante.mockResolvedValue({ id: 'r1', nome: 'Tasca do Manuel' });
   buscarMenuDeHoje.mockResolvedValue(null);
+  buscarUltimoMenuAnterior.mockResolvedValue(null);
   publicarMenu.mockResolvedValue({ id: 'm1', pratos: [] });
-  escolherImagem.mockResolvedValue('file:///fotos/quadro.jpg');
+  escolherDaGaleria.mockResolvedValue('file:///fotos/quadro.jpg');
+  pedirAcessoACamara.mockResolvedValue();
   lerMenuDaFoto.mockResolvedValue({ pratos: [], precoMenuCompleto: null });
 });
 
@@ -243,9 +270,9 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+    await fotografar();
 
-    expect(escolherImagem).toHaveBeenCalledWith('camara');
+    expect(pedirAcessoACamara).toHaveBeenCalledTimes(1); // a permissão é pedida antes de abrir a câmara
     expect(lerMenuDaFoto).toHaveBeenCalledWith('file:///fotos/quadro.jpg');
     expect(await screen.findByText(/Foram lidos 2 pratos\. Confirma os nomes/)).toBeTruthy();
     expect(screen.getByText('Caldo verde')).toBeTruthy();
@@ -263,12 +290,12 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
   });
 
   test('a galeria também serve, e desistir de escolher a fotografia não faz nada', async () => {
-    escolherImagem.mockResolvedValue(null); // a pessoa fechou a galeria sem escolher
+    escolherDaGaleria.mockResolvedValue(null); // a pessoa fechou a galeria sem escolher
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Galeria' }));
-    expect(escolherImagem).toHaveBeenCalledWith('galeria');
+    expect(escolherDaGaleria).toHaveBeenCalledTimes(1);
     expect(lerMenuDaFoto).not.toHaveBeenCalled();
     expect(screen.getByText('Ainda não há pratos. Adiciona o primeiro em cima.')).toBeTruthy();
   });
@@ -277,7 +304,7 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
     lerMenuDaFoto.mockResolvedValue({ pratos: [{ nome: 'Pudim', categoria: 'sobremesa', preco: null }], precoMenuCompleto: null });
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
-    await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+    await fotografar();
 
     expect(await screen.findByText(/Foi lido 1 prato\..*Falta o preço de 1 prato: toca nele/)).toBeTruthy();
     expect(screen.getByText('Falta o preço')).toBeTruthy();
@@ -308,7 +335,7 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
     await adicionarPrato('Arroz de pato', '9');
     await fireEvent.changeText(screen.getByLabelText('Preço do menu completo (opcional)'), '12');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+    await fotografar();
 
     expect(await screen.findByText(/Foi lido 1 prato\./)).toBeTruthy();
     expect(screen.getByText('Caldo verde')).toBeTruthy();
@@ -321,7 +348,7 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
   test('fotografia sem pratos legíveis: explica o que fazer', async () => {
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
-    await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+    await fotografar();
     expect(await screen.findByText(/Não foi possível ler nenhum prato nesta fotografia/)).toBeTruthy();
   });
 
@@ -330,7 +357,7 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+    await fotografar();
     expect(await screen.findByText('A leitura por fotografia ainda não está ativada. Escreve os pratos à mão.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fotografar' })).toBeTruthy(); // pode tentar-se outra vez
 
@@ -338,12 +365,116 @@ describe('Publicar menu — ler o menu de uma fotografia', () => {
     expect(screen.getByText('Arroz de pato')).toBeTruthy();
   });
 
-  test('sem acesso à câmara, a mensagem aparece no cartão', async () => {
-    escolherImagem.mockRejectedValue(new Error('Sem acesso à câmara não é possível tirar a fotografia. Podes escolher uma imagem da galeria.'));
+  test('sem acesso à câmara, a mensagem aparece no cartão e a câmara não abre', async () => {
+    pedirAcessoACamara.mockRejectedValue(new Error('Sem acesso à câmara não é possível tirar a fotografia. Podes escolher uma imagem da galeria.'));
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
     await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
     expect(await screen.findByText(/Sem acesso à câmara/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Tirar fotografia' })).toBeNull();
     expect(lerMenuDaFoto).not.toHaveBeenCalled();
+  });
+
+  test('a câmara abre dentro da app; "Cancelar" fecha-a sem ler nada', async () => {
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    await fireEvent.press(screen.getByRole('button', { name: 'Fotografar' }));
+    expect(await screen.findByRole('button', { name: 'Tirar fotografia' })).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('button', { name: 'Tirar fotografia' })).toBeNull();
+    expect(lerMenuDaFoto).not.toHaveBeenCalled();
+  });
+
+  test('depois de tirar a fotografia a câmara fecha e aparece "A ler o menu"', async () => {
+    let terminarLeitura;
+    lerMenuDaFoto.mockImplementation(() => new Promise((resolver) => (terminarLeitura = resolver)));
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+
+    await fotografar();
+    expect(screen.queryByRole('button', { name: 'Tirar fotografia' })).toBeNull();
+    expect(screen.getByLabelText('A ler o menu')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fotografar' })).toBeNull(); // não se lê duas fotografias ao mesmo tempo
+
+    await act(async () => terminarLeitura({ pratos: [CALDO], precoMenuCompleto: null }));
+    expect(screen.getByText('Caldo verde')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Fotografar' })).toBeTruthy();
+  });
+});
+
+describe('Publicar menu — repetir o menu anterior', () => {
+  // como vem do serviço: sem id e sem "esgotado"
+  const ANTERIOR = {
+    dia: '2026-11-13',
+    precoMenuCompleto: 9.5,
+    pratos: [
+      { nome: 'Caldo verde', categoria: 'sopa', preco: 1.8 },
+      { nome: 'Arroz de pato', categoria: 'carne', preco: 8.5 },
+    ],
+  };
+
+  test('mostra o último menu e, com um toque, copia os pratos para hoje', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue(ANTERIOR);
+    await render(<Publicar />);
+
+    expect(await screen.findByText(/^Repetir o menu de /)).toBeTruthy();
+    expect(buscarUltimoMenuAnterior).toHaveBeenCalledWith('r1');
+    expect(screen.getByText('Caldo verde · Arroz de pato')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Usar estes 2 pratos' }));
+    expect(screen.getByText(/^Foram copiados 2 pratos\. Muda o que for diferente/)).toBeTruthy();
+    expect(screen.getByText('1,80 €')).toBeTruthy();
+    expect(screen.getByText('8,50 €')).toBeTruthy();
+    expect(screen.getByLabelText('Preço do menu completo (opcional)').props.value).toBe('9,50');
+    expect(saidaTravada()).toBe(true); // há alterações por publicar
+    expect(publicarMenu).not.toHaveBeenCalled(); // nada é publicado sozinho
+  });
+
+  test('os pratos copiados são publicados como pratos novos de hoje (sem o id do menu antigo)', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue({ ...ANTERIOR, pratos: ANTERIOR.pratos.map((prato, i) => ({ ...prato, id: `antigo-${i}` })) });
+    await render(<Publicar />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Usar estes 2 pratos' }));
+
+    // alterar o preço de um prato copiado, como o dono faria
+    await fireEvent.press(screen.getByLabelText('Alterar Arroz de pato, 8,50 €'));
+    await fireEvent.changeText(screen.getByLabelText('Preço do prato em euros'), '9');
+    await fireEvent.press(screen.getByRole('button', { name: 'Guardar prato' }));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
+    const { pratos } = publicarMenu.mock.calls[0][1];
+    expect(pratos).toEqual([
+      expect.objectContaining({ nome: 'Caldo verde', categoria: 'sopa', preco: 1.8 }),
+      expect.objectContaining({ nome: 'Arroz de pato', categoria: 'carne', preco: 9 }),
+    ]);
+    for (const prato of pratos) expect(prato.id).toBeUndefined();
+  });
+
+  test('carregar duas vezes não duplica os pratos', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue(ANTERIOR);
+    await render(<Publicar />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Usar estes 2 pratos' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Usar estes 2 pratos' }));
+    expect(screen.getByText('Esses pratos já estão no menu de hoje.')).toBeTruthy();
+    expect(screen.getAllByText('Caldo verde')).toHaveLength(1);
+  });
+
+  test('não aparece quando o menu de hoje já foi publicado', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ id: 'm1', preco_menu_completo: null, pratos: [SOPA] });
+    buscarUltimoMenuAnterior.mockResolvedValue(ANTERIOR);
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
+  });
+
+  test('sem menus anteriores, ou se a procura falhar, o ecrã abre na mesma sem o cartão', async () => {
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
+
+    buscarUltimoMenuAnterior.mockRejectedValue(new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.'));
+    await render(<Publicar />);
+    expect(await screen.findByText('Pratos de hoje')).toBeTruthy();
+    expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
   });
 });

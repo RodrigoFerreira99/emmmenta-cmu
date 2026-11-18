@@ -50,11 +50,14 @@ src/
     (restaurante)/painel.js 5 · Painel                   RF04
     publicar.js            6 · Publicar menu             RF03
     (restaurante)/perfil.js 7 · Perfil do restaurante    RF02
-  components/ui.js         botões, campos, logo… (iguais ao Figma)
+  components/              botões, campos, filtros, cartões… (ui.js tem os do Figma)
   context/AuthContext.js   sessão e perfil (useAuth)
-  lib/supabase.js          ligação ao Supabase (sessão no SecureStore)
-  services/pratos.js       pesquisa de pratos perto, tempo real, formatação
+  context/PertoContext.js  onde se procura, filtros e pratos perto (usePerto)
+  lib/                     ligação ao Supabase, datas, erros, zonas, ligações a outras apps
+  services/                acesso aos dados: restaurantes, menus, pratos, localização, ler menu
   theme.js                 cores e medidas do Figma
+supabase/functions/        código que corre no servidor do Supabase (ler o menu por fotografia)
+tests/                     testes automáticos (npm test)
 ```
 
 ## Quem faz o quê
@@ -87,15 +90,18 @@ Cada ecrã por fazer mostra uma caixa "Por fazer" com a lista do que falta.
 Além do Supabase, a app usa dois serviços. Nenhum recebe dados pessoais dos utilizadores.
 
 - **Encontrar a morada no mapa (RF02):** o botão do perfil do restaurante envia o texto da morada ao [Nominatim](https://nominatim.org/), o serviço público do OpenStreetMap, e recebe as coordenadas. É gratuito e não precisa de chave. A morada de um restaurante é um dado público do negócio. Se o serviço falhar, o pin põe-se à mão.
-- **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA (Claude, da Anthropic). A fotografia não fica guardada.
+- **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA no serviço Groq (plano gratuito). A fotografia não fica guardada.
 
 ### Ativar a leitura por fotografia
 
-Enquanto isto não for feito, a app diz "A leitura por fotografia ainda não está ativada" e os pratos escrevem-se à mão.
+A função `ler-menu` já está publicada no Supabase. Falta a chave: enquanto não existir, a app diz "A leitura por fotografia ainda não está configurada" e os pratos escrevem-se à mão.
 
-1. Criar uma chave em https://platform.claude.com (é um serviço pago ao uso; convém definir lá um limite de gastos).
-2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `ANTHROPIC_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
-3. Publicar a função `ler-menu` no projeto Supabase, com a verificação da sessão ligada ("Verify JWT").
-4. (Opcional) O segredo `MODELO_LER_MENU` escolhe outro modelo, por exemplo `claude-haiku-5-5`, que é mais barato.
+1. Criar uma conta gratuita em https://console.groq.com (não pede cartão) e, em **API Keys**, criar uma chave.
+2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `GROQ_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
 
-Só as contas de restaurante conseguem usar a função.
+O que convém saber:
+
+- O plano gratuito do Groq tem um limite de pedidos por minuto e por dia. Quando é atingido, a app avisa e os pratos escrevem-se à mão.
+- O modelo usado, `qwen/qwen3.8-27b`, está em fase "Preview" no Groq, que avisa que estes modelos podem ser retirados. Se a leitura deixar de funcionar, escolher outro modelo que aceite imagens em https://console.groq.com/docs/vision e pôr o nome dele no segredo `MODELO_LER_MENU` (não é preciso mexer no código).
+- Só as contas de restaurante conseguem usar a função.
+- Se o código em `supabase/functions/ler-menu/index.js` mudar, a função tem de ser publicada outra vez no Supabase (com "Verify JWT" ligado).
