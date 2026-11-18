@@ -1,0 +1,50 @@
+# Manter o Supabase acordado
+#
+# No plano gratuito, o Supabase pausa o projeto quando a base de dados tem pouco uso durante uma semana.
+# Segundo a documentação, "alguns pedidos à base de dados por dia" chegam para isso não acontecer
+# (https://supabase.com/docs/guides/platform/free-project-pausing). Nas férias de Natal ninguém usa a app,
+# por isso esta tarefa faz, todos os dias, três leituras pequenas — as mesmas que a app faz.
+#
+# Precisa de dois segredos no GitHub (Settings → Secrets and variables → Actions → New repository secret):
+#   SUPABASE_URL              o mesmo valor de EXPO_PUBLIC_SUPABASE_URL no ficheiro .env
+#   SUPABASE_PUBLISHABLE_KEY  o mesmo valor de EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY (a chave pública da app)
+# Nunca a chave "service_role"/"secret".
+#
+# Se um pedido falhar (por exemplo, o projeto já está pausado), a tarefa fica a vermelho no separador
+# Actions e o GitHub avisa por email. Também se pode correr à mão: Actions → "Manter o Supabase acordado" → Run workflow.
+
+name: Manter o Supabase acordado
+
+on:
+  schedule:
+    - cron: '17 8 * * *' # todos os dias às 8h17 (UTC)
+  workflow_dispatch: {}
+
+# esta tarefa só lê da internet: não precisa de mexer no repositório
+permissions:
+  contents: read
+
+jobs:
+  ler-a-base-de-dados:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Três leituras pequenas, como a app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "Faltam os segredos SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY (ver o início deste ficheiro)."
+            exit 1
+          fi
+          pedir() {
+            curl --fail --silent --show-error --output /dev/null --max-time 30 \
+              -H "apikey: $SUPABASE_PUBLISHABLE_KEY" -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" "$@"
+          }
+          pedir "$SUPABASE_URL/rest/v1/restaurantes?select=id&limit=1"
+          pedir "$SUPABASE_URL/rest/v1/menus?select=id&limit=1"
+          # a mesma pesquisa da lista "pratos perto de mim", no centro do Porto
+          pedir -X POST -H "Content-Type: application/json" \
+            -d '{"lat":41.1502,"lng":-8.6103,"raio_km":2}' "$SUPABASE_URL/rest/v1/rpc/pratos_perto"
+          echo "O Supabase respondeu às três leituras."
