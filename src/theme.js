@@ -6,7 +6,9 @@ export const cores = {
   acentoSuave: '#FBE5D6', // fundo laranja claro (cartões em destaque, fotos)
   texto: '#1A1718',
   textoSecundario: '#5C5C5C',
-  textoTerciario: '#8F8F8F',
+  // RNF06 (contraste): era #8F8F8F (3,2:1 no branco), abaixo do mínimo de 4,5:1 para texto pequeno.
+  // #707070 dá 4,95:1 no branco e 4,55:1 no fundo da app, e continua a ler-se como cinzento claro.
+  textoTerciario: '#707070',
   textoInverso: '#FFFFFF',
   linha: '#E6E4E1',
   fundo: '#F6F5F3',
