@@ -59,6 +59,13 @@ describe('buscarPratosPerto (RF05, RF07)', () => {
     expect(mockBd.pedido.parametros).toEqual({ lat: 41.15, lng: -8.61, raio_km: 5, preco_max: 8, categoria_filtro: 'peixe', pesquisa: 'bacalhau' });
   });
 
+  test('os pratos chegam já pela ordem da lista (principais antes da sopa e da sobremesa)', async () => {
+    const PUDIM = { ...TASCA, prato_id: 'p9', prato: 'Pudim', categoria: 'sobremesa', preco: 2, esgotado: false };
+    mockBd.resposta = { data: [PUDIM, SOPA, BACALHAU], error: null }; // a base de dados ordena só por distância
+    const pratos = await p.buscarPratosPerto({ latitude: 41.15, longitude: -8.61 });
+    expect(pratos.map((prato) => prato.prato)).toEqual(['Bacalhau à Brás', 'Caldo verde', 'Pudim']);
+  });
+
   test('pesquisa só com espaços conta como não haver pesquisa', async () => {
     await p.buscarPratosPerto({ latitude: 41.15, longitude: -8.61, pesquisa: '   ' });
     expect(mockBd.pedido.parametros.pesquisa).toBeNull();
@@ -72,6 +79,39 @@ describe('buscarPratosPerto (RF05, RF07)', () => {
   test('sem rede, a mensagem vem em português', async () => {
     mockBd.resposta = { data: null, error: { message: 'TypeError: Network request failed' } };
     await expect(p.buscarPratosPerto({ latitude: 41.15, longitude: -8.61 })).rejects.toThrow('Sem ligação à internet');
+  });
+});
+
+describe('ordenarPratosDaLista (RF05: a ordem da lista)', () => {
+  const nomes = (lista) => lista.map((prato) => prato.prato);
+  const PUDIM = { ...TASCA, prato_id: 'p4', prato: 'Pudim', categoria: 'sobremesa', preco: 1, esgotado: false };
+  const COGUMELOS = { ...TASCA, prato_id: 'p5', prato: 'Risotto de cogumelos', categoria: 'vegetariano', preco: 9, esgotado: false };
+
+  test('no mesmo restaurante: principais (do mais barato ao mais caro), depois a sopa e por fim a sobremesa', () => {
+    expect(nomes(p.ordenarPratosDaLista([PUDIM, SOPA, COGUMELOS, BACALHAU]))).toEqual([
+      'Bacalhau à Brás',
+      'Risotto de cogumelos',
+      'Caldo verde',
+      'Pudim',
+    ]);
+  });
+
+  test('a distância vem antes da categoria: uma sobremesa mais perto aparece antes de um prato mais longe', () => {
+    expect(nomes(p.ordenarPratosDaLista([FRANCESINHA, PUDIM].map((prato) => ({ ...prato, esgotado: false }))))).toEqual([
+      'Pudim',
+      'Francesinha',
+    ]);
+  });
+
+  test('os esgotados vão sempre para o fim', () => {
+    const bacalhauEsgotado = { ...BACALHAU, esgotado: true };
+    expect(nomes(p.ordenarPratosDaLista([bacalhauEsgotado, PUDIM, SOPA]))).toEqual(['Caldo verde', 'Pudim', 'Bacalhau à Brás']);
+  });
+
+  test('não altera a lista que recebe', () => {
+    const lista = [PUDIM, BACALHAU];
+    p.ordenarPratosDaLista(lista);
+    expect(nomes(lista)).toEqual(['Pudim', 'Bacalhau à Brás']);
   });
 });
 

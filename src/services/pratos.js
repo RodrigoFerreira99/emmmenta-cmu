@@ -9,13 +9,36 @@ export const RAIO_POR_OMISSAO_KM = 2;
 export const OPCOES_DE_RAIO_KM = [1, 2, 5, 10];
 export const OPCOES_DE_PRECO_MAXIMO = [6, 8, 10, 15];
 
+// Ordem das categorias dentro do mesmo restaurante: quem procura onde almoçar quer ver primeiro
+// os pratos principais; a sopa e a sobremesa vêm a seguir.
+const ORDEM_NA_LISTA = { carne: 0, peixe: 0, vegetariano: 0, sopa: 1, sobremesa: 2 };
+
+/**
+ * RF05 — a ordem da lista "pratos perto de mim":
+ *  1. os disponíveis antes dos esgotados;
+ *  2. do restaurante mais perto para o mais longe;
+ *  3. no mesmo restaurante, os pratos principais antes da sopa e da sobremesa;
+ *  4. por fim, do mais barato para o mais caro.
+ * Devolve uma lista nova (não altera a que recebe).
+ */
+export function ordenarPratosDaLista(pratos) {
+  const posicao = (prato) => ORDEM_NA_LISTA[prato.categoria] ?? 1;
+  return [...pratos].sort(
+    (a, b) =>
+      Number(a.esgotado) - Number(b.esgotado) ||
+      a.distancia_km - b.distancia_km ||
+      posicao(a) - posicao(b) ||
+      Number(a.preco) - Number(b.preco)
+  );
+}
+
 /**
  * RF05 / RF06 / RF07 — pratos de hoje perto do cliente.
  * Chama a função "pratos_perto" que já existe na base de dados: é ela que calcula as distâncias
  * e aplica os filtros, por isso o telemóvel só recebe os pratos que interessam (RNF05).
  * Devolve uma lista de { prato_id, prato, categoria, preco, esgotado,
  * restaurante_id, restaurante, latitude, longitude, distancia_km },
- * ordenada por distância (os esgotados vão para o fim).
+ * pela ordem de ordenarPratosDaLista() (esgotados no fim, depois distância, pratos principais primeiro).
  */
 export async function buscarPratosPerto({
   latitude,
@@ -35,7 +58,7 @@ export async function buscarPratosPerto({
       pesquisa: pesquisa?.trim() ? pesquisa.trim() : null,
     });
     if (error) throw error;
-    return data ?? [];
+    return ordenarPratosDaLista(data ?? []);
   } catch (erro) {
     throw traduzirErro(erro);
   }
@@ -97,7 +120,7 @@ export function aplicarAlteracaoDePrato(lista, alterado) {
         }
       : prato
   );
-  return nova.sort((a, b) => Number(a.esgotado) - Number(b.esgotado) || a.distancia_km - b.distancia_km);
+  return ordenarPratosDaLista(nova);
 }
 
 // Cada ecrã que ouve as alterações precisa de um canal com um nome só seu: se dois pedissem
