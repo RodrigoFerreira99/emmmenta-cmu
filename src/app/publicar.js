@@ -2,13 +2,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampoComErro } from '@/components/CampoComErro';
 import { Chip } from '@/components/Chip';
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { LerMenuDaFoto } from '@/components/LerMenuDaFoto';
 import { RepetirMenu } from '@/components/RepetirMenu';
+import { SeletorFoto } from '@/components/SeletorFoto';
 import { Botao, Campo, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { confirmar } from '@/lib/confirmar';
@@ -25,8 +26,8 @@ import {
   publicarMenu,
   validarPrato,
 } from '@/services/menus';
-import { CATEGORIAS, formatarPreco } from '@/services/pratos';
-import { buscarMeuRestaurante } from '@/services/restaurantes';
+import { CATEGORIAS, descreverEtiquetas, ETIQUETAS, formatarPreco } from '@/services/pratos';
+import { buscarMeuRestaurante, enviarFotoDoPrato } from '@/services/restaurantes';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // Ecrã 6 · Publicar menu (RF03) — responsável: José
@@ -39,6 +40,8 @@ import { cores, espaco, raio, texto } from '@/theme';
 // Em vez de escrever os pratos um a um, o dono pode repetir o último menu (cartão RepetirMenu)
 // ou fotografar o menu (cartão LerMenuDaFoto): esses pratos entram na mesma lista, para serem
 // confirmados e alterados antes de publicar.
+// Cada prato pode ter etiquetas (Vegano, Sem glúten, Sem lactose, Picante) e uma fotografia, as duas
+// opcionais. A fotografia é enviada logo que é tirada (enviarFotoDoPrato) e o prato guarda só o link.
 // O acesso aos dados é todo feito pelas funções de src/services/ (RNF09).
 
 // Um prato lido de uma fotografia pode vir sem preço (preco: null) quando não se conseguiu ler.
@@ -59,7 +62,7 @@ export default function Publicar() {
   // O menu como está guardado na base de dados (serve para saber se há alterações por publicar)...
   const [pratosGuardados, setPratosGuardados] = useState([]);
   const [precoMenuGuardado, setPrecoMenuGuardado] = useState('');
-  // ...e o menu como está no ecrã. Cada prato: { chave, id (se já existia), nome, categoria, preco }.
+  // ...e o menu como está no ecrã. Cada prato: { chave, id (se já existia), nome, categoria, preco, etiquetas, foto_url }.
   const [pratos, setPratos] = useState([]);
   const [precoMenu, setPrecoMenu] = useState(''); // texto do campo "Preço do menu completo"
   const [erroDoPrecoMenu, setErroDoPrecoMenu] = useState(null);
@@ -70,6 +73,9 @@ export default function Publicar() {
   const [categoria, setCategoria] = useState('carne');
   const [chaveAEditar, setChaveAEditar] = useState(null);
   const [errosDoPrato, setErrosDoPrato] = useState({});
+  const [etiquetas, setEtiquetas] = useState([]); // por exemplo ['vegano', 'sem-gluten']
+  const [foto, setFoto] = useState(null); // link da fotografia do prato, depois de enviada
+  const [aEnviarFoto, setAEnviarFoto] = useState(false);
 
   const [aPublicar, setAPublicar] = useState(false);
   const [mensagem, setMensagem] = useState(null); // erro junto ao botão Publicar
@@ -146,11 +152,36 @@ export default function Publicar() {
     setPreco('');
     setChaveAEditar(null);
     setErrosDoPrato({});
+    setEtiquetas([]);
+    setFoto(null);
+  }
+
+  // Tocar numa etiqueta liga-a ou desliga-a (podem escolher-se várias).
+  function alternarEtiqueta(valor) {
+    setEtiquetas((atuais) => (atuais.includes(valor) ? atuais.filter((etiqueta) => etiqueta !== valor) : [...atuais, valor]));
+  }
+
+  // Fotografia do prato: é comprimida e enviada logo (pode demorar uns segundos); o prato fica só com o link.
+  async function escolherFotoDoPrato(caminho) {
+    setErrosDoPrato((atuais) => ({ ...atuais, foto: undefined }));
+    setAEnviarFoto(true);
+    try {
+      const link = await enviarFotoDoPrato(donoId, caminho);
+      if (montado.current) setFoto(link);
+    } catch (erro) {
+      if (montado.current) setErrosDoPrato((atuais) => ({ ...atuais, foto: erro.message }));
+    } finally {
+      if (montado.current) setAEnviarFoto(false);
+    }
   }
 
   // Botão "Adicionar prato" / "Guardar prato": valida e põe o prato na lista do ecrã.
   function guardarPrato() {
     setMensagem(null);
+    if (aEnviarFoto) {
+      setErrosDoPrato((atuais) => ({ ...atuais, foto: 'Espera que a fotografia acabe de ser enviada.' }));
+      return;
+    }
     const erros = validarPrato({ nome, preco, categoria });
     const nomeLimpo = limparNome(nome);
     // o mesmo prato duas vezes é quase sempre um engano de quem escreve depressa
@@ -159,7 +190,7 @@ export default function Publicar() {
     setErrosDoPrato(erros);
     if (Object.keys(erros).length > 0) return;
 
-    const prato = { nome: nomeLimpo, categoria, preco: lerPreco(preco) };
+    const prato = { nome: nomeLimpo, categoria, preco: lerPreco(preco), etiquetas, foto_url: foto };
     if (chaveAEditar) {
       // alterar: o prato fica no mesmo sítio da lista e mantém o id (a base de dados atualiza-o)
       setPratos((lista) => lista.map((item) => (item.chave === chaveAEditar ? { ...item, ...prato } : item)));
@@ -178,6 +209,8 @@ export default function Publicar() {
     setNome(prato.nome);
     setPreco(precoParaCampo(prato.preco));
     setCategoria(prato.categoria);
+    setEtiquetas(prato.etiquetas ?? []);
+    setFoto(prato.foto_url ?? null);
     setChaveAEditar(prato.chave);
     setErrosDoPrato({});
     setMensagem(null);
@@ -204,8 +237,16 @@ export default function Publicar() {
       .map((vindo) => {
         const chave = `novo-${proximaChave.current}`;
         proximaChave.current += 1;
-        // só o nome, a categoria e o preço: nunca um id de outro menu (seria tratado como um prato a alterar)
-        return { nome: vindo.nome, categoria: vindo.categoria, preco: vindo.preco, chave };
+        // nunca um id de outro menu (seria tratado como um prato a alterar); as etiquetas e a fotografia
+        // vêm do menu anterior (um prato lido de uma fotografia do menu não as tem)
+        return {
+          nome: vindo.nome,
+          categoria: vindo.categoria,
+          preco: vindo.preco,
+          etiquetas: vindo.etiquetas ?? [],
+          foto_url: vindo.foto_url ?? null,
+          chave,
+        };
       });
     if (novos.length > 0) setPratos((lista) => [...lista, ...novos]);
 
@@ -330,7 +371,7 @@ export default function Publicar() {
     );
   }
 
-  const errosDoFormulario = [errosDoPrato.nome, errosDoPrato.preco, errosDoPrato.categoria].filter(Boolean);
+  const errosDoFormulario = [errosDoPrato.nome, errosDoPrato.preco, errosDoPrato.categoria, errosDoPrato.foto].filter(Boolean);
 
   return (
     <Ecra bordas={['bottom']}>
@@ -397,6 +438,33 @@ export default function Publicar() {
                 </View>
               </View>
 
+              <View style={estilos.grupo}>
+                <Text style={texto.etiqueta}>Etiquetas (opcional)</Text>
+                <View style={estilos.chips}>
+                  {ETIQUETAS.map((opcao) => (
+                    <Chip
+                      key={opcao.valor}
+                      titulo={opcao.nome}
+                      multipla
+                      ativo={etiquetas.includes(opcao.valor)}
+                      onPress={() => alternarEtiqueta(opcao.valor)}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              <SeletorFoto
+                titulo="Fotografia do prato (opcional)"
+                rotulo="Fotografia do prato"
+                icone="restaurant-outline"
+                dica="Fotografa o prato de cima, com boa luz"
+                doQue=" do prato"
+                uri={foto}
+                aEnviar={aEnviarFoto}
+                aoEscolher={escolherFotoDoPrato}
+                aoRemover={() => setFoto(null)}
+              />
+
               {errosDoFormulario.length > 0 && (
                 <Text style={estilos.erro} accessibilityRole="alert">
                   {errosDoFormulario.join(' ')}
@@ -439,9 +507,12 @@ export default function Publicar() {
                         accessibilityLabel={`Alterar ${prato.nome}, ${semPreco(prato) ? 'falta o preço' : formatarPreco(prato.preco)}`}
                         style={estilos.pratoInfo}
                       >
+                        {prato.foto_url ? <Image source={{ uri: prato.foto_url }} style={estilos.miniatura} /> : null}
                         <View style={estilos.ocuparTudo}>
                           <Text style={estilos.pratoNome}>{prato.nome}</Text>
-                          <Text style={estilos.pratoCategoria}>{nomeDaCategoria(prato.categoria)}</Text>
+                          <Text style={estilos.pratoCategoria}>
+                            {[nomeDaCategoria(prato.categoria), descreverEtiquetas(prato.etiquetas)].filter(Boolean).join(' · ')}
+                          </Text>
                         </View>
                         {semPreco(prato) ? (
                           <Text style={estilos.pratoSemPreco}>Falta o preço</Text>
@@ -529,6 +600,7 @@ const estilos = StyleSheet.create({
   pratoInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco.m, paddingLeft: espaco.l, paddingVertical: espaco.m, minHeight: 56 },
   pratoNome: { ...texto.corpo, fontWeight: '500' },
   pratoCategoria: { fontSize: 12, color: cores.textoSecundario },
+  miniatura: { width: 40, height: 40, borderRadius: raio.s, backgroundColor: cores.acentoSuave },
   pratoPreco: { ...texto.corpo, fontWeight: '600' },
   pratoSemPreco: { ...texto.pequeno, color: cores.erro, fontWeight: '600' },
   remover: { width: 48, minHeight: 56, alignItems: 'center', justifyContent: 'center' },

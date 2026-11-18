@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { EcraDeErro } from '@/components/EcraDeErro';
+import { EscolherLotacao } from '@/components/Lotacao';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { diaPorExtenso, horaCurta, saudacao } from '@/lib/datas';
 import { partilhar, textoDoMenuDeHoje } from '@/lib/partilhar';
 import { vibrarLeve } from '@/lib/vibrar';
-import { buscarMenuDeHoje, marcarEsgotado } from '@/services/menus';
+import { buscarMenuDeHoje, marcarEsgotado, marcarLotacao, marcarUltimasDoses } from '@/services/menus';
 import { formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
 import { cores, espaco, raio, texto } from '@/theme';
@@ -23,6 +24,8 @@ import { cores, espaco, raio, texto } from '@/theme';
 //     e a alteração é gravada (marcarEsgotado); se a gravação falhar, o interruptor volta atrás.
 //  4. A tabela pratos está no tempo real do Supabase: os clientes veem a mudança logo, e este
 //     ecrã também acompanha as mudanças feitas noutro telemóvel do restaurante.
+//  5. "Últimas doses" avisa que um prato está quase a acabar, e "Como está a sala agora?" diz aos
+//     clientes se há mesa ou se está cheio (o aviso desaparece sozinho ao fim de 45 minutos).
 // O acesso aos dados é todo feito pelas funções de src/services/ (RNF09).
 export default function Painel() {
   const { sessao, perfil } = useAuth();
@@ -33,7 +36,8 @@ export default function Painel() {
   const [restaurante, setRestaurante] = useState(null); // null = a conta ainda não preencheu o perfil
   const [menu, setMenu] = useState(null); // null = hoje ainda não há menu publicado
   const [aAtualizar, setAAtualizar] = useState(false); // "puxar para atualizar" em curso
-  const [aMudar, setAMudar] = useState([]); // ids dos pratos cujo "esgotado" está a ser gravado
+  const [aMudar, setAMudar] = useState([]); // ids dos pratos cujo "esgotado" ou "últimas doses" está a ser gravado
+  const [aGravarLotacao, setAGravarLotacao] = useState(false);
   const [aviso, setAviso] = useState(null); // erro a mostrar sem esconder o que já está no ecrã
 
   // Fica a false quando o ecrã é desmontado; confirmamos antes de mexer no estado depois de um "await".
@@ -96,20 +100,53 @@ export default function Painel() {
     });
   }, []);
 
-  // 3) Interruptor "Esgotado".
-  async function alternarEsgotado(prato, esgotado) {
+  // 3) Interruptor "Esgotado" e botão "Últimas doses". As duas coisas funcionam da mesma maneira:
+  // o ecrã muda logo, a alteração é gravada e, se a gravação falhar, o prato volta ao que estava.
+  async function mudarPrato(prato, alteracoes, gravar) {
     setAviso(null);
     vibrarLeve(); // o telemóvel confirma o toque
-    mudarPratoNoEcra(prato.id, { esgotado }); // o ecrã responde logo...
-    setAMudar((ids) => [...ids, prato.id]); // ...e o interruptor fica bloqueado até a gravação acabar
+    const antes = { esgotado: prato.esgotado, ultimas_doses: prato.ultimas_doses };
+    mudarPratoNoEcra(prato.id, alteracoes); // o ecrã responde logo...
+    setAMudar((ids) => [...ids, prato.id]); // ...e os botões do prato ficam bloqueados até a gravação acabar
     try {
-      await marcarEsgotado(prato.id, esgotado);
+      await gravar();
     } catch (erro) {
       if (!montado.current) return;
-      mudarPratoNoEcra(prato.id, { esgotado: !esgotado }); // não ficou gravado: volta atrás
+      mudarPratoNoEcra(prato.id, antes); // não ficou gravado: volta atrás
       setAviso(erro.message);
     } finally {
       if (montado.current) setAMudar((ids) => ids.filter((id) => id !== prato.id));
+    }
+  }
+
+  // um prato esgotado deixa de estar nas "últimas doses" (a base de dados faz o mesmo: marcarEsgotado)
+  function alternarEsgotado(prato, esgotado) {
+    const alteracoes = esgotado ? { esgotado: true, ultimas_doses: false } : { esgotado: false };
+    mudarPrato(prato, alteracoes, () => marcarEsgotado(prato.id, esgotado));
+  }
+
+  function alternarUltimasDoses(prato) {
+    const ultimas = !prato.ultimas_doses;
+    const alteracoes = ultimas ? { ultimas_doses: true, esgotado: false } : { ultimas_doses: false };
+    mudarPrato(prato, alteracoes, () => marcarUltimasDoses(prato.id, ultimas));
+  }
+
+  // 5) "Há mesa" / "Cheio" (ou null, para apagar o aviso). A hora certa é posta pela base de dados.
+  async function escolherLotacao(lotacao) {
+    setAviso(null);
+    vibrarLeve();
+    const antes = { lotacao: menu.lotacao, lotacao_em: menu.lotacao_em };
+    setMenu((atual) => atual && { ...atual, lotacao, lotacao_em: lotacao ? new Date().toISOString() : null });
+    setAGravarLotacao(true);
+    try {
+      const guardada = await marcarLotacao(menu.id, lotacao);
+      if (montado.current) setMenu((atual) => atual && { ...atual, lotacao: guardada.lotacao, lotacao_em: guardada.lotacao_em });
+    } catch (erro) {
+      if (!montado.current) return;
+      setMenu((atual) => atual && { ...atual, ...antes }); // não ficou gravado: volta atrás
+      setAviso(erro.message);
+    } finally {
+      if (montado.current) setAGravarLotacao(false);
     }
   }
 
@@ -204,6 +241,8 @@ export default function Painel() {
               </View>
             </View>
 
+            <EscolherLotacao menu={menu} aoEscolher={escolherLotacao} aGravar={aGravarLotacao} />
+
             <View style={estilos.cabecalhoDaLista}>
               <Text style={[texto.subtitulo, estilos.ocuparTudo]} accessibilityRole="header">
                 Pratos de hoje
@@ -216,14 +255,32 @@ export default function Painel() {
             {numeroDePratos === 0 ? (
               <Text style={texto.pequeno}>O menu de hoje ficou sem pratos. Carrega em &quot;Editar menu de hoje&quot; para os adicionar.</Text>
             ) : (
-              <Text style={texto.pequeno}>Quando um prato acabar, liga o interruptor. Os clientes veem logo.</Text>
+              <Text style={texto.pequeno}>
+                Quando um prato estiver quase a acabar, toca em &quot;Últimas doses&quot;. Quando acabar, liga o interruptor. Os clientes
+                veem logo.
+              </Text>
             )}
 
             {menu.pratos.map((prato) => (
               <View key={prato.id} style={estilos.prato}>
-                <View style={estilos.ocuparTudo}>
+                <View style={[estilos.ocuparTudo, estilos.pratoTextos]}>
                   <Text style={[estilos.pratoNome, prato.esgotado && estilos.pratoNomeEsgotado]}>{prato.nome}</Text>
                   <Text style={texto.pequeno}>{formatarPreco(prato.preco)}</Text>
+                  {!prato.esgotado ? (
+                    <Pressable
+                      onPress={() => alternarUltimasDoses(prato)}
+                      disabled={aMudar.includes(prato.id)}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: Boolean(prato.ultimas_doses), disabled: aMudar.includes(prato.id) }}
+                      accessibilityLabel={`${prato.nome}: últimas doses`}
+                      // 30 px de altura + hitSlop de 8 em cima e em baixo = 46 px de área de toque (RNF06)
+                      hitSlop={8}
+                      style={[estilos.ultimas, prato.ultimas_doses && estilos.ultimasLigado]}
+                    >
+                      <Ionicons name="hourglass-outline" size={14} color={prato.ultimas_doses ? cores.textoInverso : cores.acentoEscuro} />
+                      <Text style={[estilos.ultimasTexto, prato.ultimas_doses && estilos.ultimasTextoLigado]}>Últimas doses</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
                 <Text style={[estilos.rotuloEsgotado, prato.esgotado && estilos.rotuloEsgotadoLigado]}>Esgotado</Text>
                 <Switch
@@ -285,4 +342,21 @@ const estilos = StyleSheet.create({
   pratoNomeEsgotado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
   rotuloEsgotado: { fontSize: 13, fontWeight: '500', color: cores.textoSecundario },
   rotuloEsgotadoLigado: { color: cores.acento },
+  pratoTextos: { gap: 2 },
+  ultimas: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.xs,
+    height: 30,
+    marginTop: espaco.xs,
+    paddingHorizontal: espaco.m,
+    borderRadius: raio.pilula,
+    borderWidth: 1.5,
+    borderColor: cores.acentoSuave,
+    backgroundColor: cores.superficie,
+  },
+  ultimasLigado: { backgroundColor: cores.acento, borderColor: cores.acento },
+  ultimasTexto: { fontSize: 13, fontWeight: '600', color: cores.acentoEscuro },
+  ultimasTextoLigado: { color: cores.textoInverso },
 });

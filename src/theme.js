@@ -16,6 +16,9 @@ export const cores = {
   sucesso: '#15803D',
   sucessoSuave: '#DCFCE7',
   erro: '#B91C1C',
+  // Etiquetas "Últimas doses" e "Cheio agora": o texto escuro sobre o fundo claro dá mais de 4,5:1 (RNF06).
+  acentoEscuro: '#9A3412', // 6,0:1 sobre acentoSuave
+  erroSuave: '#FEE2E2', // erro sobre este fundo dá 5,3:1
 };
 
 export const espaco = { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 };

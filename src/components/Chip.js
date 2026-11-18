@@ -6,15 +6,17 @@ import { cores, raio } from '@/theme';
 // Igual ao componente "Chip" do Figma: a opção escolhida fica escura, as outras ficam brancas.
 //
 // Propriedades:
-//   titulo   texto da etiqueta
-//   ativo    true se for a opção escolhida
-//   onPress  função chamada ao tocar
-export function Chip({ titulo, ativo = false, onPress }) {
+//   titulo    texto da etiqueta
+//   ativo     true se for a opção escolhida
+//   onPress   função chamada ao tocar
+//   multipla  true quando se podem escolher várias ao mesmo tempo (por exemplo, as etiquetas de um prato):
+//             o leitor de ecrã diz "caixa de verificação" em vez de "botão de opção"
+export function Chip({ titulo, ativo = false, onPress, multipla = false }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: ativo }}
+      accessibilityRole={multipla ? 'checkbox' : 'radio'}
+      accessibilityState={multipla ? { checked: ativo } : { selected: ativo }}
       accessibilityLabel={titulo}
       // a etiqueta tem 36 px de altura; o hitSlop aumenta a área de toque para 44 px (RNF06)
       hitSlop={4}

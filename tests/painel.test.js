@@ -4,7 +4,7 @@ import { Share } from 'react-native';
 import { router } from 'expo-router';
 
 import Painel from '@/app/(restaurante)/painel';
-import { buscarMenuDeHoje, marcarEsgotado } from '@/services/menus';
+import { buscarMenuDeHoje, marcarEsgotado, marcarLotacao, marcarUltimasDoses } from '@/services/menus';
 import { ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
 
@@ -26,6 +26,8 @@ jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
   buscarMenuDeHoje: jest.fn(),
   marcarEsgotado: jest.fn(),
+  marcarUltimasDoses: jest.fn(),
+  marcarLotacao: jest.fn(),
 }));
 jest.mock('@/services/pratos', () => ({
   ...jest.requireActual('@/services/pratos'),
@@ -44,6 +46,8 @@ beforeEach(() => {
   buscarMeuRestaurante.mockResolvedValue({ id: 'r1', nome: 'Tasca do Manuel' });
   buscarMenuDeHoje.mockResolvedValue(MENU);
   marcarEsgotado.mockImplementation(async (id, esgotado) => ({ id, esgotado }));
+  marcarUltimasDoses.mockImplementation(async (id, ultimas) => ({ id, esgotado: false, ultimas_doses: ultimas }));
+  marcarLotacao.mockImplementation(async (id, lotacao) => ({ id, lotacao, lotacao_em: lotacao ? new Date().toISOString() : null }));
   ouvirAlteracoesPratos.mockReturnValue(pararDeOuvir);
 });
 
@@ -199,5 +203,76 @@ describe('Painel — partilhar o menu de hoje', () => {
     await render(<Painel />);
     await screen.findByText('Ainda não publicaste o menu de hoje');
     expect(screen.queryByRole('button', { name: 'Partilhar o menu de hoje' })).toBeNull();
+  });
+});
+
+describe('Painel — "Últimas doses"', () => {
+  const ultimas = (nome) => screen.getByRole('switch', { name: `${nome}: últimas doses` });
+
+  test('tocar em "Últimas doses" grava e fica ligado; tocar outra vez desliga', async () => {
+    await render(<Painel />);
+    await screen.findByText('Menu de hoje publicado');
+
+    await fireEvent.press(ultimas('Bacalhau à Brás'));
+    expect(marcarUltimasDoses).toHaveBeenCalledWith('p2', true);
+    expect(ultimas('Bacalhau à Brás').props.accessibilityState.checked).toBe(true);
+
+    await fireEvent.press(ultimas('Bacalhau à Brás'));
+    expect(marcarUltimasDoses).toHaveBeenLastCalledWith('p2', false);
+    expect(ultimas('Bacalhau à Brás').props.accessibilityState.checked).toBe(false);
+  });
+
+  test('se a gravação falhar, volta atrás e explica', async () => {
+    marcarUltimasDoses.mockRejectedValue(new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.'));
+    await render(<Painel />);
+    await screen.findByText('Menu de hoje publicado');
+    await fireEvent.press(ultimas('Sopa de legumes'));
+    expect(await screen.findByText('Sem ligação à internet. Verifica a rede e tenta outra vez.')).toBeTruthy();
+    expect(ultimas('Sopa de legumes').props.accessibilityState.checked).toBe(false);
+  });
+
+  test('um prato esgotado não mostra o botão (e esgotar tira as últimas doses)', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, pratos: [SOPA, { ...BACALHAU, ultimas_doses: true }] });
+    await render(<Painel />);
+    await screen.findByText('Menu de hoje publicado');
+    expect(ultimas('Bacalhau à Brás').props.accessibilityState.checked).toBe(true);
+
+    await fireEvent(interruptor('Bacalhau à Brás'), 'valueChange', true);
+    expect(marcarEsgotado).toHaveBeenCalledWith('p2', true);
+    expect(screen.queryByRole('switch', { name: 'Bacalhau à Brás: últimas doses' })).toBeNull();
+  });
+});
+
+describe('Painel — "Como está a sala agora?"', () => {
+  test('"Cheio" grava a lotação e mostra o que os clientes veem; tocar outra vez apaga', async () => {
+    await render(<Painel />);
+    expect(await screen.findByText('Como está a sala agora?')).toBeTruthy();
+    expect(screen.getByText(/Diz aos clientes se há mesa/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cheio' }));
+    expect(marcarLotacao).toHaveBeenCalledWith('m1', 'cheio');
+    expect(await screen.findByText(/Os clientes veem: Cheio agora · agora mesmo/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cheio' }).props.accessibilityState.selected).toBe(true);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cheio' }));
+    expect(marcarLotacao).toHaveBeenLastCalledWith('m1', null);
+    expect(await screen.findByText(/Diz aos clientes se há mesa/)).toBeTruthy();
+  });
+
+  test('um aviso com mais de 45 minutos já não conta', async () => {
+    const haUmaHora = new Date(Date.now() - 60 * 60000).toISOString();
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, lotacao: 'ha-mesa', lotacao_em: haUmaHora });
+    await render(<Painel />);
+    expect(await screen.findByText(/Diz aos clientes se há mesa/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Há mesa' }).props.accessibilityState.selected).toBe(false);
+  });
+
+  test('se a gravação falhar, volta atrás e explica', async () => {
+    marcarLotacao.mockRejectedValue(new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.'));
+    await render(<Painel />);
+    await screen.findByText('Como está a sala agora?');
+    await fireEvent.press(screen.getByRole('button', { name: 'Há mesa' }));
+    expect(await screen.findByText('Sem ligação à internet. Verifica a rede e tenta outra vez.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Há mesa' }).props.accessibilityState.selected).toBe(false);
   });
 });

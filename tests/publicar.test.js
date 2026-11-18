@@ -6,7 +6,7 @@ import Publicar from '@/app/publicar';
 import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
 import { lerMenuDaFoto } from '@/services/lerMenu';
 import { buscarMenuDeHoje, buscarUltimoMenuAnterior, publicarMenu } from '@/services/menus';
-import { buscarMeuRestaurante } from '@/services/restaurantes';
+import { buscarMeuRestaurante, enviarFotoDoPrato } from '@/services/restaurantes';
 
 // RF03 — testes ao ecrã Publicar menu, a carregar nos botões como um utilizador faria.
 // A base de dados é simulada: só interessa confirmar o que o ecrã mostra e o que pede para gravar.
@@ -22,7 +22,7 @@ jest.mock('expo-router', () => ({
   usePreventRemove: jest.fn(),
 }));
 jest.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 56 }));
-jest.mock('@/services/restaurantes', () => ({ buscarMeuRestaurante: jest.fn() }));
+jest.mock('@/services/restaurantes', () => ({ buscarMeuRestaurante: jest.fn(), enviarFotoDoPrato: jest.fn() }));
 // As funções sem rede (validar, ler preços...) são as verdadeiras; só as que falam com a base de dados são simuladas.
 jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
@@ -476,5 +476,81 @@ describe('Publicar menu — repetir o menu anterior', () => {
     await render(<Publicar />);
     expect(await screen.findByText('Pratos de hoje')).toBeTruthy();
     expect(screen.queryByText(/^Repetir o menu de /)).toBeNull();
+  });
+});
+
+describe('Publicar menu — etiquetas e fotografia de cada prato', () => {
+  const LINK = 'https://exemplo.supabase.co/storage/v1/object/public/fotos/u1/pratos/prato-1.jpg';
+  const etiqueta = (nome) => screen.getByRole('checkbox', { name: nome });
+
+  test('escolher várias etiquetas: aparecem na lista e são publicadas com o prato', async () => {
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Vegetariano' }));
+    await fireEvent.press(etiqueta('Vegano'));
+    await fireEvent.press(etiqueta('Sem glúten'));
+    expect(etiqueta('Vegano').props.accessibilityState.checked).toBe(true);
+    await adicionarPrato('Salada de grão', '6,50');
+
+    expect(screen.getByText('Vegetariano · Vegano · Sem glúten')).toBeTruthy();
+    expect(etiqueta('Vegano').props.accessibilityState.checked).toBe(false); // o formulário fica limpo para o prato seguinte
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
+    expect(publicarMenu).toHaveBeenCalledWith('r1', {
+      precoMenuCompleto: null,
+      pratos: [expect.objectContaining({ nome: 'Salada de grão', etiquetas: ['vegano', 'sem-gluten'], foto_url: null })],
+    });
+  });
+
+  test('a fotografia do prato é enviada logo e o prato fica com o link', async () => {
+    escolherDaGaleria.mockResolvedValue('file:///galeria/salada.jpg');
+    enviarFotoDoPrato.mockResolvedValue(LINK);
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher fotografia do prato da galeria' }));
+    expect(enviarFotoDoPrato).toHaveBeenCalledWith('u1', 'file:///galeria/salada.jpg');
+    expect(await screen.findByLabelText('Fotografia do prato')).toBeTruthy();
+
+    await adicionarPrato('Salada de grão', '6,50');
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
+    expect(publicarMenu).toHaveBeenCalledWith('r1', expect.objectContaining({ pratos: [expect.objectContaining({ foto_url: LINK })] }));
+  });
+
+  test('se a fotografia não puder ser enviada, explica; o prato pode entrar sem ela', async () => {
+    escolherDaGaleria.mockResolvedValue('file:///galeria/enorme.jpg');
+    enviarFotoDoPrato.mockRejectedValue(new Error('Não foi possível reduzir a fotografia para menos de 500 KB. Escolhe outra imagem.'));
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher fotografia do prato da galeria' }));
+    expect(await screen.findByText(/menos de 500 KB/)).toBeTruthy();
+
+    await adicionarPrato('Salada de grão', '6,50');
+    expect(screen.getByText('Salada de grão')).toBeTruthy();
+  });
+
+  test('ao alterar um prato, as etiquetas dele voltam ao formulário', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ id: 'm1', preco_menu_completo: null, pratos: [{ ...SOPA, etiquetas: ['vegano'], foto_url: null }] });
+    await render(<Publicar />);
+    expect(await screen.findByText('Sopa · Vegano')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Alterar Sopa de legumes, 1,50 €'));
+    expect(etiqueta('Vegano').props.accessibilityState.checked).toBe(true);
+    expect(etiqueta('Picante').props.accessibilityState.checked).toBe(false);
+  });
+
+  test('repetir o menu anterior traz também as etiquetas e a fotografia', async () => {
+    buscarUltimoMenuAnterior.mockResolvedValue({
+      dia: '2026-11-17',
+      precoMenuCompleto: null,
+      pratos: [{ nome: 'Chili vegano', categoria: 'vegetariano', preco: 7, etiquetas: ['vegano', 'picante'], foto_url: LINK }],
+    });
+    await render(<Publicar />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Usar este prato' }));
+    expect(screen.getByText('Vegetariano · Vegano · Picante')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
+    expect(publicarMenu).toHaveBeenCalledWith('r1', {
+      precoMenuCompleto: null,
+      pratos: [expect.objectContaining({ nome: 'Chili vegano', etiquetas: ['vegano', 'picante'], foto_url: LINK })],
+    });
   });
 });
