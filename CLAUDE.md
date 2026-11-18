@@ -27,14 +27,16 @@ São **7 requisitos funcionais, todos obrigatórios**. RF03 e RF05 são o núcle
 | ID | Funcionalidade | Ecrã | Responsável | Estado |
 |---|---|---|---|---|
 | RF01 | Registo e autenticação (criar conta com perfil Cliente/Restaurante, entrar, sair, recuperar palavra-passe) | `login.js`, `(cliente)/conta.js` | Rodrigo | **feito** (a recuperação é por código enviado por email: falta pôr `{{ .Token }}` no modelo de email do Supabase — ver README — e testar) |
-| RF02 | Perfil do restaurante: nome, tipo de cozinha, morada com ponto ajustável no mapa, horário de almoço, telefone, fotografia | `(restaurante)/perfil.js` | Rodrigo | **feito** (falta testar no telemóvel) |
-| RF03 | Publicar o menu do dia: pratos com nome, categoria e preço; o menu fica associado à data e desaparece à meia-noite; pode ser editado | `publicar.js` | José | **feito** no ramo `rf03-rf04-menu-do-dia` (falta testar no telemóvel) |
-| RF04 | Marcar prato esgotado; os clientes veem logo (tempo real) | `(restaurante)/painel.js` | José | **feito** no ramo `rf03-rf04-menu-do-dia` (falta testar no telemóvel; o lado do cliente é o RF06) |
-| RF05 | Pratos do dia perto de mim: lista num raio de 2 km por omissão, ordenada por distância, com preço, restaurante e distância | `(cliente)/index.js` | André | **feito** no ramo `rf05-rf07-cliente` (falta testar no telemóvel) |
-| RF06 | Mapa com os restaurantes com menu hoje; página do restaurante com menu, horário, morada e botões Ligar e Direções (abre a app de mapas) | `(cliente)/mapa.js`, `restaurante/[id].js` | André | **feito** no ramo `rf05-rf07-cliente` (falta testar no telemóvel) |
-| RF07 | Filtros e pesquisa: preço máximo, raio, categoria e pesquisa pelo nome do prato | `(cliente)/index.js`, `(cliente)/mapa.js` | André | **feito** no ramo `rf05-rf07-cliente` (falta testar no telemóvel) |
+| RF02 | Perfil do restaurante: nome, tipo de cozinha, morada com ponto ajustável no mapa, horário de almoço, telefone, fotografia | `(restaurante)/perfil.js` | Rodrigo | **feito** (o perfil já foi guardado a partir da app; falta testar a fotografia com a câmara nova) |
+| RF03 | Publicar o menu do dia: pratos com nome, categoria e preço; o menu fica associado à data e desaparece à meia-noite; pode ser editado | `publicar.js` | José | **feito** (publicar e ler o menu por fotografia já testados no telemóvel) |
+| RF04 | Marcar prato esgotado; os clientes veem logo (tempo real) | `(restaurante)/painel.js` | José | **feito** (falta testar no telemóvel, de preferência com um segundo telemóvel como cliente) |
+| RF05 | Pratos do dia perto de mim: lista num raio de 2 km por omissão, ordenada por distância, com preço, restaurante e distância | `(cliente)/index.js` | André | **feito** (falta testar no telemóvel) |
+| RF06 | Mapa com os restaurantes com menu hoje; página do restaurante com menu, horário, morada e botões Ligar e Direções (abre a app de mapas) | `(cliente)/mapa.js`, `restaurante/[id].js` | André | **feito** (falta testar no telemóvel) |
+| RF07 | Filtros e pesquisa: preço máximo, raio, categoria e pesquisa pelo nome do prato | `(cliente)/index.js`, `(cliente)/mapa.js` | André | **feito** (falta testar no telemóvel) |
 
-Trabalho futuro (só depois dos 7 estarem a funcionar): notificações. **Favoritos: feito** no ramo `rf05-rf07-cliente`, guardados só no telemóvel (`src/lib/favoritos.js`, ficheiro `favoritos.json`; não vão para a base de dados) — coração na página do restaurante, coração nos cartões da lista e filtro "Só os meus favoritos" no painel dos filtros (filtra no telemóvel, sem novo pedido). **Reutilizar pratos de dias anteriores: feito** no ramo `rf05-rf07-cliente` — cartão "Repetir o menu de ontem" no Publicar (`src/components/RepetirMenu.js`), com `buscarUltimoMenuAnterior()` em `src/services/menus.js` (o último menu antes de hoje; os pratos vêm sem id, por isso são publicados como pratos novos de hoje) e `descreverDia()` em `src/lib/datas.js`.
+Os sete requisitos estão no `main` desde 18 nov 2026 (PR #1, #2 e #3). Os ramos de cada parte já foram apagados: o trabalho novo começa num ramo novo a partir do `main`.
+
+Trabalho futuro (só depois dos 7 estarem a funcionar): notificações. **Favoritos: feito**, guardados só no telemóvel (`src/lib/favoritos.js`, ficheiro `favoritos.json`; não vão para a base de dados) — coração na página do restaurante, coração nos cartões da lista e filtro "Só os meus favoritos" no painel dos filtros (filtra no telemóvel, sem novo pedido). **Reutilizar pratos de dias anteriores: feito** — cartão "Repetir o menu de ontem" no Publicar (`src/components/RepetirMenu.js`), com `buscarUltimoMenuAnterior()` em `src/services/menus.js` (o último menu antes de hoje; os pratos vêm sem id, por isso são publicados como pratos novos de hoje) e `descreverDia()` em `src/lib/datas.js`.
 
 **Regras de negócio:** RN01 — um menu só vale no dia em que é publicado (fuso Europe/Lisbon). RN02 — só contas restaurante publicam, e cada uma só altera os seus menus. RN03 — preços em euros com 2 casas decimais (`formatarPreco`).
 
@@ -82,9 +84,9 @@ Lado do cliente (RF05–RF07): `src/context/PertoContext.js` (`usePerto()`) guar
 | Período | Trabalho |
 |---|---|
 | 10–16 nov | Repositório, projeto Expo, ligação ao Supabase ✅ |
-| 17–29 nov | RF01 ✅, RF02 |
-| 30 nov – 13 dez | RF03, RF04 |
-| 14–27 dez | RF05, RF06, RF07 |
+| 17–29 nov | RF01 ✅, RF02 ✅ |
+| 30 nov – 13 dez | RF03 ✅, RF04 ✅ (feitos mais cedo, a 15–17 nov) |
+| 14–27 dez | RF05 ✅, RF06 ✅, RF07 ✅ (feitos mais cedo, a 16–18 nov) |
 | 28 dez – 3 jan | Restaurantes de teste, testes em Android e iPhone, correções |
 | 4–10 jan | Relatório final, poster, vídeo, preparar demo |
 | 14–15 jan | Defesa com a app a funcionar ao vivo |

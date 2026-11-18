@@ -68,7 +68,7 @@ tests/                     testes automáticos (npm test)
 | José | Painel, publicar menu, esgotados | RF03, RF04 |
 | André | Início, mapa, página do restaurante, filtros | RF05, RF06, RF07 |
 
-Cada ecrã por fazer mostra uma caixa "Por fazer" com a lista do que falta.
+Os sete requisitos estão feitos e já estão no `main`. O que falta testar em cada um está na tabela de requisitos do `CLAUDE.md`.
 
 ## Regras do grupo
 
