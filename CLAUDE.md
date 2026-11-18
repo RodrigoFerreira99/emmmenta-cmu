@@ -59,7 +59,7 @@ Projeto Supabase `xcaxitrxadktycibvxig` (região Frankfurt). URL e chave públic
 - Função `pratos_perto(lat, lng, raio_km = 5, preco_max = null, categoria_filtro = null, pesquisa = null)` → pratos **de hoje** com `prato_id, prato, categoria, preco, esgotado, restaurante_id, restaurante, latitude, longitude, distancia_km`, ordenados com os esgotados no fim e depois por distância. Já embrulhada em `buscarPratosPerto()` (`src/services/pratos.js`, raio 2 km por omissão).
 - Storage: bucket público `fotos` (máx. 500 KB, jpeg/png/webp). Cada conta só escreve na pasta com o seu id: `<user_id>/ficheiro.jpg`.
 
-Notas: "menus de ontem" não se apagam — a app só pede os de hoje. Para testar como cliente e como restaurante, criar duas contas.
+Notas: "menus de ontem" não se apagam — a app só pede os de hoje. Para testar como cliente e como restaurante, criar duas contas. Restaurantes de demonstração (6, perto da ESMAD, sem telefone): `scripts/demonstracao.mjs` (`criar` uma vez, `publicar` no dia, `estado`, `retirar`); usa só a chave pública e a RLS normal, e guarda a palavra-passe das contas em `.env.local`. A tarefa `.github/workflows/manter-supabase-acordado.yml` lê a base de dados todos os dias para o plano gratuito não pausar o projeto (precisa dos segredos `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` no GitHub). Ver "Antes da defesa" no README.
 
 ## Design
 
