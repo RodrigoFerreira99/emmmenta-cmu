@@ -33,6 +33,16 @@ export function ordenarPratosDaLista(pratos) {
 }
 
 /**
+ * RF07 — "Mais barato primeiro": os disponíveis antes dos esgotados, depois do mais barato para o mais caro
+ * e, a preço igual, o mais perto primeiro. Devolve uma lista nova (não altera a que recebe).
+ */
+export function ordenarPorPreco(pratos) {
+  return [...pratos].sort(
+    (a, b) => Number(a.esgotado) - Number(b.esgotado) || Number(a.preco) - Number(b.preco) || a.distancia_km - b.distancia_km
+  );
+}
+
+/**
  * RF05 / RF06 / RF07 — pratos de hoje perto do cliente.
  * Chama a função "pratos_perto" que já existe na base de dados: é ela que calcula as distâncias
  * e aplica os filtros, por isso o telemóvel só recebe os pratos que interessam (RNF05).

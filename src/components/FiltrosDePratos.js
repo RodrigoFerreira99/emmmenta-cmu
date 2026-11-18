@@ -19,7 +19,10 @@ export function FiltrosDePratos() {
 
   // quantos filtros do painel estão a ser usados (aparece numa bolinha no botão)
   const filtrosDoPainel =
-    (filtros.precoMax !== null ? 1 : 0) + (filtros.raioKm !== RAIO_POR_OMISSAO_KM ? 1 : 0) + (filtros.soFavoritos ? 1 : 0);
+    (filtros.precoMax !== null ? 1 : 0) +
+    (filtros.raioKm !== RAIO_POR_OMISSAO_KM ? 1 : 0) +
+    (filtros.soFavoritos ? 1 : 0) +
+    (filtros.ordem !== 'distancia' ? 1 : 0);
 
   return (
     <View style={estilos.grupo}>
@@ -52,7 +55,7 @@ export function FiltrosDePratos() {
         <Pressable
           onPress={() => setPainelAberto((aberto) => !aberto)}
           accessibilityRole="button"
-          accessibilityLabel={painelAberto ? 'Esconder os filtros de preço, distância e favoritos' : 'Mostrar os filtros de preço, distância e favoritos'}
+          accessibilityLabel={painelAberto ? 'Esconder a ordem e os filtros de preço, distância e favoritos' : 'Mostrar a ordem e os filtros de preço, distância e favoritos'}
           accessibilityState={{ expanded: painelAberto }}
           style={[estilos.botaoDosFiltros, painelAberto && estilos.botaoDosFiltrosAberto]}
         >
@@ -79,6 +82,12 @@ export function FiltrosDePratos() {
 
       {painelAberto ? (
         <View style={estilos.painel}>
+          <Text style={texto.etiqueta}>Ordenar</Text>
+          <View style={estilos.chipsDoPainel} accessibilityRole="radiogroup">
+            <Chip titulo="Mais perto primeiro" ativo={filtros.ordem === 'distancia'} onPress={() => mudarFiltros({ ordem: 'distancia' })} />
+            <Chip titulo="Mais barato primeiro" ativo={filtros.ordem === 'preco'} onPress={() => mudarFiltros({ ordem: 'preco' })} />
+          </View>
+
           <Text style={texto.etiqueta}>Preço máximo</Text>
           <View style={estilos.chipsDoPainel} accessibilityRole="radiogroup">
             <Chip titulo="Qualquer preço" ativo={filtros.precoMax === null} onPress={() => mudarFiltros({ precoMax: null })} />

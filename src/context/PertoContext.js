@@ -2,7 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { useFavoritos } from '@/lib/favoritos';
 import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
-import { aplicarAlteracaoDePrato, buscarPratosPerto, ouvirAlteracoesPratos, RAIO_POR_OMISSAO_KM } from '@/services/pratos';
+import {
+  aplicarAlteracaoDePrato,
+  buscarPratosPerto,
+  ordenarPorPreco,
+  ouvirAlteracoesPratos,
+  RAIO_POR_OMISSAO_KM,
+} from '@/services/pratos';
 
 // RF05 / RF06 / RF07 — "pratos perto de mim", partilhado pelos separadores Início e Mapa.
 //
@@ -18,7 +24,15 @@ import { aplicarAlteracaoDePrato, buscarPratosPerto, ouvirAlteracoesPratos, RAIO
 const PertoContext = createContext(null);
 
 // soFavoritos: mostrar só os pratos dos restaurantes favoritos (guardados no telemóvel, src/lib/favoritos.js)
-const FILTROS_INICIAIS = { raioKm: RAIO_POR_OMISSAO_KM, precoMax: null, categoria: null, pesquisa: '', soFavoritos: false };
+// ordem: 'distancia' (por omissão, RF05) ou 'preco' (mais barato primeiro)
+const FILTROS_INICIAIS = {
+  raioKm: RAIO_POR_OMISSAO_KM,
+  precoMax: null,
+  categoria: null,
+  pesquisa: '',
+  soFavoritos: false,
+  ordem: 'distancia',
+};
 // Espera-se um pouco depois da última letra antes de procurar, para não fazer um pedido por cada tecla.
 const ESPERA_DA_PESQUISA_MS = 400;
 
@@ -127,7 +141,8 @@ export function PertoProvider({ children }) {
     (filtros.precoMax !== null ? 1 : 0) +
     (filtros.categoria !== null ? 1 : 0) +
     (filtros.pesquisa.trim() !== '' ? 1 : 0) +
-    (filtros.soFavoritos ? 1 : 0);
+    (filtros.soFavoritos ? 1 : 0) +
+    (filtros.ordem !== 'distancia' ? 1 : 0);
 
   // --- Pratos perto (RF05) -------------------------------------------------
   const [recarregamentos, setRecarregamentos] = useState(0); // aumenta em "Tentar outra vez" e ao puxar a lista
@@ -177,14 +192,14 @@ export function PertoProvider({ children }) {
 
   const aCarregar = chave !== null && resultado.chave !== chave;
 
-  // "Só favoritos" não precisa de ir à base de dados: os favoritos estão no telemóvel,
-  // por isso filtra-se aqui a lista que já chegou (e muda logo, sem esperar pela rede).
+  // "Só favoritos" e "Mais barato primeiro" não precisam de ir à base de dados: os favoritos estão no
+  // telemóvel e a ordem muda-se aqui, na lista que já chegou (o ecrã muda logo, sem esperar pela rede).
   const { favoritos } = useFavoritos();
-  const { soFavoritos } = filtros;
-  const pratos = useMemo(
-    () => (soFavoritos ? resultado.pratos.filter((prato) => favoritos.has(prato.restaurante_id)) : resultado.pratos),
-    [soFavoritos, favoritos, resultado.pratos]
-  );
+  const { soFavoritos, ordem } = filtros;
+  const pratos = useMemo(() => {
+    const lista = soFavoritos ? resultado.pratos.filter((prato) => favoritos.has(prato.restaurante_id)) : resultado.pratos;
+    return ordem === 'preco' ? ordenarPorPreco(lista) : lista;
+  }, [soFavoritos, ordem, favoritos, resultado.pratos]);
 
   const valor = useMemo(
     () => ({

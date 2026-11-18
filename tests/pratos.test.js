@@ -206,3 +206,18 @@ describe('textos para o ecrã', () => {
     expect(p.formatarDistancia(1.44)).toBe('1,4 km');
   });
 });
+
+describe('ordenarPorPreco (RF07: mais barato primeiro)', () => {
+  test('do mais barato para o mais caro, com os esgotados no fim', () => {
+    const francesinhaDisponivel = { ...FRANCESINHA, esgotado: false };
+    const sopaEsgotada = { ...SOPA, esgotado: true };
+    const lista = [francesinhaDisponivel, BACALHAU, sopaEsgotada];
+    expect(p.ordenarPorPreco(lista).map((prato) => prato.prato)).toEqual(['Bacalhau à Brás', 'Francesinha', 'Caldo verde']);
+    expect(lista[0]).toBe(francesinhaDisponivel); // a lista original não muda
+  });
+
+  test('a preço igual, o mais perto primeiro', () => {
+    const longe = { ...FRANCESINHA, esgotado: false, preco: 8.5 };
+    expect(p.ordenarPorPreco([longe, BACALHAU]).map((prato) => prato.prato)).toEqual(['Bacalhau à Brás', 'Francesinha']);
+  });
+});
