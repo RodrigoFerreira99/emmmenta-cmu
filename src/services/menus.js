@@ -140,6 +140,25 @@ export async function buscarMenuDeHoje(restauranteId) {
 }
 
 /**
+ * Aviso dos favoritos — de que restaurante é este menu, e de que dia.
+ * Devolve { restauranteId, restaurante, dia, publicadoEm } ou null se o menu não existir.
+ */
+export async function buscarRestauranteDoMenu(menuId) {
+  try {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('dia, publicado_em, restaurantes(id, nome)')
+      .eq('id', menuId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data?.restaurantes) return null;
+    return { restauranteId: data.restaurantes.id, restaurante: data.restaurantes.nome, dia: data.dia, publicadoEm: data.publicado_em };
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
+/**
  * Reutilizar pratos de dias anteriores — o último menu publicado ANTES de hoje
  * (normalmente o de ontem; se ontem o restaurante não publicou, o do último dia em que publicou).
  * Devolve { dia, precoMenuCompleto, pratos: [{ nome, categoria, preco }] } ou null se não houver nenhum.

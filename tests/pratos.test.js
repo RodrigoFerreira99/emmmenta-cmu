@@ -221,3 +221,56 @@ describe('ordenarPorPreco (RF07: mais barato primeiro)', () => {
     expect(p.ordenarPorPreco([longe, BACALHAU]).map((prato) => prato.prato)).toEqual(['Bacalhau à Brás', 'Francesinha']);
   });
 });
+
+describe('almocoMaisBarato (destaque no Início)', () => {
+  const FRANCESINHA_ESGOTADA = { ...FRANCESINHA, esgotado: true };
+  test('o prato principal disponível mais barato; a sopa e os esgotados não contam', () => {
+    const barato = { ...CAFE, prato_id: 'p7', prato: 'Feijoada', categoria: 'carne', preco: 6.5, esgotado: false };
+    const sobremesa = { ...TASCA, prato_id: 'p8', prato: 'Pudim', categoria: 'sobremesa', preco: 1, esgotado: false };
+    const esgotadoBarato = { ...TASCA, prato_id: 'p9', prato: 'Bitoque', categoria: 'carne', preco: 5, esgotado: true };
+    expect(p.almocoMaisBarato([SOPA, BACALHAU, barato, sobremesa, esgotadoBarato]).prato).toBe('Feijoada');
+  });
+
+  test('sem pratos principais disponíveis devolve null', () => {
+    expect(p.almocoMaisBarato([SOPA, FRANCESINHA_ESGOTADA])).toBeNull();
+    expect(p.almocoMaisBarato([])).toBeNull();
+  });
+});
+
+describe('Abana para decidir: pratosParaSortear e escolherAoAcaso', () => {
+  const FRANCESINHA_ESGOTADA = { ...FRANCESINHA, esgotado: true };
+  test('sorteia só entre os pratos principais disponíveis', () => {
+    expect(p.pratosParaSortear([SOPA, BACALHAU, FRANCESINHA_ESGOTADA]).map((prato) => prato.prato)).toEqual(['Bacalhau à Brás']);
+  });
+
+  test('se não houver principais, serve qualquer prato disponível', () => {
+    expect(p.pratosParaSortear([SOPA, FRANCESINHA_ESGOTADA]).map((prato) => prato.prato)).toEqual(['Caldo verde']);
+  });
+
+  test('escolherAoAcaso usa o número aleatório para escolher a posição', () => {
+    const outro = { ...CAFE, prato_id: 'p7', prato: 'Feijoada', categoria: 'carne', preco: 6.5, esgotado: false };
+    const lista = [BACALHAU, outro];
+    expect(p.escolherAoAcaso(lista, () => 0).prato).toBe('Bacalhau à Brás');
+    expect(p.escolherAoAcaso(lista, () => 0.99).prato).toBe('Feijoada');
+    expect(p.escolherAoAcaso(lista, () => 1).prato).toBe('Feijoada'); // nunca passa do fim da lista
+  });
+
+  test('sem pratos disponíveis devolve null', () => {
+    expect(p.escolherAoAcaso([FRANCESINHA_ESGOTADA])).toBeNull();
+  });
+});
+
+describe('ouvirPratosNovos (aviso dos favoritos)', () => {
+  test('ouve os pratos novos (INSERT) num canal só seu e entrega a linha nova', () => {
+    const recebidos = [];
+    const parar = p.ouvirPratosNovos((prato) => recebidos.push(prato));
+    const canal = mockBd.canais.at(-1);
+    expect(canal.oQueOuve).toEqual({ event: 'INSERT', schema: 'public', table: 'pratos' });
+    expect(canal.nome).toMatch(/^pratos-novos-/);
+
+    canal.aoMudar({ new: { id: 'p1', menu_id: 'm1' } });
+    expect(recebidos).toEqual([{ id: 'p1', menu_id: 'm1' }]);
+    parar();
+    expect(mockBd.removidos).toContain(canal.nome);
+  });
+});

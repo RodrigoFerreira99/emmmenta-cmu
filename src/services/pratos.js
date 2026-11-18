@@ -42,6 +42,39 @@ export function ordenarPorPreco(pratos) {
   );
 }
 
+// Os pratos "de almoço": a sopa e a sobremesa sozinhas não contam como almoço.
+const PRATOS_PRINCIPAIS = ['carne', 'peixe', 'vegetariano'];
+
+/**
+ * "O almoço mais barato perto de ti": o prato principal disponível mais barato da lista
+ * (a preço igual, o mais perto). Devolve null se não houver nenhum.
+ */
+export function almocoMaisBarato(pratos) {
+  const principais = (pratos ?? []).filter((prato) => !prato.esgotado && PRATOS_PRINCIPAIS.includes(prato.categoria));
+  return ordenarPorPreco(principais)[0] ?? null;
+}
+
+/**
+ * Os pratos que o "Abana para decidir" pode escolher: os principais disponíveis.
+ * Se não houver nenhum principal, serve qualquer prato disponível.
+ */
+export function pratosParaSortear(pratos) {
+  const disponiveis = (pratos ?? []).filter((prato) => !prato.esgotado);
+  const principais = disponiveis.filter((prato) => PRATOS_PRINCIPAIS.includes(prato.categoria));
+  return principais.length > 0 ? principais : disponiveis;
+}
+
+/**
+ * "Abana para decidir": escolhe um prato ao acaso entre os de pratosParaSortear(). Devolve null se não houver.
+ * "aleatorio" é Math.random por omissão; nos testes passa-se uma função fixa para o resultado ser sempre o mesmo.
+ */
+export function escolherAoAcaso(pratos, aleatorio = Math.random) {
+  const candidatos = pratosParaSortear(pratos);
+  if (candidatos.length === 0) return null;
+  const posicao = Math.min(Math.floor(aleatorio() * candidatos.length), candidatos.length - 1);
+  return candidatos[posicao];
+}
+
 /**
  * RF05 / RF06 / RF07 — pratos de hoje perto do cliente.
  * Chama a função "pratos_perto" que já existe na base de dados: é ela que calcula as distâncias
@@ -152,6 +185,19 @@ export function ouvirAlteracoesPratos(aoAlterar, { menuId = null } = {}) {
   const canal = supabase
     .channel(`pratos-alteracoes-${numeroDoCanal}`)
     .on('postgres_changes', oQueOuvir, (mudanca) => aoAlterar(mudanca.new))
+    .subscribe();
+  return () => supabase.removeChannel(canal);
+}
+
+/**
+ * Ouvir os pratos novos (quando um restaurante publica o menu ou lhe acrescenta pratos).
+ * "aoChegar" recebe a linha nova da tabela pratos ({ id, menu_id, nome, ... }). Devolve uma função que pára de ouvir.
+ */
+export function ouvirPratosNovos(aoChegar) {
+  numeroDoCanal += 1;
+  const canal = supabase
+    .channel(`pratos-novos-${numeroDoCanal}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pratos' }, (mudanca) => aoChegar(mudanca.new))
     .subscribe();
   return () => supabase.removeChannel(canal);
 }

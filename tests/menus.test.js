@@ -371,3 +371,28 @@ describe('buscarUltimoMenuAnterior (reutilizar pratos de dias anteriores)', () =
     await expect(m.buscarUltimoMenuAnterior('r1')).rejects.toThrow('Sem ligação à internet');
   });
 });
+
+describe('buscarRestauranteDoMenu (aviso dos favoritos)', () => {
+  test('devolve o restaurante, o dia e a hora de publicação do menu', async () => {
+    mockBd.respostas['menus.select'] = {
+      data: { dia: '2026-11-18', publicado_em: '2026-11-18T11:00:00Z', restaurantes: { id: 'r1', nome: 'Tasca do Sancho' } },
+      error: null,
+    };
+    await expect(m.buscarRestauranteDoMenu('m1')).resolves.toEqual({
+      restauranteId: 'r1',
+      restaurante: 'Tasca do Sancho',
+      dia: '2026-11-18',
+      publicadoEm: '2026-11-18T11:00:00Z',
+    });
+    expect(chamadaDe('menus.select').filtros).toEqual({ id: 'm1' });
+  });
+
+  test('um menu que não existe devolve null', async () => {
+    await expect(m.buscarRestauranteDoMenu('m1')).resolves.toBeNull();
+  });
+
+  test('sem rede, a mensagem vem em português', async () => {
+    mockBd.respostas['menus.select'] = { data: null, error: { message: 'TypeError: Network request failed' } };
+    await expect(m.buscarRestauranteDoMenu('m1')).rejects.toThrow('Sem ligação à internet');
+  });
+});

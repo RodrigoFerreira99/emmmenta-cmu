@@ -1,15 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { AbanaParaDecidir } from '@/components/AbanaParaDecidir';
 import { CartaoDePrato } from '@/components/CartaoDePrato';
+import { DestaqueMaisBarato } from '@/components/DestaqueMaisBarato';
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
 import { ListaFantasma } from '@/components/Esqueleto';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
-import { OPCOES_DE_RAIO_KM } from '@/services/pratos';
+import { ouvirAbanoes } from '@/lib/abanar';
+import { almocoMaisBarato, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
 import { cores, espaco, texto } from '@/theme';
 
 // Ecrã 2 · Início (RF05, RF07) — responsável: André
@@ -19,6 +22,8 @@ import { cores, espaco, texto } from '@/theme';
 //  1. O PertoContext sabe onde procurar (localização ou zona escolhida), os filtros e os pratos.
 //  2. Este ecrã só desenha: cabeçalho com o sítio, pesquisa e filtros (RF07) e a lista (RF05).
 //  3. Tocar num prato abre a página do restaurante: chega-se a um menu com 1 toque (RNF06).
+//  4. Extras: o destaque "o almoço mais barato perto de ti" e o "Abana para decidir" (botão
+//     "Escolhe por mim" ou abanar o telemóvel com este ecrã à frente).
 export default function Inicio() {
   const {
     local,
@@ -34,6 +39,17 @@ export default function Inicio() {
     limparFiltros,
   } = usePerto();
   const [aMudarLocal, setAMudarLocal] = useState(false);
+  const [aDecidir, setADecidir] = useState(false); // o "Abana para decidir" está aberto?
+
+  // Abanar o telemóvel abre o "Abana para decidir", mas só com este ecrã à frente e se houver
+  // pratos para escolher. Ao sair do ecrã o acelerómetro deixa de ser ouvido (poupa bateria).
+  const haPratosParaSortear = pratosParaSortear(pratos).length > 0;
+  useFocusEffect(
+    useCallback(() => {
+      if (!haPratosParaSortear || aDecidir) return;
+      return ouvirAbanoes(() => setADecidir(true));
+    }, [haPratosParaSortear, aDecidir])
+  );
 
   // Ainda não se sabe onde procurar: ou a app está a ver se já tem permissão, ou o cliente tem de escolher.
   if (!local) {
@@ -58,6 +74,9 @@ export default function Inicio() {
     // a distância vai junta para a página do restaurante a poder mostrar sem a calcular outra vez
     router.push({ pathname: '/restaurante/[id]', params: { id: prato.restaurante_id, distancia: String(prato.distancia_km) } });
   }
+
+  // o destaque não aparece com "Mais barato primeiro": aí o mais barato já é o primeiro da lista
+  const maisBarato = filtros.ordem === 'preco' ? null : almocoMaisBarato(pratos);
 
   // "a menos de 2 km de ti" ou "a menos de 2 km do centro de Braga"
   const perto = `a menos de ${filtros.raioKm} km ${local.origem === 'gps' ? 'de ti' : `do centro de ${local.nome}`}`;
@@ -121,9 +140,25 @@ export default function Inicio() {
         ItemSeparatorComponent={Separador}
         ListHeaderComponent={
           pratos.length > 0 ? (
-            <Text style={[texto.pequeno, estilos.contagem]}>
-              {pratos.length === 1 ? '1 prato' : `${pratos.length} pratos`} {perto}
-            </Text>
+            <View style={estilos.cabecalhoDaLista}>
+              {maisBarato ? <DestaqueMaisBarato prato={maisBarato} onPress={() => abrirRestaurante(maisBarato)} /> : null}
+              <View style={estilos.linha}>
+                <Text style={[texto.pequeno, estilos.ocuparTudo]}>
+                  {pratos.length === 1 ? '1 prato' : `${pratos.length} pratos`} {perto}
+                </Text>
+                {haPratosParaSortear ? (
+                  <Pressable
+                    onPress={() => setADecidir(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Escolhe por mim (também podes abanar o telemóvel)"
+                    style={estilos.escolhePorMim}
+                  >
+                    <Ionicons name="dice-outline" size={18} color={cores.acento} />
+                    <Text style={estilos.escolhePorMimTexto}>Escolhe por mim</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
           ) : null
         }
         ListEmptyComponent={listaVazia()}
@@ -132,6 +167,17 @@ export default function Inicio() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       />
+
+      {aDecidir ? (
+        <AbanaParaDecidir
+          pratos={pratos}
+          aoFechar={() => setADecidir(false)}
+          aoAbrirRestaurante={(prato) => {
+            setADecidir(false);
+            abrirRestaurante(prato);
+          }}
+        />
+      ) : null}
     </Ecra>
   );
 }
@@ -143,7 +189,12 @@ function Separador() {
 const estilos = StyleSheet.create({
   cabecalho: { paddingHorizontal: espaco.xl, paddingTop: espaco.l, paddingBottom: espaco.m, gap: espaco.s },
   lista: { paddingHorizontal: espaco.xl, paddingBottom: espaco.xl, flexGrow: 1 },
-  contagem: { marginBottom: espaco.m },
+  cabecalhoDaLista: { gap: espaco.m, marginBottom: espaco.m },
+  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco.s },
+  ocuparTudo: { flex: 1 },
+  // minHeight 44: área de toque mínima (RNF06)
+  escolhePorMim: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs, minHeight: 44 },
+  escolhePorMimTexto: { ...texto.pequeno, fontWeight: '700', color: cores.acento },
   separador: { height: espaco.m },
   vazio: { gap: espaco.l, paddingTop: espaco.xxl },
   icone: { alignSelf: 'center' },
