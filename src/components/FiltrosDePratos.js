@@ -5,14 +5,14 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Chip } from '@/components/Chip';
 import { PesquisaComIa } from '@/components/PesquisaComIa';
 import { usePerto } from '@/context/PertoContext';
-import { CATEGORIAS, OPCOES_DE_PRECO_MAXIMO, OPCOES_DE_RAIO_KM, RAIO_POR_OMISSAO_KM } from '@/services/pratos';
+import { CATEGORIAS, ETIQUETAS, OPCOES_DE_PRECO_MAXIMO, OPCOES_DE_RAIO_KM, RAIO_POR_OMISSAO_KM } from '@/services/pratos';
 import { cores, espaco, raio, texto } from '@/theme';
 
-// RF07 — pesquisa pelo nome do prato e filtros: categoria, preço máximo e raio.
+// RF07 — pesquisa pelo nome do prato e filtros: categoria, preço máximo, raio e dieta (etiquetas).
 // É usado na lista (Início) e no mapa. Os filtros vivem no PertoContext, por isso
 // o que se escolhe num separador fica igual no outro.
 //
-// A categoria está sempre à vista (é o filtro mais usado). O preço máximo e o raio
+// A categoria está sempre à vista (é o filtro mais usado). O preço máximo, o raio e a dieta
 // ficam num painel que abre com o botão dos filtros, para não ocupar o ecrã todo.
 // O botão com estrelas abre a pesquisa por frase (PesquisaComIa): "peixe até 8 € aqui perto".
 export function FiltrosDePratos() {
@@ -24,6 +24,7 @@ export function FiltrosDePratos() {
   const filtrosDoPainel =
     (filtros.precoMax !== null ? 1 : 0) +
     (filtros.raioKm !== RAIO_POR_OMISSAO_KM ? 1 : 0) +
+    (filtros.etiqueta !== null ? 1 : 0) +
     (filtros.soFavoritos ? 1 : 0) +
     (filtros.ordem !== 'distancia' ? 1 : 0);
 
@@ -68,7 +69,7 @@ export function FiltrosDePratos() {
         <Pressable
           onPress={() => setPainelAberto((aberto) => !aberto)}
           accessibilityRole="button"
-          accessibilityLabel={painelAberto ? 'Esconder a ordem e os filtros de preço, distância e favoritos' : 'Mostrar a ordem e os filtros de preço, distância e favoritos'}
+          accessibilityLabel={painelAberto ? 'Esconder a ordem e os filtros de preço, distância, dieta e favoritos' : 'Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'}
           accessibilityState={{ expanded: painelAberto }}
           style={[estilos.botaoDosFiltros, painelAberto && estilos.botaoDosFiltrosAberto]}
         >
@@ -115,6 +116,19 @@ export function FiltrosDePratos() {
           <View style={estilos.chipsDoPainel} accessibilityRole="radiogroup">
             {OPCOES_DE_RAIO_KM.map((km) => (
               <Chip key={km} titulo={`Até ${km} km`} ativo={filtros.raioKm === km} onPress={() => mudarFiltros({ raioKm: km })} />
+            ))}
+          </View>
+
+          <Text style={texto.etiqueta}>Dieta e sabor</Text>
+          <View style={estilos.chipsDoPainel} accessibilityRole="radiogroup">
+            <Chip titulo="Qualquer prato" ativo={filtros.etiqueta === null} onPress={() => mudarFiltros({ etiqueta: null })} />
+            {ETIQUETAS.map((etiqueta) => (
+              <Chip
+                key={etiqueta.valor}
+                titulo={etiqueta.nome}
+                ativo={filtros.etiqueta === etiqueta.valor}
+                onPress={() => mudarFiltros({ etiqueta: etiqueta.valor })}
+              />
             ))}
           </View>
 

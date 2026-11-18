@@ -7,7 +7,7 @@ import PaginaRestaurante from '@/app/restaurante/[id]';
 import { alternarFavorito } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { traduzirPratos } from '@/services/assistente';
-import { buscarMenuDeHoje } from '@/services/menus';
+import { buscarMenuDeHoje, ouvirLotacao } from '@/services/menus';
 import { ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante } from '@/services/restaurantes';
 
@@ -40,6 +40,7 @@ jest.mock('@/services/restaurantes', () => ({
 jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
   buscarMenuDeHoje: jest.fn(),
+  ouvirLotacao: jest.fn(),
 }));
 jest.mock('@/services/assistente', () => ({
   ...jest.requireActual('@/services/assistente'),
@@ -83,6 +84,7 @@ beforeEach(() => {
   buscarRestaurante.mockResolvedValue(TASCA);
   buscarMenuDeHoje.mockResolvedValue(MENU);
   ouvirAlteracoesPratos.mockReturnValue(pararDeOuvir);
+  ouvirLotacao.mockReturnValue(jest.fn());
   abrirDirecoes.mockResolvedValue();
   ligar.mockResolvedValue();
 });
@@ -289,5 +291,50 @@ describe('Página do restaurante — menu em inglês (para turistas)', () => {
     await render(<PaginaRestaurante />);
     await screen.findByText('Este restaurante ainda não publicou o menu de hoje.');
     expect(screen.queryByRole('button', { name: 'Show the menu in English' })).toBeNull();
+  });
+});
+
+describe('Página do restaurante — lotação, fotografias, etiquetas e últimas doses', () => {
+  const agora = () => new Date().toISOString();
+
+  test('mostra "Cheio agora" e muda logo quando o restaurante muda a lotação (tempo real)', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, lotacao: 'cheio', lotacao_em: agora() });
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByLabelText('Cheio agora · agora mesmo')).toBeTruthy();
+    expect(ouvirLotacao).toHaveBeenCalledWith(expect.any(Function), { menuId: 'm1' });
+
+    const aoMudar = ouvirLotacao.mock.calls[0][0];
+    await act(async () => aoMudar({ id: 'm1', lotacao: 'ha-mesa', lotacao_em: agora() }));
+    expect(screen.getByLabelText('Há mesa · agora mesmo')).toBeTruthy();
+    expect(screen.queryByLabelText(/Cheio agora/)).toBeNull();
+  });
+
+  test('sem lotação, ou com um aviso velho, não mostra nada', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, lotacao: 'cheio', lotacao_em: new Date(Date.now() - 2 * 3600000).toISOString() });
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+    expect(screen.queryByLabelText(/Cheio agora/)).toBeNull();
+  });
+
+  test('etiquetas e "Últimas doses" aparecem no prato (e em inglês no menu em inglês)', async () => {
+    const sopaVegana = { ...SOPA, etiquetas: ['vegano', 'sem-gluten'], ultimas_doses: true };
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, pratos: [sopaVegana, BACALHAU] });
+    traduzirPratos.mockResolvedValue(['Caldo verde (kale and potato soup)', 'Bacalhau à Brás (salt cod)']);
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByLabelText('Caldo verde, Sopa, Vegano · Sem glúten, últimas doses, 1,80 €')).toBeTruthy();
+    expect(screen.getByText('Últimas doses')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Show the menu in English' }));
+    expect(await screen.findByText('Last portions')).toBeTruthy();
+    expect(screen.getByText('Caldo verde · Soup · Vegan · Gluten-free')).toBeTruthy();
+  });
+
+  test('tocar na fotografia de um prato mostra-a em grande; tocar outra vez fecha', async () => {
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, pratos: [{ ...SOPA, foto_url: 'https://fotos/caldo.jpg' }, BACALHAU] });
+    await render(<PaginaRestaurante />);
+    await fireEvent.press(await screen.findByRole('imagebutton', { name: 'Ver a fotografia de Caldo verde' }));
+    expect(screen.getByLabelText('Fotografia de Caldo verde')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar a fotografia' }));
+    expect(screen.queryByLabelText('Fotografia de Caldo verde')).toBeNull();
   });
 });

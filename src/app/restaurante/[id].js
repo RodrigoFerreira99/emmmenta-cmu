@@ -3,17 +3,19 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { EtiquetaEsgotado } from '@/components/CartaoDePrato';
+import { EtiquetaEsgotado, EtiquetaUltimasDoses } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { PaginaFantasma } from '@/components/Esqueleto';
+import { FotoDoPrato } from '@/components/FotoDoPrato';
+import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { partilhar, textoDoConvite } from '@/lib/partilhar';
 import { vibrarLeve } from '@/lib/vibrar';
 import { CATEGORIAS_EM_INGLES, traduzirPratos } from '@/services/assistente';
-import { buscarMenuDeHoje, nomeDaCategoria } from '@/services/menus';
-import { formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
+import { buscarMenuDeHoje, nomeDaCategoria, ouvirLotacao } from '@/services/menus';
+import { descreverEtiquetas, formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante, estadoDoHorario, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
 import { cores, espaco, raio, texto } from '@/theme';
 
@@ -23,6 +25,8 @@ import { cores, espaco, raio, texto } from '@/theme';
 // Mostra a fotografia, o nome, o tipo de cozinha, o horário e a morada, os botões Ligar e Direções
 // e o menu de hoje. Os pratos esgotados aparecem riscados e mudam em tempo real (RF04).
 // O botão "English" mostra o menu em inglês para turistas (traduzido pelo assistente de IA).
+// Também em tempo real: "Há mesa" / "Cheio agora" e as "Últimas doses". Tocar na fotografia de um
+// prato mostra-a em grande.
 export default function PaginaRestaurante() {
   const { id, distancia } = useLocalSearchParams();
 
@@ -77,6 +81,15 @@ export default function PaginaRestaurante() {
           atual ? { ...atual, pratos: atual.pratos.map((prato) => (prato.id === alterado.id ? { ...prato, ...alterado } : prato)) } : atual
         );
       },
+      { menuId }
+    );
+  }, [menuId]);
+
+  // 3) "Há mesa" / "Cheio agora": quando o restaurante muda a lotação no Painel, muda aqui logo.
+  useEffect(() => {
+    if (!menuId) return;
+    return ouvirLotacao(
+      (alterado) => setMenu((atual) => (atual ? { ...atual, lotacao: alterado.lotacao, lotacao_em: alterado.lotacao_em } : atual)),
       { menuId }
     );
   }, [menuId]);
@@ -183,6 +196,7 @@ export default function PaginaRestaurante() {
               {restaurante.nome}
             </Text>
             {subtitulo ? <Text style={texto.pequeno}>{subtitulo}</Text> : null}
+            {menu ? <EtiquetaDeLotacao menu={menu} emIngles={emIngles} /> : null}
           </View>
           <Pressable
             onPress={() => abrirOutraApp(() => partilhar(textoDoConvite({ restaurante, menu })))}
@@ -275,17 +289,31 @@ export default function PaginaRestaurante() {
 }
 
 // Um prato do menu. No menu em inglês: o nome traduzido em cima e o nome português por baixo, em pequeno.
+// A fotografia (se houver) é um botão à parte, fora do bloco que o leitor de ecrã lê de uma vez.
 function LinhaDoPrato({ prato, comLinha, emIngles, nomeEmIngles }) {
   const categoria = emIngles ? CATEGORIAS_EM_INGLES[prato.categoria] : nomeDaCategoria(prato.categoria);
-  const estado = prato.esgotado ? (emIngles ? 'sold out' : 'esgotado') : formatarPreco(prato.preco);
+  const etiquetas = descreverEtiquetas(prato.etiquetas, { emIngles });
+  const ultimasDoses = prato.ultimas_doses && !prato.esgotado;
+  let estado = formatarPreco(prato.preco);
+  if (prato.esgotado) estado = emIngles ? 'sold out' : 'esgotado';
+  else if (ultimasDoses) estado = `${emIngles ? 'last portions' : 'últimas doses'}, ${estado}`;
+  const rotulo = [nomeEmIngles ?? prato.nome, categoria, etiquetas || null, estado].filter(Boolean).join(', ');
+  const linhaDePequeno = [nomeEmIngles ? prato.nome : null, categoria, etiquetas || null].filter(Boolean).join(' · ');
+
   return (
-    <View style={[estilos.prato, comLinha && estilos.pratoComLinha]} accessible accessibilityLabel={`${nomeEmIngles ?? prato.nome}, ${categoria}, ${estado}`}>
-      <View style={estilos.ocuparTudo}>
-        <Text style={[estilos.pratoNome, prato.esgotado && estilos.riscado]}>{nomeEmIngles ?? prato.nome}</Text>
-        <Text style={estilos.pratoCategoria}>{nomeEmIngles ? `${prato.nome} · ${categoria}` : categoria}</Text>
+    <View style={[estilos.prato, comLinha && estilos.pratoComLinha]}>
+      {prato.foto_url ? <FotoDoPrato uri={prato.foto_url} nome={nomeEmIngles ?? prato.nome} /> : null}
+      <View style={estilos.pratoTextos} accessible accessibilityLabel={rotulo}>
+        <View style={estilos.ocuparTudo}>
+          <Text style={[estilos.pratoNome, prato.esgotado && estilos.riscado]}>{nomeEmIngles ?? prato.nome}</Text>
+          <Text style={estilos.pratoCategoria}>{linhaDePequeno}</Text>
+        </View>
+        <View style={estilos.pratoDireita}>
+          <Text style={[estilos.pratoPreco, prato.esgotado && estilos.riscado]}>{formatarPreco(prato.preco)}</Text>
+          {prato.esgotado ? <EtiquetaEsgotado texto={emIngles ? 'Sold out' : 'Esgotado'} /> : null}
+          {ultimasDoses ? <EtiquetaUltimasDoses texto={emIngles ? 'Last portions' : 'Últimas doses'} /> : null}
+        </View>
       </View>
-      {prato.esgotado ? <EtiquetaEsgotado texto={emIngles ? 'Sold out' : 'Esgotado'} /> : null}
-      <Text style={[estilos.pratoPreco, prato.esgotado && estilos.riscado]}>{formatarPreco(prato.preco)}</Text>
     </View>
   );
 }
@@ -336,6 +364,8 @@ const estilos = StyleSheet.create({
   aviso: { ...texto.pequeno, color: cores.erro },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },
   prato: { flexDirection: 'row', alignItems: 'center', gap: espaco.m, paddingHorizontal: espaco.l, paddingVertical: espaco.m, minHeight: 56 },
+  pratoTextos: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco.m },
+  pratoDireita: { alignItems: 'flex-end', gap: espaco.xs },
   pratoComLinha: { borderTopWidth: 1, borderTopColor: cores.linha },
   pratoNome: { ...texto.corpo, fontWeight: '500' },
   pratoCategoria: { fontSize: 12, color: cores.textoSecundario },

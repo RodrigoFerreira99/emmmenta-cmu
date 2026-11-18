@@ -6,6 +6,7 @@ import MapView, { Circle, Marker } from 'react-native-maps';
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
 import { EtiquetaDoMapa } from '@/components/EtiquetaDoMapa';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
+import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
 import { agruparPorRestaurante, formatarDistancia, formatarPreco } from '@/services/pratos';
@@ -145,6 +146,7 @@ export default function Mapa() {
             <Text style={texto.pequeno}>
               {formatarDistancia(escolhido.distanciaKm)} · {resumoDoRestaurante(escolhido)}
             </Text>
+            <EtiquetaDeLotacao menu={escolhido} />
             <Text style={texto.pequeno} numberOfLines={2}>
               {escolhido.pratos.map((prato) => prato.prato).join(' · ')}
             </Text>

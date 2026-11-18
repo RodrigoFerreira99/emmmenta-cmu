@@ -3,7 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { animarProximaMudanca } from '@/lib/animacoes';
 import { useFavoritos } from '@/lib/favoritos';
 import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
+import { ouvirLotacao } from '@/services/menus';
 import {
+  aplicarAlteracaoDeMenu,
   aplicarAlteracaoDePrato,
   buscarPratosPerto,
   ordenarPorPreco,
@@ -26,10 +28,12 @@ const PertoContext = createContext(null);
 
 // soFavoritos: mostrar só os pratos dos restaurantes favoritos (guardados no telemóvel, src/lib/favoritos.js)
 // ordem: 'distancia' (por omissão, RF05) ou 'preco' (mais barato primeiro)
+// etiqueta: um valor de ETIQUETAS (por exemplo 'vegano') ou null
 const FILTROS_INICIAIS = {
   raioKm: RAIO_POR_OMISSAO_KM,
   precoMax: null,
   categoria: null,
+  etiqueta: null,
   pesquisa: '',
   soFavoritos: false,
   ordem: 'distancia',
@@ -134,8 +138,8 @@ export function PertoProvider({ children }) {
   const limparFiltros = useCallback(() => setFiltros(FILTROS_INICIAIS), []);
   // Pesquisa por frase (assistente): os filtros percebidos substituem os que lá estavam.
   const aplicarFiltros = useCallback(
-    ({ categoria = null, precoMax = null, raioKm = null, pesquisa = null }) =>
-      setFiltros({ ...FILTROS_INICIAIS, categoria, precoMax, raioKm: raioKm ?? RAIO_POR_OMISSAO_KM, pesquisa: pesquisa ?? '' }),
+    ({ categoria = null, precoMax = null, raioKm = null, pesquisa = null, etiqueta = null }) =>
+      setFiltros({ ...FILTROS_INICIAIS, categoria, etiqueta, precoMax, raioKm: raioKm ?? RAIO_POR_OMISSAO_KM, pesquisa: pesquisa ?? '' }),
     []
   );
 
@@ -151,6 +155,7 @@ export function PertoProvider({ children }) {
     (filtros.raioKm !== RAIO_POR_OMISSAO_KM ? 1 : 0) +
     (filtros.precoMax !== null ? 1 : 0) +
     (filtros.categoria !== null ? 1 : 0) +
+    (filtros.etiqueta !== null ? 1 : 0) +
     (filtros.pesquisa.trim() !== '' ? 1 : 0) +
     (filtros.soFavoritos ? 1 : 0) +
     (filtros.ordem !== 'distancia' ? 1 : 0);
@@ -169,8 +174,8 @@ export function PertoProvider({ children }) {
   // que o produziu: se forem diferentes, é porque a resposta da pesquisa atual ainda não chegou.
   const latitude = local?.latitude ?? null;
   const longitude = local?.longitude ?? null;
-  const { raioKm, precoMax, categoria } = filtros;
-  const chave = local ? [latitude, longitude, raioKm, precoMax, categoria, pesquisaAplicada, recarregamentos].join('|') : null;
+  const { raioKm, precoMax, categoria, etiqueta } = filtros;
+  const chave = local ? [latitude, longitude, raioKm, precoMax, categoria, etiqueta, pesquisaAplicada, recarregamentos].join('|') : null;
   const [resultado, setResultado] = useState({ chave: null, pratos: [], erro: null });
 
   // Corre sempre que a chave muda, ou seja, quando muda o sítio, um filtro ou se pede para recarregar.
@@ -178,7 +183,7 @@ export function PertoProvider({ children }) {
     if (chave === null) return;
     let ativo = true; // se os filtros mudarem a meio, a resposta antiga é ignorada
 
-    buscarPratosPerto({ latitude, longitude, raioKm, precoMax, categoria, pesquisa: pesquisaAplicada })
+    buscarPratosPerto({ latitude, longitude, raioKm, precoMax, categoria, etiqueta, pesquisa: pesquisaAplicada })
       .then((pratos) => {
         if (ativo) setResultado({ chave, pratos, erro: null });
       })
@@ -189,7 +194,7 @@ export function PertoProvider({ children }) {
     return () => {
       ativo = false;
     };
-  }, [chave, latitude, longitude, raioKm, precoMax, categoria, pesquisaAplicada]);
+  }, [chave, latitude, longitude, raioKm, precoMax, categoria, etiqueta, pesquisaAplicada]);
 
   // RF04 visto pelo cliente: quando um restaurante marca um prato como esgotado, a lista muda logo.
   useEffect(() => {
@@ -199,6 +204,16 @@ export function PertoProvider({ children }) {
         if (pratos === atual.pratos) return atual;
         animarProximaMudanca(); // o prato que esgotou desce para o fim a deslizar, em vez de saltar
         return { ...atual, pratos };
+      });
+    });
+  }, []);
+
+  // "Há mesa" / "Cheio agora": quando um restaurante muda a lotação, os cartões dele mudam logo.
+  useEffect(() => {
+    return ouvirLotacao((alterado) => {
+      setResultado((atual) => {
+        const pratos = aplicarAlteracaoDeMenu(atual.pratos, alterado);
+        return pratos === atual.pratos ? atual : { ...atual, pratos };
       });
     });
   }, []);

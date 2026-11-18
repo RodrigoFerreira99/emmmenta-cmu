@@ -36,6 +36,15 @@ jest.mock('@/lib/favoritos', () => ({
   useFavoritos: () => ({ favoritos: mockFavoritos.ids, eFavorito: (id) => mockFavoritos.ids.has(id), alternarFavorito: jest.fn() }),
 }));
 jest.mock('@/services/localizacao', () => ({ estadoDaPermissao: jest.fn(), pedirPermissao: jest.fn(), lerLocalizacao: jest.fn() }));
+// a lotação em tempo real ("Há mesa" / "Cheio agora") também é simulada: aoMudarLotacao guarda quem está a ouvir
+const mockLotacao = { aoMudar: null };
+jest.mock('@/services/menus', () => ({
+  ...jest.requireActual('@/services/menus'),
+  ouvirLotacao: (aoMudar) => {
+    mockLotacao.aoMudar = aoMudar;
+    return () => {};
+  },
+}));
 jest.mock('@/services/pratos', () => ({
   ...jest.requireActual('@/services/pratos'),
   buscarPratosPerto: jest.fn(),
@@ -51,7 +60,7 @@ const CARTAO_DO_BACALHAU = /^Bacalhau à Brás, Tasca do Manuel/;
 const FRANCESINHA = { ...CAFE, prato_id: 'p3', prato: 'Francesinha', categoria: 'carne', preco: 9.5, esgotado: true };
 
 const AQUI = { latitude: 41.15, longitude: -8.61 };
-const SEM_FILTROS = { raioKm: 2, precoMax: null, categoria: null, pesquisa: '' };
+const SEM_FILTROS = { raioKm: 2, precoMax: null, categoria: null, etiqueta: null, pesquisa: '' };
 
 const abrir = () =>
   render(
@@ -209,7 +218,7 @@ describe('Início — filtros e pesquisa (RF07)', () => {
     await screen.findByLabelText(CARTAO_DO_BACALHAU);
     expect(screen.queryByText('Preço máximo')).toBeNull(); // o painel começa fechado
 
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Até 8 €' }));
     await waitFor(() => expect(ultimoPedido().precoMax).toBe(8));
 
@@ -261,7 +270,7 @@ describe('Início — favoritos', () => {
     await screen.findByText('Francesinha');
     const pedidosAntes = buscarPratosPerto.mock.calls.length;
 
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Só os meus favoritos' }));
 
     expect(screen.queryByText('Francesinha')).toBeNull(); // o Café Central não é favorito
@@ -276,7 +285,7 @@ describe('Início — favoritos', () => {
   test('sem favoritos, explica como os guardar', async () => {
     await abrir();
     await screen.findByText('Francesinha');
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Só os meus favoritos' }));
     expect(screen.getByText('Ainda não tens restaurantes favoritos. Abre um restaurante e toca no coração para o guardar.')).toBeTruthy();
   });
@@ -285,7 +294,7 @@ describe('Início — favoritos', () => {
     mockFavoritos.ids = new Set(['outro-restaurante']);
     await abrir();
     await screen.findByText('Francesinha');
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Só os meus favoritos' }));
     expect(screen.getByText('Nenhum dos teus restaurantes favoritos tem pratos de hoje a menos de 2 km de ti.')).toBeTruthy();
   });
@@ -306,7 +315,7 @@ describe('Início — ordenar por preço (RF07)', () => {
     expect(ordemNaLista()).toEqual(['Caldo verde', 'Bacalhau à Brás', 'Francesinha']); // por distância
     const pedidosAntes = buscarPratosPerto.mock.calls.length;
 
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Mais barato primeiro' }));
     expect(ordemNaLista()).toEqual(['Caldo verde', 'Bacalhau à Brás', 'Francesinha']); // a francesinha está esgotada: fica no fim
     expect(buscarPratosPerto.mock.calls.length).toBe(pedidosAntes);
@@ -321,7 +330,7 @@ describe('Início — ordenar por preço (RF07)', () => {
     await abrir();
     await screen.findByLabelText(CARTAO_DO_BACALHAU);
 
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Mais barato primeiro' }));
     expect(ordemNaLista()).toEqual(['Sopa da casa', 'Caldo verde', 'Bacalhau à Brás']);
   });
@@ -338,7 +347,7 @@ describe('Início — o almoço mais barato perto de ti', () => {
   test('com "Mais barato primeiro" o destaque sai (o mais barato já está no topo)', async () => {
     await abrir();
     await screen.findByLabelText(/^O almoço mais barato/);
-    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância e favoritos'));
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
     await fireEvent.press(screen.getByRole('radio', { name: 'Mais barato primeiro' }));
     expect(screen.queryByLabelText(/^O almoço mais barato/)).toBeNull();
   });
@@ -408,5 +417,39 @@ describe('Início — pesquisa por frase (assistente)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Fechar a pesquisa por frase' }));
     expect(screen.queryByLabelText('Diz o que te apetece')).toBeNull();
     aviso.mockRestore();
+  });
+});
+
+describe('Início — etiquetas, últimas doses e lotação', () => {
+  test('o cartão mostra as etiquetas, as últimas doses e "Cheio agora"', async () => {
+    const agora = new Date().toISOString();
+    const bacalhau = { ...BACALHAU, menu_id: 'm1', etiquetas: ['sem-gluten'], ultimas_doses: true, lotacao: 'cheio', lotacao_em: agora };
+    buscarPratosPerto.mockResolvedValue([bacalhau]);
+    await abrir();
+    const cartao = await screen.findByLabelText(CARTAO_DO_BACALHAU);
+    expect(cartao.props.accessibilityLabel).toMatch(/últimas doses, Sem glúten, Cheio agora · agora mesmo$/);
+    expect(screen.getByText('Peixe · Sem glúten')).toBeTruthy();
+    expect(screen.getByText('Últimas doses')).toBeTruthy();
+  });
+
+  test('quando um restaurante diz que está cheio, os cartões dele mudam logo (tempo real)', async () => {
+    buscarPratosPerto.mockResolvedValue([{ ...BACALHAU, menu_id: 'm1' }]);
+    await abrir();
+    await screen.findByLabelText(CARTAO_DO_BACALHAU);
+    expect(screen.queryByText(/Cheio agora/)).toBeNull();
+
+    await act(async () => mockLotacao.aoMudar({ id: 'm1', lotacao: 'cheio', lotacao_em: new Date().toISOString() }));
+    expect(await screen.findByText(/Cheio agora/)).toBeTruthy();
+  });
+
+  test('o filtro "Vegano" do painel vai à base de dados (só pratos com essa etiqueta)', async () => {
+    await abrir();
+    await screen.findByLabelText(CARTAO_DO_BACALHAU);
+    await fireEvent.press(screen.getByLabelText('Mostrar a ordem e os filtros de preço, distância, dieta e favoritos'));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Vegano' }));
+    await waitFor(() => expect(ultimoPedido()).toEqual({ ...AQUI, ...SEM_FILTROS, etiqueta: 'vegano' }));
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Qualquer prato' }));
+    await waitFor(() => expect(ultimoPedido().etiqueta).toBeNull());
   });
 });
