@@ -71,11 +71,13 @@ Cada ecrã por fazer mostra uma caixa "Por fazer" com a lista do que falta.
 
 - Trabalhar em ramos (`git checkout -b rf03-publicar-menu`) e juntar ao `main` quando estiver a funcionar.
 - Commits pequenos e frequentes, com mensagem clara: `RF03: adicionar pratos ao menu de hoje`.
-- Antes de fazer push: `npx expo lint` sem erros e testar no telemóvel.
+- Antes de fazer push: `npx expo lint` sem erros, `npm test` a passar e testar no telemóvel.
+- Os testes automáticos estão na pasta `tests/` (Jest). Correm no computador, sem rede e sem mexer na base de dados.
 - A chave `service_role` do Supabase **nunca** entra no código.
 
 ## Notas sobre o Supabase
 
 - Para testar, cria duas contas: uma de **cliente** e uma de **restaurante**.
 - Em desenvolvimento, desliga a confirmação por email no painel do Supabase: **Authentication → Sign In / Providers → Email → Confirm email (desligar)**. O serviço de email gratuito do Supabase só envia para os membros da equipa, por isso, com a confirmação ligada, as contas novas ficam bloqueadas.
+- **Recuperar a palavra-passe (RF01):** a app pede um **código** que chega por email. Para o email trazer o código, é preciso mudar o modelo uma vez no painel do Supabase: **Authentication → Emails → Reset Password** e pôr `{{ .Token }}` no texto, por exemplo `<p>O teu código da Emmmenta é: <b>{{ .Token }}</b></p>`. Tal como na confirmação, o email gratuito só chega a membros da equipa.
 - No plano gratuito o projeto é pausado ao fim de 7 dias sem uso. Antes da defesa, abre o painel do Supabase e, se for preciso, carrega em "Restore".

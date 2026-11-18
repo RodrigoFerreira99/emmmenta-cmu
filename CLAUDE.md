@@ -13,12 +13,12 @@ App móvel (React Native + Expo SDK 58, **JavaScript**, Expo Router) que mostra 
 - **JavaScript, não TypeScript.** Ficheiros `.js`. Imports com o alias `@/` (= `src/`).
 - Rotas em `src/app/` (Expo Router). Código que não é ecrã fica fora de `src/app/` (`src/components`, `src/services`, `src/context`, `src/lib`).
 - Acesso a dados **só através de funções em `src/services/`** — os ecrãs não chamam o Supabase diretamente (RNF09).
-- Cores e medidas **só de `src/theme.js`** (vêm do Figma). Componentes base em `src/components/ui.js` (`Ecra`, `Botao`, `Campo`, `Logo`, `Carregar`, `PorFazer`).
+- Cores e medidas **só de `src/theme.js`** (vêm do Figma). Componentes base em `src/components/ui.js` (`Ecra`, `Botao`, `Campo`, `Logo`, `Carregar`, `PorFazer`). Para formulários há `CampoComErro` (campo com o erro por baixo) e, para falhas de carregamento, `EcraDeErro` (mensagem + "Tentar outra vez").
 - Instalar pacotes com `npx expo install <pacote>`. A app tem de correr no **Expo Go** (não adicionar bibliotecas que exijam development build).
 - **Commits pequenos e frequentes**, com mensagens claras em português (ex.: `RF03: adicionar pratos ao menu de hoje`). O histórico de commits de todos é avaliado.
 - Nunca pôr a chave `service_role`/`secret` do Supabase na app nem no repositório. Só a `publishable` (está em `.env`).
 - Alterações à base de dados: com cuidado, e explicar ao grupo antes. As regras de segurança (RLS) já existem e não devem ser desligadas.
-- Antes de dar uma tarefa por terminada: `npx expo lint` sem erros.
+- Antes de dar uma tarefa por terminada: `npx expo lint` sem erros e `npm test` a passar. Os testes (Jest) estão em `tests/`; funções novas sem rede (validações, conversões) devem ter teste.
 
 ## Requisitos (o que vai ser avaliado — relatório da entrega intermédia)
 
@@ -26,8 +26,8 @@ São **7 requisitos funcionais, todos obrigatórios**. RF03 e RF05 são o núcle
 
 | ID | Funcionalidade | Ecrã | Responsável | Estado |
 |---|---|---|---|---|
-| RF01 | Registo e autenticação (criar conta com perfil Cliente/Restaurante, entrar, sair, recuperar palavra-passe) | `login.js`, `(cliente)/conta.js` | Rodrigo | **feito** (falta testar a recuperação de palavra-passe) |
-| RF02 | Perfil do restaurante: nome, tipo de cozinha, morada com ponto ajustável no mapa, horário de almoço, telefone, fotografia | `(restaurante)/perfil.js` | Rodrigo | por fazer |
+| RF01 | Registo e autenticação (criar conta com perfil Cliente/Restaurante, entrar, sair, recuperar palavra-passe) | `login.js`, `(cliente)/conta.js` | Rodrigo | **feito** (a recuperação é por código enviado por email: falta pôr `{{ .Token }}` no modelo de email do Supabase — ver README — e testar) |
+| RF02 | Perfil do restaurante: nome, tipo de cozinha, morada com ponto ajustável no mapa, horário de almoço, telefone, fotografia | `(restaurante)/perfil.js` | Rodrigo | **feito** (falta testar no telemóvel) |
 | RF03 | Publicar o menu do dia: pratos com nome, categoria e preço; o menu fica associado à data e desaparece à meia-noite; pode ser editado | `publicar.js` | José | por fazer |
 | RF04 | Marcar prato esgotado; os clientes veem logo (tempo real) | `(restaurante)/painel.js` | José | por fazer |
 | RF05 | Pratos do dia perto de mim: lista num raio de 2 km por omissão, ordenada por distância, com preço, restaurante e distância | `(cliente)/index.js` | André | por fazer |
@@ -63,7 +63,9 @@ Notas: "menus de ontem" não se apagam — a app só pede os de hoje. Para testa
 
 Mock-ups no Figma: https://www.figma.com/design/TpDXtsdeNOmMZfTgOCPvMd (7 ecrãs + componentes). Cor principal laranja `#C2410C`, fundo `#F6F5F3`, cartões brancos com borda `#E6E4E1`, cantos 12–16 px, letra do sistema. Esgotado = texto cinzento riscado + etiqueta "Esgotado".
 
-Navegação (`src/app/_layout.js`, com `Stack.Protected`): sem sessão → `login`; cliente → separadores Início / Mapa / Conta + `restaurante/[id]`; restaurante → separadores Painel / Perfil + `publicar`.
+Navegação (`src/app/_layout.js`, com `Stack.Protected`): sem sessão → `login`; cliente → separadores Início / Mapa / Conta + `restaurante/[id]`; restaurante → separadores Painel / Perfil + `publicar`. Cada `Stack.Protected` tem `redirectTo` com o primeiro ecrã do percurso (`rotaInicial()` em `src/lib/navegacao.js`): sem isso, as contas de restaurante iam parar a "Unmatched Route", porque o grupo `(restaurante)` não tem ecrã `index`. Quem mudar o nome a um ecrã inicial tem de atualizar essa função (o teste `tests/navegacao.test.js` avisa).
+
+Dados do restaurante (RF02): `src/services/restaurantes.js` — `buscarMeuRestaurante(donoId)` devolve o restaurante da conta ou `null` (o Painel e o Publicar precisam disto), `guardarRestaurante`, `enviarFotoRestaurante`, `validarRestaurante`. O telefone é guardado como `+351XXXXXXXXX` (pronto para `tel:`) e as horas como `HH:MM:SS`.
 
 ## Planeamento
 
