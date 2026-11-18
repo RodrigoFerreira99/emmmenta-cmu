@@ -42,3 +42,6 @@ yarn-error.*
 
 # variáveis de ambiente (cada um cria o seu a partir de .env.example)
 .env
+
+# cópias de segurança dos dados (scripts/copia-de-seguranca.mjs)
+copias/

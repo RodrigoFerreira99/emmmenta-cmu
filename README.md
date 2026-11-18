@@ -54,9 +54,10 @@ src/
   context/AuthContext.js   sessão e perfil (useAuth)
   context/PertoContext.js  onde se procura, filtros e pratos perto (usePerto)
   lib/                     ligação ao Supabase, datas, erros, zonas, ligações a outras apps
-  services/                acesso aos dados: restaurantes, menus, pratos, localização, ler menu
+  services/                acesso aos dados: restaurantes, menus, pratos, localização, ler menu, assistente
   theme.js                 cores e medidas do Figma
-supabase/functions/        código que corre no servidor do Supabase (ler o menu por fotografia)
+supabase/functions/        código que corre no servidor do Supabase (ler-menu, assistente)
+scripts/                   restaurantes de demonstração e cópia de segurança (correm no computador)
 tests/                     testes automáticos (npm test)
 ```
 
@@ -91,10 +92,11 @@ Além do Supabase, a app usa dois serviços. Nenhum recebe dados pessoais dos ut
 
 - **Encontrar a morada no mapa (RF02):** o botão do perfil do restaurante envia o texto da morada ao [Nominatim](https://nominatim.org/), o serviço público do OpenStreetMap, e recebe as coordenadas. É gratuito e não precisa de chave. A morada de um restaurante é um dado público do negócio. Se o serviço falhar, o pin põe-se à mão.
 - **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA no serviço Groq (plano gratuito). A fotografia não fica guardada.
+- **Assistente (pesquisa por frase e menu em inglês):** o texto que o cliente escreve em "Diz o que te apetece" e os nomes dos pratos do menu são enviados à função `assistente` do Supabase (`supabase/functions/assistente/index.js`), que usa o mesmo serviço Groq. Não vai a localização nem nenhum dado da conta. Se o serviço falhar, a pesquisa por frase usa regras simples no próprio telemóvel e o botão "English" avisa que não foi possível traduzir.
 
-### Ativar a leitura por fotografia
+### Ativar a IA (leitura por fotografia e assistente)
 
-Já está ativada (função `ler-menu` publicada e segredo `GROQ_API_KEY` criado). Se um dia a chave for apagada, a app diz "A leitura por fotografia ainda não está configurada" e os pratos escrevem-se à mão. Para a voltar a ativar:
+Já está ativada (funções `ler-menu` e `assistente` publicadas e segredo `GROQ_API_KEY` criado; as duas usam a mesma chave). Se um dia a chave for apagada, a app diz "A leitura por fotografia ainda não está configurada" e os pratos escrevem-se à mão. Para a voltar a ativar:
 
 1. Criar uma conta gratuita em https://console.groq.com (não pede cartão) e, em **API Keys**, criar uma chave.
 2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `GROQ_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
@@ -103,12 +105,13 @@ O que convém saber:
 
 - O plano gratuito do Groq tem um limite de pedidos por minuto e por dia. Quando é atingido, a app avisa e os pratos escrevem-se à mão.
 - O modelo usado, `qwen/qwen3.8-27b`, está em fase "Preview" no Groq, que avisa que estes modelos podem ser retirados. Se a leitura deixar de funcionar, escolher outro modelo que aceite imagens em https://console.groq.com/docs/vision e pôr o nome dele no segredo `MODELO_LER_MENU` (não é preciso mexer no código).
-- Só as contas de restaurante conseguem usar a função.
-- Se o código em `supabase/functions/ler-menu/index.js` mudar, a função tem de ser publicada outra vez no Supabase (com "Verify JWT" ligado).
+- Só as contas de restaurante conseguem usar a leitura por fotografia. O assistente aceita qualquer conta com sessão iniciada (a chave pública sozinha é recusada, para ninguém gastar a quota de fora da app).
+- O assistente usa o mesmo modelo; para usar outro só no assistente, criar o segredo `MODELO_ASSISTENTE` com o nome de um modelo de texto do Groq (https://console.groq.com/docs/models).
+- Se o código de uma das funções (`supabase/functions/ler-menu/index.js` ou `supabase/functions/assistente/index.js`) mudar, essa função tem de ser publicada outra vez no Supabase (com "Verify JWT" ligado).
 
 ## Antes da defesa
 
-A demonstração é ao vivo, por isso há três coisas que não podem falhar: o Supabase tem de estar acordado, tem de haver menus publicados nesse dia e o telemóvel tem de chegar ao computador.
+A demonstração é ao vivo, por isso há três coisas que não podem falhar: o Supabase tem de estar acordado, tem de haver menus publicados nesse dia e o telemóvel tem de chegar ao computador. Os pontos 4 a 6 são cuidados para os telemóveis, para os dados e para as contas.
 
 ### 1. Supabase acordado
 
@@ -151,6 +154,30 @@ O Expo Go carrega a app a partir do computador. Na rede da escola isso pode esta
 
 Porque não uma app instalável (APK)? Fora do Expo Go, o mapa do Android (`react-native-maps`) precisa de uma chave da Google Maps, que exige uma conta na Google Cloud com faturação. No Expo Go o mapa funciona sem chave.
 
+### 4. Os telemóveis da demonstração
+
+- **Expo Go da versão certa (SDK 58).** O Expo Go da loja só abre projetos da versão mais recente do Expo. Se sair uma versão nova (SDK 59) antes da defesa, o Expo Go atualiza-se sozinho e deixa de abrir a Emmmenta. Por isso, nos telemóveis da demonstração, desliguem as atualizações automáticas do Expo Go:
+  - **Android:** Play Store → página do Expo Go → menu ⋮ (canto superior direito) → desligar "Ativar atualização automática". Se já tiver atualizado, em https://expo.dev/go escolhe-se "SDK 58" e instala-se essa versão.
+  - **iPhone:** Definições → App Store → desligar "Atualizações de apps". No iPhone não dá para voltar a uma versão antiga do Expo Go.
+- **iPhone:** entrar com a mesma conta Expo no computador (`npx expo login`) e no Expo Go. Assim o projeto aparece no Expo Go mesmo que o QR code dê problemas.
+- **Permissões dadas antes:** abrir a app uma vez em cada telemóvel e aceitar a localização (cliente) e a câmara (restaurante), para a pergunta do sistema não aparecer a meio da demonstração.
+- **Bateria e ecrã:** telemóveis carregados, poupança de energia desligada (pode atrasar o tempo real e a localização) e "Não incomodar" ligado.
+- **Plano B:** ter no computador o vídeo da app a funcionar (faz parte da entrega), para o caso de a rede falhar no dia.
+
+### 5. Cópia de segurança dos dados
+
+No plano gratuito o Supabase não guarda cópias diárias que se possam descarregar (só a partir do plano Pro). Antes de mexer em dados e na semana da defesa:
+
+```bash
+node scripts/copia-de-seguranca.mjs
+```
+
+Guarda os restaurantes, os menus e os pratos em `copias/emmmenta-AAAA-MM-DD.json` (a pasta `copias` não vai para o GitHub). Usa só a chave pública e não leva contas, palavras-passe nem perfis. Se alguém apagar um restaurante por engano, a cópia mostra o que lá estava para o voltar a pôr.
+
+### 6. Segurança das contas
+
+Os avisos do Supabase (**Advisors**) dizem que a proteção contra palavras-passe divulgadas na internet está desligada: essa proteção só existe a partir do plano Pro. Em vez disso, a app pede pelo menos **8 caracteres** nas palavras-passe novas (criar conta e recuperar), como o Supabase recomenda; as contas antigas continuam a entrar. Para o servidor exigir o mesmo, o grupo pode subir o mínimo em **Authentication → Sign In / Providers → Email → Minimum password length** para 8.
+
 ### Guião curto para a demonstração
 
 Dois telemóveis: um com uma conta de restaurante e outro com uma conta de cliente (localização na escola, ou a zona "Vila do Conde"). O restaurante usado na demonstração tem de ter o pin perto da escola (no Perfil), senão o cliente não o vê no raio de 2 km.
@@ -158,3 +185,6 @@ Dois telemóveis: um com uma conta de restaurante e outro com uma conta de clien
 1. **Restaurante:** Publicar menu → Fotografar um menu (por exemplo, impresso numa folha) → confirmar → Publicar.
 2. **Cliente:** o prato aparece na lista e no mapa; abrir o restaurante (Ligar, Direções, horário).
 3. **Restaurante:** marcar um prato como esgotado. No telemóvel do cliente fica logo riscado (tempo real).
+4. **Cliente:** botão com estrelas → "Diz o que te apetece" → por exemplo "peixe até 8 euros aqui perto": a app põe os filtros sozinha.
+5. **Cliente:** "Escolhe por mim" (ou abanar o telemóvel): a app sorteia o almoço.
+6. **Cliente (turista):** na página do restaurante, o botão "English" mostra o menu em inglês.

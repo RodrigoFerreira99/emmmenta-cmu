@@ -4,8 +4,11 @@
 // Formato mínimo de um email: algo@algo.algo, sem espaços.
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// O Supabase recusa palavras-passe mais curtas do que isto.
-export const TAMANHO_MINIMO_PALAVRA_PASSE = 6;
+// Tamanho mínimo das palavras-passe NOVAS (criar conta e recuperar). O Supabase aceita a partir de 6,
+// mas recomenda pelo menos 8; a proteção contra palavras-passe já divulgadas na internet só existe
+// no plano pago do Supabase, por isso a app pede 8. Ao entrar não se verifica: contas antigas com
+// 6 ou 7 caracteres continuam a funcionar.
+export const TAMANHO_MINIMO_PALAVRA_PASSE = 8;
 
 /**
  * Devolve um objeto com uma mensagem por cada campo errado (objeto vazio = tudo certo).

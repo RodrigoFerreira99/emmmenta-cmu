@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { TAMANHO_MINIMO_PALAVRA_PASSE } from '@/lib/validarConta';
 
 // RF01: registo, login, terminar sessão e recuperar a palavra-passe.
 // Qualquer ecrã pode fazer: const { sessao, perfil, sair } = useAuth();
@@ -182,7 +183,9 @@ export function traduzirErro(error) {
   if (m.includes('invalid login credentials')) return 'Email ou palavra-passe errados.';
   if (m.includes('email not confirmed')) return 'Ainda não confirmaste o teu email.';
   if (m.includes('already registered') || m.includes('already been registered')) return 'Já existe uma conta com este email.';
-  if (m.includes('password should be at least') || m.includes('weak password')) return 'A palavra-passe tem de ter pelo menos 6 caracteres.';
+  if (m.includes('password should be at least') || m.includes('weak password')) {
+    return `A palavra-passe tem de ter pelo menos ${TAMANHO_MINIMO_PALAVRA_PASSE} caracteres.`;
+  }
   if (m.includes('should be different')) return 'A nova palavra-passe tem de ser diferente da anterior.';
   if (m.includes('rate limit') || m.includes('security purposes')) return 'Demasiadas tentativas. Espera um minuto e tenta outra vez.';
   if (m.includes('token') || m.includes('otp') || m.includes('expired')) return 'O código não está certo ou já expirou.';

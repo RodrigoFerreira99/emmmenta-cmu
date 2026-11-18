@@ -22,7 +22,7 @@ describe('traduzirErro (autenticação)', () => {
     ['Invalid login credentials', 'Email ou palavra-passe errados.'],
     ['Email not confirmed', 'Ainda não confirmaste o teu email.'],
     ['User already registered', 'Já existe uma conta com este email.'],
-    ['Password should be at least 6 characters.', 'A palavra-passe tem de ter pelo menos 6 caracteres.'],
+    ['Password should be at least 6 characters.', 'A palavra-passe tem de ter pelo menos 8 caracteres.'],
     ['New password should be different from the old password.', 'A nova palavra-passe tem de ser diferente da anterior.'],
     ['Token has expired or is invalid', 'O código não está certo ou já expirou.'],
     ['Email address "a@b" is invalid', 'O email não é válido.'],

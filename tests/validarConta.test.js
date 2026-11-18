@@ -12,7 +12,7 @@ describe('validarConta', () => {
     expect(validarConta({ ...CERTO, modo: 'entrar' })).toEqual({});
   });
 
-  test('entrar: não exige 6 caracteres (quem decide é o servidor)', () => {
+  test('entrar: não exige o tamanho mínimo (contas antigas; quem decide é o servidor)', () => {
     expect(validarConta({ ...CERTO, modo: 'entrar', palavraPasse: 'abc' })).toEqual({});
   });
 
@@ -32,8 +32,8 @@ describe('validarConta', () => {
   test('criar: pede nome e palavra-passe com 6 ou mais caracteres', () => {
     expect(validarConta({ ...CERTO, modo: 'criar' })).toEqual({});
     expect(validarConta({ ...CERTO, modo: 'criar', nome: '   ' }).nome).toBeTruthy();
-    expect(validarConta({ ...CERTO, modo: 'criar', palavraPasse: '12345' }).palavraPasse).toMatch(/pelo menos 6/);
-    expect(validarConta({ ...CERTO, modo: 'criar', palavraPasse: '123456' })).toEqual({});
+    expect(validarConta({ ...CERTO, modo: 'criar', palavraPasse: '1234567' }).palavraPasse).toMatch(/pelo menos 8/);
+    expect(validarConta({ ...CERTO, modo: 'criar', palavraPasse: '12345678' })).toEqual({});
   });
 
   test('pedirCodigo: só interessa o email', () => {

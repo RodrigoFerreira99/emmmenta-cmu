@@ -5,7 +5,7 @@ import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text
 import { CampoComErro } from '@/components/CampoComErro';
 import { Botao, Ecra, Logo } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
-import { validarConta } from '@/lib/validarConta';
+import { TAMANHO_MINIMO_PALAVRA_PASSE, validarConta } from '@/lib/validarConta';
 import { cores, espaco, raio, texto } from '@/theme';
 
 // Ecrã 1 · Login / Registo (RF01) — igual ao mock-up do Figma, mais a recuperação de palavra-passe.
@@ -202,7 +202,7 @@ export default function Login() {
                 value={palavraPasse}
                 onChangeText={(valor) => alterar('palavraPasse', setPalavraPasse, valor)}
                 erro={erros.palavraPasse}
-                placeholder="Pelo menos 6 caracteres"
+                placeholder={modo === 'entrar' ? undefined : `Pelo menos ${TAMANHO_MINIMO_PALAVRA_PASSE} caracteres`}
                 secureTextEntry={!verPalavraPasse}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -210,7 +210,7 @@ export default function Login() {
                 returnKeyType="go"
                 onSubmitEditing={submeter}
               />
-              {/* Ver o que se escreveu evita erros de digitação (por exemplo, menos de 6 caracteres). */}
+              {/* Ver o que se escreveu evita erros de digitação (por exemplo, uma palavra-passe nova curta demais). */}
               <Pressable
                 onPress={() => setVerPalavraPasse((ver) => !ver)}
                 accessibilityRole="switch"
