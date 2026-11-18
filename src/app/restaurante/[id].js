@@ -8,6 +8,7 @@ import { EcraDeErro } from '@/components/EcraDeErro';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
+import { partilhar, textoDoConvite } from '@/lib/partilhar';
 import { buscarMenuDeHoje, nomeDaCategoria } from '@/services/menus';
 import { formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante, estadoDoHorario, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
@@ -78,7 +79,7 @@ export default function PaginaRestaurante() {
     setTentativa((n) => n + 1);
   }
 
-  // Os botões abrem outra app (telefone ou mapas). Se não for possível, explica-se em vez de não acontecer nada.
+  // Os botões abrem outra app (telefone, mapas ou a janela de partilha). Se não for possível, explica-se em vez de não acontecer nada.
   async function abrirOutraApp(acao) {
     setAviso(null);
     try {
@@ -146,11 +147,19 @@ export default function PaginaRestaurante() {
             {subtitulo ? <Text style={texto.pequeno}>{subtitulo}</Text> : null}
           </View>
           <Pressable
+            onPress={() => abrirOutraApp(() => partilhar(textoDoConvite({ restaurante, menu })))}
+            accessibilityRole="button"
+            accessibilityLabel="Partilhar este restaurante"
+            style={estilos.botaoDeIcone}
+          >
+            <Ionicons name="share-social-outline" size={24} color={cores.acento} />
+          </Pressable>
+          <Pressable
             onPress={mudarFavorito}
             accessibilityRole="button"
             accessibilityLabel={favorito ? 'Tirar dos favoritos' : 'Guardar nos favoritos'}
             accessibilityState={{ selected: favorito }}
-            style={estilos.coracao}
+            style={estilos.botaoDeIcone}
           >
             <Ionicons name={favorito ? 'heart' : 'heart-outline'} size={26} color={cores.acento} />
           </Pressable>
@@ -251,7 +260,7 @@ const estilos = StyleSheet.create({
   notaBoa: { color: cores.sucesso },
   linhaDoTitulo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco.m },
   // 48 x 48: área de toque confortável (RNF06)
-  coracao: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  botaoDeIcone: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   botoes: { flexDirection: 'row', gap: espaco.m },
   aviso: { ...texto.pequeno, color: cores.erro },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },

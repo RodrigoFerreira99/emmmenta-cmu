@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Share } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
 import PaginaRestaurante from '@/app/restaurante/[id]';
@@ -29,7 +30,8 @@ jest.mock('@/lib/favoritos', () => {
     },
   };
 });
-jest.mock('@/lib/ligacoes', () => ({ abrirDirecoes: jest.fn(), ligar: jest.fn() }));
+// Ligar e Direções são simulados; o link das direções (para a partilha) é o verdadeiro.
+jest.mock('@/lib/ligacoes', () => ({ ...jest.requireActual('@/lib/ligacoes'), abrirDirecoes: jest.fn(), ligar: jest.fn() }));
 jest.mock('@/services/restaurantes', () => ({
   ...jest.requireActual('@/services/restaurantes'),
   buscarRestaurante: jest.fn(),
@@ -213,5 +215,21 @@ describe('Página do restaurante — horário e favoritos', () => {
     await screen.findByText('Menu de hoje');
     await fireEvent.press(screen.getByRole('button', { name: 'Guardar nos favoritos' }));
     expect(await screen.findByText('Não foi possível guardar os favoritos neste telemóvel.')).toBeTruthy();
+  });
+});
+
+describe('Página do restaurante — partilhar', () => {
+  test('convida para almoçar com os pratos de hoje e o link das direções', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Partilhar este restaurante' }));
+    const texto = share.mock.calls[0][0].message;
+    expect(texto).toContain('Almoçamos aqui? Tasca do Manuel (Portuguesa)');
+    expect(texto).toContain('Hoje: Caldo verde (1,80 €)'); // o bacalhau está esgotado: não entra
+    expect(texto).not.toContain('Bacalhau');
+    expect(texto).toContain('Direções: https://www.google.com/maps/dir/?api=1&destination=41.1496,-8.611');
+    share.mockRestore();
   });
 });

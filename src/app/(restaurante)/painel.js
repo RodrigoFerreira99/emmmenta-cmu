@@ -7,6 +7,7 @@ import { EcraDeErro } from '@/components/EcraDeErro';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { diaPorExtenso, horaCurta, saudacao } from '@/lib/datas';
+import { partilhar, textoDoMenuDeHoje } from '@/lib/partilhar';
 import { buscarMenuDeHoje, marcarEsgotado } from '@/services/menus';
 import { formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
@@ -107,6 +108,16 @@ export default function Painel() {
       setAviso(erro.message);
     } finally {
       if (montado.current) setAMudar((ids) => ids.filter((id) => id !== prato.id));
+    }
+  }
+
+  // Partilhar o menu de hoje (WhatsApp, Instagram…): o telemóvel abre a janela de partilha com o texto pronto.
+  async function partilharMenu() {
+    setAviso(null);
+    try {
+      await partilhar(textoDoMenuDeHoje({ restaurante, menu }));
+    } catch (erro) {
+      if (montado.current) setAviso(erro.message);
     }
   }
 
@@ -230,6 +241,9 @@ export default function Painel() {
             )}
 
             <Botao titulo="Editar menu de hoje" icone="create-outline" onPress={() => router.push('/publicar')} />
+            {numeroDePratos > 0 ? (
+              <Botao tipo="secundario" titulo="Partilhar o menu de hoje" icone="share-social-outline" onPress={partilharMenu} />
+            ) : null}
           </>
         )}
       </ScrollView>

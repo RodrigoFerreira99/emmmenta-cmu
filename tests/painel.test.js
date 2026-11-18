@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Share } from 'react-native';
 import { router } from 'expo-router';
 
 import Painel from '@/app/(restaurante)/painel';
@@ -164,5 +165,39 @@ describe('Painel — falha ao carregar', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar outra vez' }));
     expect(await screen.findByText('Menu de hoje publicado')).toBeTruthy();
+  });
+});
+
+describe('Painel — partilhar o menu de hoje', () => {
+  test('o botão abre a janela de partilha com o menu (sem os esgotados)', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    buscarMenuDeHoje.mockResolvedValue({ ...MENU, pratos: [SOPA, { ...BACALHAU, esgotado: true }] });
+    await render(<Painel />);
+    await screen.findByText('Menu de hoje publicado');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Partilhar o menu de hoje' }));
+    const texto = share.mock.calls[0][0].message;
+    expect(texto).toContain('Menu de hoje — Tasca do Manuel');
+    expect(texto).toContain('• Sopa de legumes — 1,50 €');
+    expect(texto).not.toContain('Bacalhau');
+    expect(texto).toContain('Menu completo: 10,00 €');
+    share.mockRestore();
+  });
+
+  test('se a partilha falhar, aparece o aviso', async () => {
+    const share = jest.spyOn(Share, 'share').mockRejectedValue(new Error('falhou'));
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await render(<Painel />);
+    await screen.findByText('Menu de hoje publicado');
+    await fireEvent.press(screen.getByRole('button', { name: 'Partilhar o menu de hoje' }));
+    expect(await screen.findByText('Não foi possível abrir a partilha neste telemóvel.')).toBeTruthy();
+    share.mockRestore();
+  });
+
+  test('sem menu hoje não há nada para partilhar', async () => {
+    buscarMenuDeHoje.mockResolvedValue(null);
+    await render(<Painel />);
+    await screen.findByText('Ainda não publicaste o menu de hoje');
+    expect(screen.queryByRole('button', { name: 'Partilhar o menu de hoje' })).toBeNull();
   });
 });
