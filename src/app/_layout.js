@@ -1,9 +1,11 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { Carregar } from '@/components/ui';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { prepararNotificacoes } from '@/lib/lembretes';
 import { rotaInicial } from '@/lib/navegacao';
 import { cores } from '@/theme';
 
@@ -51,6 +53,9 @@ function Navegacao() {
 }
 
 export default function RootLayout() {
+  // os lembretes diários (src/lib/lembretes.js) também aparecem quando a app está aberta
+  useEffect(() => prepararNotificacoes(), []);
+
   return (
     <AuthProvider>
       <StatusBar style="dark" />

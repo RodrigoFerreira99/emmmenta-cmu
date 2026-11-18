@@ -4,6 +4,7 @@ import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } fr
 
 import { CampoComErro } from '@/components/CampoComErro';
 import { EcraDeErro } from '@/components/EcraDeErro';
+import { LembreteDiario } from '@/components/LembreteDiario';
 import { SeletorFoto } from '@/components/SeletorFoto';
 import { SeletorLocal } from '@/components/SeletorLocal';
 import { Botao, Carregar, Ecra } from '@/components/ui';
@@ -348,6 +349,12 @@ export default function PerfilRestaurante() {
           {jaExiste && !temAlteracoes && !mensagem && (
             <Text style={[texto.pequeno, estilos.textoCentro]}>Não há alterações por guardar.</Text>
           )}
+
+          <LembreteDiario
+            tipo="publicar"
+            titulo="Lembrete para publicar o menu"
+            descricao="Um aviso todas as manhãs, para não te esqueceres de publicar o menu do dia."
+          />
 
           <Text style={[texto.pequeno, estilos.textoCentro]}>{sessao?.user?.email}</Text>
           <Botao tipo="secundario" icone="log-out-outline" titulo="Terminar sessão" onPress={terminarSessao} />

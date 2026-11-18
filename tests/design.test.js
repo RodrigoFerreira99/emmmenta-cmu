@@ -73,7 +73,8 @@ describe('etiqueta do mapa', () => {
 
 describe('EtiquetaDeLotacao com o ecrã aberto', () => {
   test('o "há X min" avança e o aviso desaparece ao fim de 45 minutos, sem fechar o ecrã', async () => {
-    jest.useFakeTimers({ now: new Date('2026-11-18T12:00:30Z') });
+    // só os temporizadores e o relógio são falsos: as promessas (usadas pelo render) continuam normais
+    jest.useFakeTimers({ now: new Date('2026-11-18T12:00:30Z'), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
     const { EtiquetaDeLotacao } = require('@/components/Lotacao');
     const menu = { lotacao: 'cheio', lotacao_em: '2026-11-18T11:16:00Z' }; // dito há 44 minutos
     await render(<EtiquetaDeLotacao menu={menu} />);

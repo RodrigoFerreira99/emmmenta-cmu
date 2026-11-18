@@ -4,13 +4,14 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { LinhasFantasma } from '@/components/Esqueleto';
+import { LembreteDiario } from '@/components/LembreteDiario';
 import { Botao, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useFavoritos } from '@/lib/favoritos';
 import { buscarRestaurantesPorIds } from '@/services/restaurantes';
 import { cores, espaco, raio, texto } from '@/theme';
 
-// Conta do cliente: quem está a usar a app, os restaurantes favoritos e terminar sessão (RF01).
+// Conta do cliente: quem está a usar a app, os restaurantes favoritos, o lembrete do almoço e terminar sessão (RF01).
 //
 // Os favoritos estão guardados no telemóvel (src/lib/favoritos.js): aqui só se vão buscar os nomes
 // e se cada um já publicou o menu de hoje. Tocar num favorito abre a página do restaurante.
@@ -103,6 +104,12 @@ export default function Conta() {
           {listaDeFavoritos()}
           <Text style={estilos.nota}>Os favoritos ficam guardados só neste telemóvel.</Text>
         </View>
+
+        <LembreteDiario
+          tipo="almoco"
+          titulo="Lembrete do almoço"
+          descricao="Um aviso todos os dias à hora de almoço, para veres os pratos do dia perto de ti."
+        />
 
         <Botao tipo="secundario" icone="log-out-outline" titulo="Terminar sessão" onPress={sair} />
       </ScrollView>

@@ -37,7 +37,9 @@
           "cameraPermission": "A Emmmenta precisa da câmara para tirares a foto do teu restaurante."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-sharing",
+      "expo-localization"
     ],
     "scheme": "emmmenta"
   }
