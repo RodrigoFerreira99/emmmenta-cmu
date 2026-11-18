@@ -7,15 +7,21 @@ import { CATEGORIAS } from '@/services/pratos';
 // Os ecrãs publicar.js e painel.js só falam com a base de dados através destas funções (RNF09).
 //
 // Tabelas usadas:
-//   menus   um por restaurante e por dia (colunas: id, restaurante_id, dia, preco_menu_completo, publicado_em)
-//   pratos  os pratos de um menu (colunas: id, menu_id, nome, categoria, preco, esgotado, criado_em)
+//   menus   um por restaurante e por dia (colunas: id, restaurante_id, dia, preco_menu_completo, publicado_em,
+//           lotacao ('ha-mesa' | 'cheio' | null) e lotacao_em, a hora em que a lotação foi dita)
+//   pratos  os pratos de um menu (colunas: id, menu_id, nome, categoria, preco, esgotado, ultimas_doses,
+//           etiquetas (lista: 'vegano', 'sem-gluten', 'sem-lactose', 'picante'), foto_url, criado_em)
 //
 // RN01 — "o menu só vale no dia em que é publicado": o dia é sempre o de Lisboa. Ao gravar,
 // é a base de dados que o preenche (valor por omissão da coluna "dia"); ao ler, pedimos o dia
 // de hoje com hojeEmLisboa(). Os menus de ontem não se apagam: simplesmente deixam de ser pedidos.
 
 const VALORES_DE_CATEGORIA = CATEGORIAS.map((categoria) => categoria.valor);
-const COLUNAS_DO_PRATO = 'id, nome, categoria, preco, esgotado, criado_em';
+const COLUNAS_DO_PRATO = 'id, nome, categoria, preco, esgotado, ultimas_doses, etiquetas, foto_url, criado_em';
+
+// "Há mesa" / "Cheio agora" só se mostra durante 45 minutos: depois disso já não se sabe se é verdade.
+export const LOTACAO_VALIDA_MINUTOS = 45;
+const VALORES_DE_LOTACAO = ['ha-mesa', 'cheio'];
 
 // ---------------------------------------------------------------------------
 // Conversões e validação (funções simples, sem rede)
@@ -85,10 +91,10 @@ export function ordenarPratos(pratos) {
 /**
  * Compara os pratos guardados na base de dados com os que estão no ecrã e diz o que é preciso fazer:
  *   aCriar      pratos novos (sem id)
- *   aAtualizar  pratos que já existiam e mudaram de nome, categoria ou preço
+ *   aAtualizar  pratos que já existiam e mudaram de nome, categoria, preço, etiquetas ou fotografia
  *   aApagar     ids dos pratos que foram retirados do menu
  * Assim, ao editar um menu só se mexe no que mudou — os pratos em que não se tocou
- * mantêm o id e o estado "esgotado".
+ * mantêm o id e o estado "esgotado" / "últimas doses".
  */
 export function calcularAlteracoes(guardados, doEcra) {
   const guardadoPorId = new Map(guardados.map((prato) => [prato.id, prato]));
@@ -98,14 +104,35 @@ export function calcularAlteracoes(guardados, doEcra) {
   const eNovo = (prato) => !prato.id || !guardadoPorId.has(prato.id);
   const mudou = (prato) => {
     const guardado = guardadoPorId.get(prato.id);
-    return guardado.nome !== prato.nome || guardado.categoria !== prato.categoria || Number(guardado.preco) !== Number(prato.preco);
+    return (
+      guardado.nome !== prato.nome ||
+      guardado.categoria !== prato.categoria ||
+      Number(guardado.preco) !== Number(prato.preco) ||
+      !mesmasEtiquetas(guardado.etiquetas, prato.etiquetas) ||
+      (guardado.foto_url ?? null) !== (prato.foto_url ?? null)
+    );
   };
+  // só as colunas que o ecrã muda (o "esgotado" e as "últimas doses" mudam-se no Painel)
+  const colunas = ({ nome, categoria, preco, etiquetas, foto_url }) => ({
+    nome,
+    categoria,
+    preco,
+    etiquetas: etiquetas ?? [],
+    foto_url: foto_url ?? null,
+  });
 
   return {
-    aCriar: doEcra.filter(eNovo).map(({ nome, categoria, preco }) => ({ nome, categoria, preco })),
-    aAtualizar: doEcra.filter((prato) => !eNovo(prato) && mudou(prato)).map(({ id, nome, categoria, preco }) => ({ id, nome, categoria, preco })),
+    aCriar: doEcra.filter(eNovo).map(colunas),
+    aAtualizar: doEcra.filter((prato) => !eNovo(prato) && mudou(prato)).map((prato) => ({ id: prato.id, ...colunas(prato) })),
     aApagar: guardados.filter((prato) => !idsNoEcra.has(prato.id)).map((prato) => prato.id),
   };
+}
+
+// As mesmas etiquetas, por qualquer ordem? (['vegano', 'picante'] é igual a ['picante', 'vegano'])
+function mesmasEtiquetas(a, b) {
+  const primeiras = a ?? [];
+  const segundas = b ?? [];
+  return primeiras.length === segundas.length && primeiras.every((etiqueta) => segundas.includes(etiqueta));
 }
 
 /** true se o que está no ecrã for diferente do que está guardado (há alguma coisa por publicar). */
@@ -114,20 +141,46 @@ export function haAlteracoesNosPratos(guardados, doEcra) {
   return aCriar.length + aAtualizar.length + aApagar.length > 0;
 }
 
+/**
+ * "Há mesa" / "Cheio agora": a lotação de um menu, se ainda valer (foi dita há menos de 45 minutos).
+ * "menu" tem { lotacao, lotacao_em }. Devolve { valor: 'ha-mesa' | 'cheio', minutos } ou null.
+ * "agora" é a hora atual (nos testes passa-se uma hora fixa).
+ */
+export function lotacaoAtual(menu, agora = new Date()) {
+  if (!VALORES_DE_LOTACAO.includes(menu?.lotacao) || !menu?.lotacao_em) return null;
+  const minutos = (agora.getTime() - new Date(menu.lotacao_em).getTime()) / 60000;
+  // -5: tolerância para o relógio do telemóvel estar um pouco atrasado em relação ao do servidor
+  if (!(minutos >= -5 && minutos <= LOTACAO_VALIDA_MINUTOS)) return null;
+  return { valor: menu.lotacao, minutos: Math.max(0, Math.round(minutos)) };
+}
+
+/** A lotação em palavras: "Cheio agora · há 12 min", "Há mesa · agora mesmo" (ou em inglês). */
+export function descreverLotacao(atual, { emIngles = false } = {}) {
+  if (!atual) return '';
+  const estado = emIngles
+    ? { 'ha-mesa': 'Tables free', cheio: 'Full right now' }[atual.valor]
+    : { 'ha-mesa': 'Há mesa', cheio: 'Cheio agora' }[atual.valor];
+  let quando;
+  if (atual.minutos < 1) quando = emIngles ? 'just now' : 'agora mesmo';
+  else quando = emIngles ? `${atual.minutos} min ago` : `há ${atual.minutos} min`;
+  return `${estado} · ${quando}`;
+}
+
 // ---------------------------------------------------------------------------
 // Ler, publicar e marcar esgotado
 // ---------------------------------------------------------------------------
 
 /**
  * RF03 / RF04 — o menu de hoje de um restaurante, já com os pratos ordenados.
- * Devolve { id, dia, publicado_em, preco_menu_completo, pratos: [...] } ou null se hoje ainda não há menu.
+ * Devolve { id, dia, publicado_em, preco_menu_completo, lotacao, lotacao_em, pratos: [...] }
+ * ou null se hoje ainda não há menu.
  */
 export async function buscarMenuDeHoje(restauranteId) {
   try {
     const { data, error } = await supabase
       .from('menus')
       // "pratos(...)" pede também as linhas da tabela pratos ligadas a este menu (pela chave menu_id)
-      .select(`id, dia, publicado_em, preco_menu_completo, pratos(${COLUNAS_DO_PRATO})`)
+      .select(`id, dia, publicado_em, preco_menu_completo, lotacao, lotacao_em, pratos(${COLUNAS_DO_PRATO})`)
       .eq('restaurante_id', restauranteId)
       .eq('dia', hojeEmLisboa())
       .maybeSingle();
@@ -161,10 +214,10 @@ export async function buscarRestauranteDoMenu(menuId) {
 /**
  * Reutilizar pratos de dias anteriores — o último menu publicado ANTES de hoje
  * (normalmente o de ontem; se ontem o restaurante não publicou, o do último dia em que publicou).
- * Devolve { dia, precoMenuCompleto, pratos: [{ nome, categoria, preco }] } ou null se não houver nenhum.
+ * Devolve { dia, precoMenuCompleto, pratos: [{ nome, categoria, preco, etiquetas, foto_url }] } ou null se não houver nenhum.
  *
- * Os pratos vêm SEM id e sem "esgotado": ao publicar, são pratos novos do menu de hoje,
- * e o menu antigo fica como estava (RN01: cada menu pertence ao seu dia).
+ * Os pratos vêm SEM id, sem "esgotado" e sem "últimas doses": ao publicar, são pratos novos do menu de hoje,
+ * e o menu antigo fica como estava (RN01: cada menu pertence ao seu dia). As etiquetas e a fotografia vêm junto.
  */
 export async function buscarUltimoMenuAnterior(restauranteId) {
   try {
@@ -181,7 +234,13 @@ export async function buscarUltimoMenuAnterior(restauranteId) {
     return {
       dia: data.dia,
       precoMenuCompleto: data.preco_menu_completo,
-      pratos: ordenarPratos(data.pratos).map(({ nome, categoria, preco }) => ({ nome, categoria, preco: Number(preco) })),
+      pratos: ordenarPratos(data.pratos).map(({ nome, categoria, preco, etiquetas, foto_url }) => ({
+        nome,
+        categoria,
+        preco: Number(preco),
+        etiquetas: etiquetas ?? [],
+        foto_url: foto_url ?? null,
+      })),
     };
   } catch (erro) {
     throw traduzirErro(erro);
@@ -190,7 +249,8 @@ export async function buscarUltimoMenuAnterior(restauranteId) {
 
 /**
  * RF03 — publica o menu de hoje, ou guarda as alterações se já estiver publicado.
- * "pratos" é a lista do ecrã: [{ id (se já existia), nome, categoria, preco }]. Devolve o menu como ficou guardado.
+ * "pratos" é a lista do ecrã: [{ id (se já existia), nome, categoria, preco, etiquetas, foto_url }].
+ * Devolve o menu como ficou guardado.
  *
  * Passos:
  *  1. Cria o menu de hoje ou, se já existir, atualiza-o ("upsert": só há um menu por restaurante e dia).
@@ -212,7 +272,10 @@ export async function publicarMenu(restauranteId, { precoMenuCompleto = null, pr
       .single();
     if (erroDoMenu) throw erroDoMenu;
 
-    const { data: guardados, error: erroAoLer } = await supabase.from('pratos').select('id, nome, categoria, preco').eq('menu_id', menu.id);
+    const { data: guardados, error: erroAoLer } = await supabase
+      .from('pratos')
+      .select('id, nome, categoria, preco, etiquetas, foto_url')
+      .eq('menu_id', menu.id);
     if (erroAoLer) throw erroAoLer;
 
     const { aCriar, aAtualizar, aApagar } = calcularAlteracoes(guardados, pratos);
@@ -223,7 +286,8 @@ export async function publicarMenu(restauranteId, { precoMenuCompleto = null, pr
       if (error) throw error;
     }
     if (aAtualizar.length > 0) {
-      // upsert pelo id: altera o nome, a categoria e o preço; o "esgotado" fica como estava
+      // upsert pelo id: altera o nome, a categoria, o preço, as etiquetas e a fotografia;
+      // o "esgotado" e as "últimas doses" ficam como estavam
       const { error } = await supabase.from('pratos').upsert(aAtualizar.map(comMenu), { onConflict: 'id' });
       if (error) throw error;
     }
@@ -239,16 +303,66 @@ export async function publicarMenu(restauranteId, { precoMenuCompleto = null, pr
 }
 
 /**
- * RF04 — marca (ou desmarca) um prato como esgotado. Devolve { id, esgotado } como ficou guardado.
+ * RF04 — marca (ou desmarca) um prato como esgotado. Devolve { id, esgotado, ultimas_doses } como ficou guardado.
+ * Um prato esgotado deixa de estar nas "últimas doses".
  * A tabela pratos está no "tempo real" do Supabase, por isso os clientes com a app aberta
  * recebem a alteração logo (ver ouvirAlteracoesPratos em src/services/pratos.js).
  */
 export async function marcarEsgotado(pratoId, esgotado) {
+  return mudarPrato(pratoId, esgotado ? { esgotado: true, ultimas_doses: false } : { esgotado: false });
+}
+
+/**
+ * "Últimas doses" — avisa os clientes de que o prato está quase a acabar (também em tempo real).
+ * Marcar "últimas doses" num prato esgotado volta a pô-lo disponível (afinal ainda há algumas doses).
+ * Devolve { id, esgotado, ultimas_doses } como ficou guardado.
+ */
+export async function marcarUltimasDoses(pratoId, ultimasDoses) {
+  return mudarPrato(pratoId, ultimasDoses ? { ultimas_doses: true, esgotado: false } : { ultimas_doses: false });
+}
+
+async function mudarPrato(pratoId, alteracoes) {
   try {
-    const { data, error } = await supabase.from('pratos').update({ esgotado }).eq('id', pratoId).select('id, esgotado').single();
+    const { data, error } = await supabase.from('pratos').update(alteracoes).eq('id', pratoId).select('id, esgotado, ultimas_doses').single();
     if (error) throw error;
     return data;
   } catch (erro) {
     throw traduzirErro(erro);
   }
+}
+
+/**
+ * "Há mesa" / "Cheio agora" — o restaurante diz como está a sala. lotacao: 'ha-mesa', 'cheio' ou null (apagar).
+ * A hora (lotacao_em) é posta pela base de dados, com o relógio do servidor. Devolve { id, lotacao, lotacao_em }.
+ * A tabela menus está no tempo real: os clientes com a página do restaurante aberta veem logo.
+ */
+export async function marcarLotacao(menuId, lotacao) {
+  if (lotacao !== null && !VALORES_DE_LOTACAO.includes(lotacao)) throw new Error('Escolhe "Há mesa" ou "Cheio".');
+  try {
+    const { data, error } = await supabase.from('menus').update({ lotacao }).eq('id', menuId).select('id, lotacao, lotacao_em').single();
+    if (error) throw error;
+    return data;
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
+// Cada ecrã que ouve precisa de um canal com um nome só seu (ver ouvirAlteracoesPratos).
+let numeroDoCanal = 0;
+
+/**
+ * Ouvir em tempo real as mudanças da lotação ("Há mesa" / "Cheio agora").
+ * Com { menuId } só chegam as mudanças desse menu (página de um restaurante); sem ele, chegam todas (lista).
+ * "aoMudar" recebe a linha da tabela menus como ficou. Devolve uma função que pára de ouvir.
+ */
+export function ouvirLotacao(aoMudar, { menuId = null } = {}) {
+  numeroDoCanal += 1;
+  const oQueOuvir = { event: 'UPDATE', schema: 'public', table: 'menus' };
+  if (menuId) oQueOuvir.filter = `id=eq.${menuId}`;
+
+  const canal = supabase
+    .channel(`menus-lotacao-${numeroDoCanal}`)
+    .on('postgres_changes', oQueOuvir, (mudanca) => aoMudar(mudanca.new))
+    .subscribe();
+  return () => supabase.removeChannel(canal);
 }

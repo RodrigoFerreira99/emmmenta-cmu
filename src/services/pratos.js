@@ -79,9 +79,11 @@ export function escolherAoAcaso(pratos, aleatorio = Math.random) {
  * RF05 / RF06 / RF07 — pratos de hoje perto do cliente.
  * Chama a função "pratos_perto" que já existe na base de dados: é ela que calcula as distâncias
  * e aplica os filtros, por isso o telemóvel só recebe os pratos que interessam (RNF05).
- * Devolve uma lista de { prato_id, prato, categoria, preco, esgotado,
- * restaurante_id, restaurante, latitude, longitude, distancia_km },
+ * Devolve uma lista de { prato_id, prato, categoria, preco, esgotado, ultimas_doses, etiquetas, foto_url,
+ * menu_id, lotacao, lotacao_em, restaurante_id, restaurante, latitude, longitude, distancia_km },
  * pela ordem de ordenarPratosDaLista() (esgotados no fim, depois distância, pratos principais primeiro).
+ * A pesquisa pelo nome não liga a acentos ("salmao" encontra "Salmão"): isso é feito na base de dados.
+ * "etiqueta" (um valor de ETIQUETAS, por exemplo 'vegano') mostra só os pratos com essa etiqueta.
  */
 export async function buscarPratosPerto({
   latitude,
@@ -90,6 +92,7 @@ export async function buscarPratosPerto({
   precoMax = null,
   categoria = null,
   pesquisa = null,
+  etiqueta = null,
 }) {
   try {
     const { data, error } = await supabase.rpc('pratos_perto', {
@@ -99,6 +102,7 @@ export async function buscarPratosPerto({
       preco_max: precoMax,
       categoria_filtro: categoria,
       pesquisa: pesquisa?.trim() ? pesquisa.trim() : null,
+      etiqueta_filtro: etiqueta,
     });
     if (error) throw error;
     return ordenarPratosDaLista(data ?? []);
@@ -125,6 +129,9 @@ export function agruparPorRestaurante(pratos) {
         latitude: prato.latitude,
         longitude: prato.longitude,
         distanciaKm: prato.distancia_km,
+        // "Há mesa" / "Cheio agora" é do menu, por isso é igual em todos os pratos do restaurante
+        lotacao: prato.lotacao ?? null,
+        lotacao_em: prato.lotacao_em ?? null,
         pratos: [],
         disponiveis: 0,
         precoMinimo: null,
@@ -145,7 +152,7 @@ export function agruparPorRestaurante(pratos) {
 
 /**
  * RF04 (lado do cliente) — aplica à lista uma alteração recebida em tempo real.
- * "alterado" é a linha da tabela pratos tal como ficou ({ id, nome, categoria, preco, esgotado }).
+ * "alterado" é a linha da tabela pratos tal como ficou ({ id, nome, categoria, preco, esgotado, ultimas_doses, ... }).
  * Se o prato não estiver na lista, devolve a MESMA lista (assim o ecrã nem é redesenhado).
  * Depois de alterar volta a ordenar: disponíveis primeiro, e dentro de cada grupo por distância.
  */
@@ -160,10 +167,25 @@ export function aplicarAlteracaoDePrato(lista, alterado) {
           categoria: alterado.categoria ?? prato.categoria,
           preco: alterado.preco ?? prato.preco,
           esgotado: alterado.esgotado ?? prato.esgotado,
+          ultimas_doses: alterado.ultimas_doses ?? prato.ultimas_doses,
+          etiquetas: alterado.etiquetas ?? prato.etiquetas,
+          // a fotografia pode ter sido tirada (null): por isso conta se a coluna veio, e não se tem valor
+          foto_url: 'foto_url' in alterado ? alterado.foto_url : prato.foto_url,
         }
       : prato
   );
   return ordenarPratosDaLista(nova);
+}
+
+/**
+ * "Há mesa" / "Cheio agora" em tempo real — aplica à lista a alteração de um menu (tabela menus).
+ * Todos os pratos desse menu ficam com a lotação nova. Se nenhum prato for desse menu, devolve a MESMA lista.
+ */
+export function aplicarAlteracaoDeMenu(lista, alterado) {
+  if (!alterado || !lista.some((prato) => prato.menu_id === alterado.id)) return lista;
+  return lista.map((prato) =>
+    prato.menu_id === alterado.id ? { ...prato, lotacao: alterado.lotacao ?? null, lotacao_em: alterado.lotacao_em ?? null } : prato
+  );
 }
 
 // Cada ecrã que ouve as alterações precisa de um canal com um nome só seu: se dois pedissem
@@ -210,6 +232,22 @@ export const CATEGORIAS = [
   { valor: 'vegetariano', nome: 'Vegetariano' },
   { valor: 'sobremesa', nome: 'Sobremesa' },
 ];
+
+// Etiquetas que um prato pode ter (coluna pratos.etiquetas; a base de dados só aceita estes valores).
+// "emIngles" é o nome no menu em inglês da página do restaurante.
+export const ETIQUETAS = [
+  { valor: 'vegano', nome: 'Vegano', emIngles: 'Vegan' },
+  { valor: 'sem-gluten', nome: 'Sem glúten', emIngles: 'Gluten-free' },
+  { valor: 'sem-lactose', nome: 'Sem lactose', emIngles: 'Lactose-free' },
+  { valor: 'picante', nome: 'Picante', emIngles: 'Spicy' },
+];
+
+/** ['picante', 'vegano'] → 'Vegano · Picante' (sempre pela ordem de ETIQUETAS). Sem etiquetas → ''. */
+export function descreverEtiquetas(etiquetas, { emIngles = false } = {}) {
+  return ETIQUETAS.filter((etiqueta) => (etiquetas ?? []).includes(etiqueta.valor))
+    .map((etiqueta) => (emIngles ? etiqueta.emIngles : etiqueta.nome))
+    .join(' · ');
+}
 
 // RN03: preços em euros, com duas casas decimais
 export function formatarPreco(valor) {

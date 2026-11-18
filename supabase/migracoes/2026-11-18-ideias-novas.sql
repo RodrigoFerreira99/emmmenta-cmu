@@ -1,6 +1,6 @@
 -- =============================================================================
--- Proposta de alteração à base de dados — ideias novas (18 nov 2026)
--- Estado: PROPOSTA, AINDA NÃO APLICADA. O grupo decide antes (regra do projeto).
+-- Alteração à base de dados — ideias novas (18 nov 2026)
+-- Estado: APLICADA a 18 nov 2026 (migração "ideias_novas_pratos_e_lotacao"), depois do OK do Rodrigo.
 -- =============================================================================
 --
 -- O que muda e porquê:
@@ -21,8 +21,8 @@
 --   - A versão atual da app continua a funcionar: as colunas novas têm valor por omissão e o
 --     parâmetro novo de pratos_perto é opcional.
 --
--- Como aplicar: no painel do Supabase, SQL Editor → colar este ficheiro → Run (corre tudo de uma
--- vez, numa transação: ou fica tudo feito ou nada).
+-- Foi aplicada de uma só vez, numa transação (ou ficava tudo feito ou nada). Já não é para correr
+-- outra vez: as colunas já existem. Fica aqui para o grupo ver o que mudou e como desfazer.
 -- =============================================================================
 
 begin;

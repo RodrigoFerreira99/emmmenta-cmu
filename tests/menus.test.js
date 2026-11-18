@@ -10,6 +10,7 @@ import * as m from '@/services/menus';
 // Assim confirmamos exatamente o que seria enviado para a base de dados, sem lhe tocar.
 
 const mockBd = {
+  canais: [], // canais de tempo real abertos (ouvirLotacao)
   chamadas: [],
   respostas: {}, // por exemplo { 'menus.upsert': { data: { id: 'm1' }, error: null } }
 };
@@ -51,7 +52,21 @@ jest.mock('@/lib/supabase', () => {
     };
     return cadeia;
   };
-  return { supabase: { from: pedido } };
+  const channel = (nome) => {
+    const canal = {
+      nome,
+      on: (tipo, oQueOuvir, aoReceber) => Object.assign(canal, { tipo, oQueOuvir, aoReceber }),
+      subscribe: () => {
+        mockBd.canais.push(canal);
+        return canal;
+      },
+    };
+    return canal;
+  };
+  const removeChannel = (canal) => {
+    canal.removido = true;
+  };
+  return { supabase: { from: pedido, channel, removeChannel } };
 });
 
 // As operações feitas, por ordem, no formato "tabela.operacao" (mais fácil de comparar).
@@ -62,7 +77,11 @@ const SOPA = { id: 'p1', nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5,
 const BACALHAU = { id: 'p2', nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 8.5, esgotado: true, criado_em: '2026-11-15T10:01:00Z' };
 const PUDIM = { id: 'p3', nome: 'Pudim caseiro', categoria: 'sobremesa', preco: 2, esgotado: false, criado_em: '2026-11-15T10:02:00Z' };
 
+// o que a app envia para as colunas novas quando o prato não tem etiquetas nem fotografia
+const SEM_EXTRAS = { etiquetas: [], foto_url: null };
+
 beforeEach(() => {
+  mockBd.canais = [];
   mockBd.chamadas = [];
   mockBd.respostas = {};
   jest.spyOn(console, 'warn').mockImplementation(() => {}); // os avisos técnicos são esperados nos testes de erro
@@ -167,7 +186,7 @@ describe('calcularAlteracoes', () => {
 
   test('prato novo (sem id) é para criar', () => {
     const novo = { nome: 'Arroz de pato', categoria: 'carne', preco: 9.5 };
-    expect(m.calcularAlteracoes(guardados, [...guardados, novo])).toEqual({ aCriar: [novo], aAtualizar: [], aApagar: [] });
+    expect(m.calcularAlteracoes(guardados, [...guardados, novo])).toEqual({ aCriar: [{ ...novo, ...SEM_EXTRAS }], aAtualizar: [], aApagar: [] });
   });
 
   test('prato com nome, categoria ou preço diferente é para atualizar', () => {
@@ -176,16 +195,32 @@ describe('calcularAlteracoes', () => {
     expect(aCriar).toEqual([]);
     expect(aApagar).toEqual([]);
     expect(aAtualizar).toEqual([
-      { id: 'p1', nome: 'Sopa de legumes', categoria: 'sopa', preco: 2 },
-      { id: 'p2', nome: 'Bacalhau com natas', categoria: 'peixe', preco: 8.5 },
-      { id: 'p3', nome: 'Pudim caseiro', categoria: 'vegetariano', preco: 2 },
+      { id: 'p1', nome: 'Sopa de legumes', categoria: 'sopa', preco: 2, ...SEM_EXTRAS },
+      { id: 'p2', nome: 'Bacalhau com natas', categoria: 'peixe', preco: 8.5, ...SEM_EXTRAS },
+      { id: 'p3', nome: 'Pudim caseiro', categoria: 'vegetariano', preco: 2, ...SEM_EXTRAS },
     ]);
   });
 
-  test('atualizar nunca envia o "esgotado" (fica como estava na base de dados)', () => {
-    const { aAtualizar } = m.calcularAlteracoes(guardados, [{ ...BACALHAU, preco: 9 }, SOPA, PUDIM]);
-    expect(aAtualizar).toEqual([{ id: 'p2', nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 9 }]);
+  test('atualizar nunca envia o "esgotado" nem as "últimas doses" (ficam como estavam na base de dados)', () => {
+    const { aAtualizar } = m.calcularAlteracoes(guardados, [{ ...BACALHAU, preco: 9, ultimas_doses: true }, SOPA, PUDIM]);
+    expect(aAtualizar).toEqual([{ id: 'p2', nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 9, ...SEM_EXTRAS }]);
     expect(aAtualizar[0]).not.toHaveProperty('esgotado');
+    expect(aAtualizar[0]).not.toHaveProperty('ultimas_doses');
+  });
+
+  test('etiquetas ou fotografia diferentes também são para atualizar (a ordem das etiquetas não conta)', () => {
+    const comEtiquetas = { ...SOPA, etiquetas: ['vegano', 'sem-gluten'], foto_url: null };
+    expect(m.haAlteracoesNosPratos([comEtiquetas], [{ ...comEtiquetas, etiquetas: ['sem-gluten', 'vegano'] }])).toBe(false);
+    expect(m.haAlteracoesNosPratos([comEtiquetas], [{ ...comEtiquetas, etiquetas: ['vegano'] }])).toBe(true);
+    expect(m.haAlteracoesNosPratos([comEtiquetas], [{ ...comEtiquetas, foto_url: 'https://fotos/sopa.jpg' }])).toBe(true);
+    const { aAtualizar } = m.calcularAlteracoes([comEtiquetas], [{ ...comEtiquetas, foto_url: 'https://fotos/sopa.jpg' }]);
+    expect(aAtualizar).toEqual([
+      { id: 'p1', nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5, etiquetas: ['vegano', 'sem-gluten'], foto_url: 'https://fotos/sopa.jpg' },
+    ]);
+  });
+
+  test('um prato guardado antes das etiquetas existirem (sem a coluna) conta como sem etiquetas', () => {
+    expect(m.haAlteracoesNosPratos([SOPA], [{ ...SOPA, ...SEM_EXTRAS }])).toBe(false);
   });
 
   test('prato retirado do ecrã é para apagar', () => {
@@ -201,7 +236,7 @@ describe('calcularAlteracoes', () => {
   test('prato com um id que já não existe na base de dados volta a ser criado', () => {
     const fantasma = { id: 'apagado-noutro-telemovel', nome: 'Dourada', categoria: 'peixe', preco: 11 };
     expect(m.calcularAlteracoes([SOPA], [SOPA, fantasma])).toEqual({
-      aCriar: [{ nome: 'Dourada', categoria: 'peixe', preco: 11 }],
+      aCriar: [{ nome: 'Dourada', categoria: 'peixe', preco: 11, ...SEM_EXTRAS }],
       aAtualizar: [],
       aApagar: [],
     });
@@ -261,7 +296,7 @@ describe('publicarMenu', () => {
     // Um só menu por restaurante e dia: se já existir, é atualizado em vez de duplicado.
     expect(chamadaDe('menus.upsert').opcoes).toEqual({ onConflict: 'restaurante_id,dia' });
 
-    expect(chamadaDe('pratos.insert').valores).toEqual([{ ...NOVO, menu_id: 'm1' }]);
+    expect(chamadaDe('pratos.insert').valores).toEqual([{ ...NOVO, ...SEM_EXTRAS, menu_id: 'm1' }]);
     expect(menu).toEqual({ id: 'm1', pratos: [SOPA] });
   });
 
@@ -280,8 +315,8 @@ describe('publicarMenu', () => {
     await m.publicarMenu('r1', { pratos: [SOPA, { ...BACALHAU, preco: 9 }, NOVO] });
 
     expect(operacoes()).toEqual(['menus.upsert', 'pratos.select', 'pratos.insert', 'pratos.upsert', 'pratos.delete', 'menus.select']);
-    expect(chamadaDe('pratos.insert').valores).toEqual([{ ...NOVO, menu_id: 'm1' }]);
-    expect(chamadaDe('pratos.upsert').valores).toEqual([{ id: 'p2', nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 9, menu_id: 'm1' }]);
+    expect(chamadaDe('pratos.insert').valores).toEqual([{ ...NOVO, ...SEM_EXTRAS, menu_id: 'm1' }]);
+    expect(chamadaDe('pratos.upsert').valores).toEqual([{ id: 'p2', nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 9, ...SEM_EXTRAS, menu_id: 'm1' }]);
     expect(chamadaDe('pratos.upsert').opcoes).toEqual({ onConflict: 'id' });
     expect(chamadaDe('pratos.delete').filtros).toEqual({ id: ['p3'] });
   });
@@ -310,11 +345,11 @@ describe('publicarMenu', () => {
 });
 
 describe('marcarEsgotado (RF04)', () => {
-  test('altera só a coluna "esgotado" do prato indicado', async () => {
-    mockBd.respostas['pratos.update'] = { data: { id: 'p2', esgotado: true }, error: null };
-    await expect(m.marcarEsgotado('p2', true)).resolves.toEqual({ id: 'p2', esgotado: true });
+  test('marca o prato indicado como esgotado (e tira-lhe as "últimas doses")', async () => {
+    mockBd.respostas['pratos.update'] = { data: { id: 'p2', esgotado: true, ultimas_doses: false }, error: null };
+    await expect(m.marcarEsgotado('p2', true)).resolves.toEqual({ id: 'p2', esgotado: true, ultimas_doses: false });
     expect(operacoes()).toEqual(['pratos.update']);
-    expect(mockBd.chamadas[0].valores).toEqual({ esgotado: true });
+    expect(mockBd.chamadas[0].valores).toEqual({ esgotado: true, ultimas_doses: false });
     expect(mockBd.chamadas[0].filtros).toEqual({ id: 'p2' });
   });
 
@@ -330,6 +365,92 @@ describe('marcarEsgotado (RF04)', () => {
   });
 });
 
+describe('marcarUltimasDoses ("Últimas doses")', () => {
+  test('liga as últimas doses e põe o prato disponível (afinal ainda há algumas doses)', async () => {
+    mockBd.respostas['pratos.update'] = { data: { id: 'p2', esgotado: false, ultimas_doses: true }, error: null };
+    await expect(m.marcarUltimasDoses('p2', true)).resolves.toEqual({ id: 'p2', esgotado: false, ultimas_doses: true });
+    expect(mockBd.chamadas[0].valores).toEqual({ ultimas_doses: true, esgotado: false });
+    expect(mockBd.chamadas[0].filtros).toEqual({ id: 'p2' });
+  });
+
+  test('desligar só mexe nas últimas doses', async () => {
+    await m.marcarUltimasDoses('p2', false);
+    expect(mockBd.chamadas[0].valores).toEqual({ ultimas_doses: false });
+  });
+});
+
+describe('marcarLotacao ("Há mesa" / "Cheio agora")', () => {
+  test('grava a lotação do menu; a hora é posta pela base de dados', async () => {
+    mockBd.respostas['menus.update'] = { data: { id: 'm1', lotacao: 'cheio', lotacao_em: '2026-11-18T12:30:00Z' }, error: null };
+    await expect(m.marcarLotacao('m1', 'cheio')).resolves.toEqual({ id: 'm1', lotacao: 'cheio', lotacao_em: '2026-11-18T12:30:00Z' });
+    expect(operacoes()).toEqual(['menus.update']);
+    expect(mockBd.chamadas[0].valores).toEqual({ lotacao: 'cheio' }); // sem hora: o relógio do telemóvel pode estar errado
+    expect(mockBd.chamadas[0].filtros).toEqual({ id: 'm1' });
+  });
+
+  test('null apaga o aviso', async () => {
+    await m.marcarLotacao('m1', null);
+    expect(mockBd.chamadas[0].valores).toEqual({ lotacao: null });
+  });
+
+  test('um valor desconhecido é recusado sem falar com a base de dados', async () => {
+    await expect(m.marcarLotacao('m1', 'meio-cheio')).rejects.toThrow('Há mesa');
+    expect(mockBd.chamadas).toEqual([]);
+  });
+});
+
+describe('lotacaoAtual e descreverLotacao', () => {
+  const AGORA = new Date('2026-11-18T12:30:00Z');
+  const dita = (minutosAtras, lotacao = 'cheio') => ({ lotacao, lotacao_em: new Date(AGORA.getTime() - minutosAtras * 60000).toISOString() });
+
+  test('vale durante 45 minutos', () => {
+    expect(m.lotacaoAtual(dita(12), AGORA)).toEqual({ valor: 'cheio', minutos: 12 });
+    expect(m.lotacaoAtual(dita(45, 'ha-mesa'), AGORA)).toEqual({ valor: 'ha-mesa', minutos: 45 });
+    expect(m.lotacaoAtual(dita(46), AGORA)).toBeNull(); // já não se sabe se é verdade
+  });
+
+  test('sem lotação, sem hora ou com um valor desconhecido não mostra nada', () => {
+    expect(m.lotacaoAtual({ lotacao: null, lotacao_em: null }, AGORA)).toBeNull();
+    expect(m.lotacaoAtual({ lotacao: 'cheio', lotacao_em: null }, AGORA)).toBeNull();
+    expect(m.lotacaoAtual({ ...dita(5), lotacao: 'meio-cheio' }, AGORA)).toBeNull();
+    expect(m.lotacaoAtual(null, AGORA)).toBeNull();
+  });
+
+  test('aceita o relógio do telemóvel um pouco atrasado', () => {
+    expect(m.lotacaoAtual(dita(-3), AGORA)).toEqual({ valor: 'cheio', minutos: 0 });
+    expect(m.lotacaoAtual(dita(-10), AGORA)).toBeNull();
+  });
+
+  test('em palavras, em português e em inglês', () => {
+    expect(m.descreverLotacao({ valor: 'cheio', minutos: 12 })).toBe('Cheio agora · há 12 min');
+    expect(m.descreverLotacao({ valor: 'ha-mesa', minutos: 0 })).toBe('Há mesa · agora mesmo');
+    expect(m.descreverLotacao({ valor: 'cheio', minutos: 5 }, { emIngles: true })).toBe('Full right now · 5 min ago');
+    expect(m.descreverLotacao({ valor: 'ha-mesa', minutos: 0 }, { emIngles: true })).toBe('Tables free · just now');
+    expect(m.descreverLotacao(null)).toBe('');
+  });
+});
+
+describe('ouvirLotacao (tempo real)', () => {
+  test('ouve as mudanças de um menu e pára quando se pede', () => {
+    const aoMudar = jest.fn();
+    const parar = m.ouvirLotacao(aoMudar, { menuId: 'm1' });
+    const [canal] = mockBd.canais;
+    expect(canal.oQueOuvir).toEqual({ event: 'UPDATE', schema: 'public', table: 'menus', filter: 'id=eq.m1' });
+    canal.aoReceber({ new: { id: 'm1', lotacao: 'ha-mesa' } });
+    expect(aoMudar).toHaveBeenCalledWith({ id: 'm1', lotacao: 'ha-mesa' });
+    parar();
+    expect(canal.removido).toBe(true);
+  });
+
+  test('cada ecrã tem o seu canal (dois canais com o mesmo nome dão erro no Supabase)', () => {
+    m.ouvirLotacao(jest.fn());
+    m.ouvirLotacao(jest.fn());
+    const [primeiro, segundo] = mockBd.canais;
+    expect(primeiro.nome).not.toBe(segundo.nome);
+    expect(primeiro.oQueOuvir.filter).toBeUndefined(); // sem menuId: todos os menus (lista do cliente)
+  });
+});
+
 describe('buscarUltimoMenuAnterior (reutilizar pratos de dias anteriores)', () => {
   test('pede o menu mais recente antes de hoje e devolve os pratos sem id nem esgotado', async () => {
     mockBd.respostas['menus.select'] = {
@@ -342,9 +463,9 @@ describe('buscarUltimoMenuAnterior (reutilizar pratos de dias anteriores)', () =
       precoMenuCompleto: 10,
       // ordenados como num menu, e só com o que interessa para os copiar para hoje
       pratos: [
-        { nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5 },
-        { nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 8.5 },
-        { nome: 'Pudim caseiro', categoria: 'sobremesa', preco: 2 },
+        { nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5, ...SEM_EXTRAS },
+        { nome: 'Bacalhau à Brás', categoria: 'peixe', preco: 8.5, ...SEM_EXTRAS },
+        { nome: 'Pudim caseiro', categoria: 'sobremesa', preco: 2, ...SEM_EXTRAS },
       ],
     });
 
@@ -352,6 +473,13 @@ describe('buscarUltimoMenuAnterior (reutilizar pratos de dias anteriores)', () =
     expect(chamada.filtros).toEqual({ restaurante_id: 'r1', dia: { menorQue: hojeEmLisboa() } }); // só dias antes de hoje
     expect(chamada.ordem).toEqual({ coluna: 'dia', ascending: false }); // o mais recente primeiro
     expect(chamada.limite).toBe(1);
+  });
+
+  test('as etiquetas e a fotografia de cada prato vêm junto (o esgotado e as últimas doses não)', async () => {
+    const sopaVegana = { ...SOPA, etiquetas: ['vegano'], foto_url: 'https://fotos/sopa.jpg', ultimas_doses: true };
+    mockBd.respostas['menus.select'] = { data: { dia: '2026-11-14', preco_menu_completo: null, pratos: [sopaVegana] }, error: null };
+    const anterior = await m.buscarUltimoMenuAnterior('r1');
+    expect(anterior.pratos).toEqual([{ nome: 'Sopa de legumes', categoria: 'sopa', preco: 1.5, etiquetas: ['vegano'], foto_url: 'https://fotos/sopa.jpg' }]);
   });
 
   test('o preço que venha como texto passa a número', async () => {

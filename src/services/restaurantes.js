@@ -321,8 +321,21 @@ async function comprimirFoto(uriLocal) {
  * - Em React Native o ficheiro é enviado como ArrayBuffer (os bytes), como recomenda a documentação do Supabase.
  */
 export async function enviarFotoRestaurante(donoId, uriLocal) {
+  return enviarParaAsFotos(`${donoId}/restaurante-${Date.now()}.jpg`, uriLocal);
+}
+
+/**
+ * Fotografia de um prato (opcional, no ecrã Publicar): igual à do restaurante, mas fica na subpasta
+ * "pratos" da pasta da conta ("<id>/pratos/..."). As regras do Storage só olham para a primeira pasta
+ * (o id da conta), por isso não foi preciso mudar nada nelas. Devolve o link público.
+ */
+export async function enviarFotoDoPrato(donoId, uriLocal) {
+  return enviarParaAsFotos(`${donoId}/pratos/prato-${Date.now()}.jpg`, uriLocal);
+}
+
+// Comprime, envia para o bucket "fotos" e devolve o link público.
+async function enviarParaAsFotos(caminho, uriLocal) {
   const ficheiro = await comprimirFoto(uriLocal);
-  const caminho = `${donoId}/restaurante-${Date.now()}.jpg`;
 
   try {
     const bytes = await ficheiro.arrayBuffer();

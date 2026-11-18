@@ -50,13 +50,21 @@ describe('buscarPratosPerto (RF05, RF07)', () => {
     await expect(p.buscarPratosPerto({ latitude: 41.15, longitude: -8.61 })).resolves.toEqual([BACALHAU]);
     expect(mockBd.pedido).toEqual({
       nome: 'pratos_perto',
-      parametros: { lat: 41.15, lng: -8.61, raio_km: 2, preco_max: null, categoria_filtro: null, pesquisa: null },
+      parametros: { lat: 41.15, lng: -8.61, raio_km: 2, preco_max: null, categoria_filtro: null, pesquisa: null, etiqueta_filtro: null },
     });
   });
 
   test('os filtros vão para a base de dados, que é quem filtra (RNF05)', async () => {
-    await p.buscarPratosPerto({ latitude: 41.15, longitude: -8.61, raioKm: 5, precoMax: 8, categoria: 'peixe', pesquisa: '  bacalhau ' });
-    expect(mockBd.pedido.parametros).toEqual({ lat: 41.15, lng: -8.61, raio_km: 5, preco_max: 8, categoria_filtro: 'peixe', pesquisa: 'bacalhau' });
+    await p.buscarPratosPerto({ latitude: 41.15, longitude: -8.61, raioKm: 5, precoMax: 8, categoria: 'peixe', pesquisa: '  bacalhau ', etiqueta: 'sem-gluten' });
+    expect(mockBd.pedido.parametros).toEqual({
+      lat: 41.15,
+      lng: -8.61,
+      raio_km: 5,
+      preco_max: 8,
+      categoria_filtro: 'peixe',
+      pesquisa: 'bacalhau',
+      etiqueta_filtro: 'sem-gluten',
+    });
   });
 
   test('os pratos chegam já pela ordem da lista (principais antes da sopa e da sobremesa)', async () => {
@@ -272,5 +280,49 @@ describe('ouvirPratosNovos (aviso dos favoritos)', () => {
     expect(recebidos).toEqual([{ id: 'p1', menu_id: 'm1' }]);
     parar();
     expect(mockBd.removidos).toContain(canal.nome);
+  });
+});
+
+describe('etiquetas dos pratos', () => {
+  test('descreverEtiquetas: pela ordem de ETIQUETAS, em português ou em inglês', () => {
+    expect(p.descreverEtiquetas(['picante', 'vegano'])).toBe('Vegano · Picante');
+    expect(p.descreverEtiquetas(['sem-gluten', 'sem-lactose'], { emIngles: true })).toBe('Gluten-free · Lactose-free');
+    expect(p.descreverEtiquetas(['desconhecida'])).toBe('');
+    expect(p.descreverEtiquetas(null)).toBe('');
+  });
+
+  test('as etiquetas da app são as mesmas que a base de dados aceita', () => {
+    expect(p.ETIQUETAS.map((etiqueta) => etiqueta.valor)).toEqual(['vegano', 'sem-gluten', 'sem-lactose', 'picante']);
+  });
+});
+
+describe('tempo real: últimas doses e lotação', () => {
+  const DA_TASCA = { prato_id: 'x1', prato: 'Rojões', categoria: 'carne', preco: 8, esgotado: false, ultimas_doses: false, menu_id: 'm1', distancia_km: 0.3 };
+  const DO_CAFE = { prato_id: 'x2', prato: 'Tosta mista', categoria: 'carne', preco: 4, esgotado: false, ultimas_doses: false, menu_id: 'm2', distancia_km: 1 };
+
+  test('aplicarAlteracaoDePrato também muda as últimas doses, as etiquetas e a fotografia', () => {
+    const [rojoes] = p.aplicarAlteracaoDePrato([DA_TASCA], { id: 'x1', ultimas_doses: true, etiquetas: ['picante'], foto_url: 'https://fotos/r.jpg' });
+    expect(rojoes).toMatchObject({ ultimas_doses: true, etiquetas: ['picante'], foto_url: 'https://fotos/r.jpg' });
+    const [semFoto] = p.aplicarAlteracaoDePrato([{ ...DA_TASCA, foto_url: 'https://fotos/r.jpg' }], { id: 'x1', foto_url: null });
+    expect(semFoto.foto_url).toBeNull(); // a fotografia foi tirada
+  });
+
+  test('aplicarAlteracaoDeMenu muda a lotação de todos os pratos desse menu, e só desse', () => {
+    const lista = [DA_TASCA, { ...DA_TASCA, prato_id: 'x3' }, DO_CAFE];
+    const nova = p.aplicarAlteracaoDeMenu(lista, { id: 'm1', lotacao: 'cheio', lotacao_em: '2026-11-18T12:30:00Z' });
+    expect(nova.map((prato) => prato.lotacao ?? null)).toEqual(['cheio', 'cheio', null]);
+    expect(nova[0].lotacao_em).toBe('2026-11-18T12:30:00Z');
+  });
+
+  test('aplicarAlteracaoDeMenu: um menu que não está na lista devolve a MESMA lista (o ecrã nem se redesenha)', () => {
+    const lista = [DA_TASCA];
+    expect(p.aplicarAlteracaoDeMenu(lista, { id: 'm9', lotacao: 'cheio' })).toBe(lista);
+    expect(p.aplicarAlteracaoDeMenu(lista, null)).toBe(lista);
+  });
+
+  test('agruparPorRestaurante leva a lotação para o marcador do mapa', () => {
+    const comLotacao = { ...DA_TASCA, restaurante_id: 'r1', restaurante: 'Tasca', lotacao: 'ha-mesa', lotacao_em: '2026-11-18T12:30:00Z' };
+    const [grupo] = p.agruparPorRestaurante([comLotacao]);
+    expect(grupo).toMatchObject({ lotacao: 'ha-mesa', lotacao_em: '2026-11-18T12:30:00Z' });
   });
 });
