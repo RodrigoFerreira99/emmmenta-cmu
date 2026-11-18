@@ -6,6 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 import PaginaRestaurante from '@/app/restaurante/[id]';
 import { alternarFavorito } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
+import { traduzirPratos } from '@/services/assistente';
 import { buscarMenuDeHoje } from '@/services/menus';
 import { ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante } from '@/services/restaurantes';
@@ -39,6 +40,10 @@ jest.mock('@/services/restaurantes', () => ({
 jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
   buscarMenuDeHoje: jest.fn(),
+}));
+jest.mock('@/services/assistente', () => ({
+  ...jest.requireActual('@/services/assistente'),
+  traduzirPratos: jest.fn(),
 }));
 jest.mock('@/services/pratos', () => ({
   ...jest.requireActual('@/services/pratos'),
@@ -231,5 +236,58 @@ describe('Página do restaurante — partilhar', () => {
     expect(texto).not.toContain('Bacalhau');
     expect(texto).toContain('Direções: https://www.google.com/maps/dir/?api=1&destination=41.1496,-8.611');
     share.mockRestore();
+  });
+});
+
+describe('Página do restaurante — menu em inglês (para turistas)', () => {
+  const EM_INGLES = ['Caldo verde (kale and potato soup)', 'Bacalhau à Brás (shredded salt cod with eggs and straw potatoes)'];
+
+  test('traduz os pratos e mostra o nome português por baixo', async () => {
+    traduzirPratos.mockResolvedValue(EM_INGLES);
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Show the menu in English' }));
+    expect(await screen.findByText("Today's menu")).toBeTruthy();
+    expect(traduzirPratos).toHaveBeenCalledWith(['Caldo verde', 'Bacalhau à Brás']);
+    expect(screen.getByText('Caldo verde (kale and potato soup)')).toBeTruthy();
+    expect(screen.getByText('Caldo verde · Soup')).toBeTruthy();
+    expect(screen.getByLabelText('Bacalhau à Brás (shredded salt cod with eggs and straw potatoes), Fish, sold out')).toBeTruthy();
+    expect(screen.getByText('Sold out')).toBeTruthy();
+    expect(screen.getByText(/Set menu/)).toBeTruthy();
+  });
+
+  test('voltar ao português e outra vez ao inglês não pede a tradução de novo', async () => {
+    traduzirPratos.mockResolvedValue(EM_INGLES);
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Show the menu in English' }));
+    await screen.findByText("Today's menu");
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver o menu em português' }));
+    expect(await screen.findByText('Menu de hoje')).toBeTruthy();
+    expect(screen.getByText('Esgotado')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Show the menu in English' }));
+    expect(await screen.findByText("Today's menu")).toBeTruthy();
+    expect(traduzirPratos).toHaveBeenCalledTimes(1); // a tradução ficou guardada
+  });
+
+  test('se a tradução falhar, explica e o menu continua em português', async () => {
+    traduzirPratos.mockRejectedValue(new Error('Não foi possível traduzir o menu. Tenta outra vez.'));
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Menu de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Show the menu in English' }));
+    expect(await screen.findByText('Não foi possível traduzir o menu. Tenta outra vez.')).toBeTruthy();
+    expect(screen.getByText('Menu de hoje')).toBeTruthy();
+    expect(screen.getByText('Caldo verde')).toBeTruthy();
+  });
+
+  test('sem menu hoje, não há botão English', async () => {
+    buscarMenuDeHoje.mockResolvedValue(null);
+    await render(<PaginaRestaurante />);
+    await screen.findByText('Este restaurante ainda não publicou o menu de hoje.');
+    expect(screen.queryByRole('button', { name: 'Show the menu in English' })).toBeNull();
   });
 });

@@ -132,6 +132,12 @@ export function PertoProvider({ children }) {
     setFiltros((atuais) => ({ ...atuais, ...alteracoes }));
   }, []);
   const limparFiltros = useCallback(() => setFiltros(FILTROS_INICIAIS), []);
+  // Pesquisa por frase (assistente): os filtros percebidos substituem os que lá estavam.
+  const aplicarFiltros = useCallback(
+    ({ categoria = null, precoMax = null, raioKm = null, pesquisa = null }) =>
+      setFiltros({ ...FILTROS_INICIAIS, categoria, precoMax, raioKm: raioKm ?? RAIO_POR_OMISSAO_KM, pesquisa: pesquisa ?? '' }),
+    []
+  );
 
   // O texto da pesquisa só é "aplicado" quando o cliente pára de escrever.
   const [pesquisaAplicada, setPesquisaAplicada] = useState('');
@@ -219,6 +225,7 @@ export function PertoProvider({ children }) {
       filtrosAtivos,
       mudarFiltros,
       limparFiltros,
+      aplicarFiltros,
       pratos,
       favoritos,
       // enquanto chega a resposta nova continua a ver-se a lista anterior, mas não um erro antigo
@@ -236,6 +243,7 @@ export function PertoProvider({ children }) {
       filtrosAtivos,
       mudarFiltros,
       limparFiltros,
+      aplicarFiltros,
       resultado,
       pratos,
       favoritos,

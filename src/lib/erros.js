@@ -1,3 +1,5 @@
+import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
+
 // Erros do Supabase (base de dados e Storage) → mensagens em português para o utilizador.
 // É usado pelos serviços (src/services/restaurantes.js e src/services/menus.js):
 //   try { ... if (error) throw error; ... } catch (erro) { throw traduzirErro(erro); }
@@ -26,4 +28,34 @@ export function traduzirErro(erro) {
     return new Error('A fotografia é grande demais (o máximo são 500 KB).');
   }
   return new Error('Ocorreu um erro inesperado. Tenta outra vez.');
+}
+
+/**
+ * Erro ao chamar uma função do Supabase (Edge Function, por exemplo "ler-menu" ou "assistente")
+ * → mensagem em português. As nossas funções explicam o problema no campo "erro" da resposta.
+ *   quandoNaoExiste  a mensagem para quando a função ainda não foi publicada (erro 404)
+ *   geral            a mensagem para qualquer outro problema
+ */
+export async function traduzirErroDeFuncao(erro, { quandoNaoExiste, geral }) {
+  console.warn('Erro técnico (função do Supabase):', erro?.message ?? erro);
+
+  // o pedido nem chegou a sair do telemóvel
+  if (erro instanceof FunctionsFetchError) {
+    return new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.');
+  }
+
+  // a função respondeu com um erro: "context" é a resposta HTTP
+  if (erro instanceof FunctionsHttpError) {
+    const resposta = erro.context;
+    if (resposta?.status === 404) return new Error(quandoNaoExiste);
+    if (resposta?.status === 401) return new Error('A tua sessão expirou. Termina a sessão e entra outra vez.');
+    try {
+      const corpo = await resposta.json();
+      if (typeof corpo?.erro === 'string' && corpo.erro) return new Error(corpo.erro);
+    } catch {
+      // a resposta não era JSON: fica a mensagem geral, mais abaixo
+    }
+  }
+
+  return new Error(geral);
 }

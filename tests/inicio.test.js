@@ -389,3 +389,24 @@ describe('Início — Abana para decidir', () => {
     expect(mockAcelerometro.ouvinte).toBeNull();
   });
 });
+
+describe('Início — pesquisa por frase (assistente)', () => {
+  test('"peixe até 8 € aqui perto" põe os filtros sozinha (aqui sem IA: as regras do telemóvel)', async () => {
+    // nos testes não há função "assistente": a app usa o plano B e avisa na consola
+    const aviso = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await abrir();
+    await screen.findByLabelText(CARTAO_DO_BACALHAU);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Pesquisa por frase com o assistente' }));
+    await fireEvent.changeText(screen.getByLabelText('Diz o que te apetece'), 'peixe até 8 € aqui perto');
+    await fireEvent.press(screen.getByRole('button', { name: 'Procurar com o assistente' }));
+
+    expect(await screen.findByText('Percebi: Peixe · até 8,00 € · até 1 km (sem IA)')).toBeTruthy();
+    await waitFor(() => expect(ultimoPedido()).toEqual({ ...AQUI, ...SEM_FILTROS, categoria: 'peixe', precoMax: 8, raioKm: 1 }));
+
+    // o botão volta a fechar o painel
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar a pesquisa por frase' }));
+    expect(screen.queryByLabelText('Diz o que te apetece')).toBeNull();
+    aviso.mockRestore();
+  });
+});

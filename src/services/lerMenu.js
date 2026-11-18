@@ -1,6 +1,6 @@
-import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
+import { traduzirErroDeFuncao } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
 import { limparNome } from '@/services/menus';
 import { CATEGORIAS } from '@/services/pratos';
@@ -82,36 +82,6 @@ async function prepararFotografia(uriLocal) {
   }
 }
 
-// Erro da chamada à função → mensagem em português para o utilizador.
-async function traduzirErroDaLeitura(erro) {
-  console.warn('Erro técnico (ler menu):', erro?.message ?? erro);
-
-  // o pedido nem chegou a sair do telemóvel
-  if (erro instanceof FunctionsFetchError) {
-    return new Error('Sem ligação à internet. Verifica a rede e tenta outra vez.');
-  }
-
-  // a função respondeu com um erro: "context" é a resposta HTTP
-  if (erro instanceof FunctionsHttpError) {
-    const resposta = erro.context;
-    if (resposta?.status === 404) {
-      return new Error('A leitura por fotografia ainda não está ativada. Escreve os pratos à mão.');
-    }
-    if (resposta?.status === 401) {
-      return new Error('A tua sessão expirou. Termina a sessão e entra outra vez.');
-    }
-    try {
-      // a nossa função explica o problema em português no campo "erro"
-      const corpo = await resposta.json();
-      if (typeof corpo?.erro === 'string' && corpo.erro) return new Error(corpo.erro);
-    } catch {
-      // a resposta não era JSON: fica a mensagem geral, mais abaixo
-    }
-  }
-
-  return new Error('Não foi possível ler a fotografia. Tenta outra vez ou escreve os pratos à mão.');
-}
-
 /**
  * Lê os pratos de uma fotografia do menu. "uriLocal" é o caminho da imagem no telemóvel.
  * Devolve { pratos: [{ nome, categoria, preco }], precoMenuCompleto } — o preço de um prato
@@ -122,7 +92,12 @@ export async function lerMenuDaFoto(uriLocal) {
 
   // functions.invoke envia a sessão do utilizador: a função só aceita contas de restaurante
   const { data, error } = await supabase.functions.invoke('ler-menu', { body: { imagem } });
-  if (error) throw await traduzirErroDaLeitura(error);
+  if (error) {
+    throw await traduzirErroDeFuncao(error, {
+      quandoNaoExiste: 'A leitura por fotografia ainda não está ativada. Escreve os pratos à mão.',
+      geral: 'Não foi possível ler a fotografia. Tenta outra vez ou escreve os pratos à mão.',
+    });
+  }
 
   return limparPratosLidos(data);
 }

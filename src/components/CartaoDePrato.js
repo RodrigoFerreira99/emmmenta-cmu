@@ -44,11 +44,11 @@ export function CartaoDePrato({ prato, onPress, favorito = false }) {
   );
 }
 
-// Etiqueta "Esgotado", igual à do Figma. Também é usada na página do restaurante.
-export function EtiquetaEsgotado() {
+// Etiqueta "Esgotado". Também é usada na página do restaurante (com texto "Sold out" no menu em inglês).
+export function EtiquetaEsgotado({ texto: textoDaEtiqueta = 'Esgotado' }) {
   return (
     <View style={estilos.etiqueta}>
-      <Text style={estilos.etiquetaTexto}>Esgotado</Text>
+      <Text style={estilos.etiquetaTexto}>{textoDaEtiqueta}</Text>
     </View>
   );
 }

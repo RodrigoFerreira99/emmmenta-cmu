@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '@/components/Chip';
+import { PesquisaComIa } from '@/components/PesquisaComIa';
 import { usePerto } from '@/context/PertoContext';
 import { CATEGORIAS, OPCOES_DE_PRECO_MAXIMO, OPCOES_DE_RAIO_KM, RAIO_POR_OMISSAO_KM } from '@/services/pratos';
 import { cores, espaco, raio, texto } from '@/theme';
@@ -13,9 +14,11 @@ import { cores, espaco, raio, texto } from '@/theme';
 //
 // A categoria está sempre à vista (é o filtro mais usado). O preço máximo e o raio
 // ficam num painel que abre com o botão dos filtros, para não ocupar o ecrã todo.
+// O botão com estrelas abre a pesquisa por frase (PesquisaComIa): "peixe até 8 € aqui perto".
 export function FiltrosDePratos() {
-  const { filtros, filtrosAtivos, mudarFiltros, limparFiltros } = usePerto();
+  const { filtros, filtrosAtivos, mudarFiltros, limparFiltros, aplicarFiltros } = usePerto();
   const [painelAberto, setPainelAberto] = useState(false);
+  const [assistenteAberto, setAssistenteAberto] = useState(false);
 
   // quantos filtros do painel estão a ser usados (aparece numa bolinha no botão)
   const filtrosDoPainel =
@@ -53,6 +56,16 @@ export function FiltrosDePratos() {
         </View>
 
         <Pressable
+          onPress={() => setAssistenteAberto((aberto) => !aberto)}
+          accessibilityRole="button"
+          accessibilityLabel={assistenteAberto ? 'Fechar a pesquisa por frase' : 'Pesquisa por frase com o assistente'}
+          accessibilityState={{ expanded: assistenteAberto }}
+          style={[estilos.botaoDosFiltros, assistenteAberto && estilos.botaoDoAssistenteAberto]}
+        >
+          <Ionicons name="sparkles" size={20} color={assistenteAberto ? cores.textoInverso : cores.acento} />
+        </Pressable>
+
+        <Pressable
           onPress={() => setPainelAberto((aberto) => !aberto)}
           accessibilityRole="button"
           accessibilityLabel={painelAberto ? 'Esconder a ordem e os filtros de preço, distância e favoritos' : 'Mostrar a ordem e os filtros de preço, distância e favoritos'}
@@ -67,6 +80,8 @@ export function FiltrosDePratos() {
           ) : null}
         </Pressable>
       </View>
+
+      {assistenteAberto ? <PesquisaComIa aoAplicar={aplicarFiltros} /> : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.chips} accessibilityRole="radiogroup">
         <Chip titulo="Tudo" ativo={filtros.categoria === null} onPress={() => mudarFiltros({ categoria: null })} />
@@ -147,6 +162,7 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.superficie,
   },
   botaoDosFiltrosAberto: { backgroundColor: cores.texto, borderColor: cores.texto },
+  botaoDoAssistenteAberto: { backgroundColor: cores.acento, borderColor: cores.acento },
   bolinha: {
     position: 'absolute',
     top: -6,

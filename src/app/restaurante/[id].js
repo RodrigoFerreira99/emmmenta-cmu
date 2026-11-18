@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { EtiquetaEsgotado } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
@@ -11,6 +11,7 @@ import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { partilhar, textoDoConvite } from '@/lib/partilhar';
 import { vibrarLeve } from '@/lib/vibrar';
+import { CATEGORIAS_EM_INGLES, traduzirPratos } from '@/services/assistente';
 import { buscarMenuDeHoje, nomeDaCategoria } from '@/services/menus';
 import { formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante, estadoDoHorario, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
@@ -21,6 +22,7 @@ import { cores, espaco, raio, texto } from '@/theme';
 //
 // Mostra a fotografia, o nome, o tipo de cozinha, o horário e a morada, os botões Ligar e Direções
 // e o menu de hoje. Os pratos esgotados aparecem riscados e mudam em tempo real (RF04).
+// O botão "English" mostra o menu em inglês para turistas (traduzido pelo assistente de IA).
 export default function PaginaRestaurante() {
   const { id, distancia } = useLocalSearchParams();
 
@@ -31,6 +33,9 @@ export default function PaginaRestaurante() {
   const [menu, setMenu] = useState(null); // null = hoje ainda não publicou
   const [aviso, setAviso] = useState(null); // quando Ligar, Direções ou os favoritos não resultam
   const { eFavorito, alternarFavorito } = useFavoritos();
+  const [emIngles, setEmIngles] = useState(false);
+  const [aTraduzir, setATraduzir] = useState(false);
+  const [traducoes, setTraducoes] = useState({}); // nome em português → nome em inglês
 
   // 1) Ler o restaurante e, se existir, o menu de hoje.
   useEffect(() => {
@@ -99,6 +104,30 @@ export default function PaginaRestaurante() {
       await alternarFavorito(restaurante.id);
     } catch (erro) {
       setAviso(erro.message);
+    }
+  }
+
+  // Menu em inglês: traduz só os nomes que ainda não foram traduzidos (a tradução fica guardada no ecrã).
+  async function alternarIngles() {
+    setAviso(null);
+    if (emIngles) {
+      setEmIngles(false);
+      return;
+    }
+    const porTraduzir = (menu?.pratos ?? []).map((prato) => prato.nome).filter((nome) => !traducoes[nome]);
+    if (porTraduzir.length === 0) {
+      setEmIngles(true);
+      return;
+    }
+    setATraduzir(true);
+    try {
+      const novas = await traduzirPratos(porTraduzir);
+      setTraducoes((atuais) => ({ ...atuais, ...Object.fromEntries(porTraduzir.map((nome, indice) => [nome, novas[indice]])) }));
+      setEmIngles(true);
+    } catch (erro) {
+      setAviso(erro.message);
+    } finally {
+      setATraduzir(false);
     }
   }
 
@@ -196,39 +225,68 @@ export default function PaginaRestaurante() {
           </Text>
         ) : null}
 
-        <Text style={texto.subtitulo} accessibilityRole="header">
-          Menu de hoje
-        </Text>
+        <View style={estilos.linhaDoMenu}>
+          <Text style={[texto.subtitulo, estilos.ocuparTudo]} accessibilityRole="header">
+            {emIngles ? "Today's menu" : 'Menu de hoje'}
+          </Text>
+          {pratos.length > 0 ? (
+            <Pressable
+              onPress={alternarIngles}
+              disabled={aTraduzir}
+              accessibilityRole="button"
+              accessibilityLabel={emIngles ? 'Ver o menu em português' : 'Show the menu in English'}
+              accessibilityState={{ busy: aTraduzir }}
+              style={estilos.botaoDeIdioma}
+            >
+              {aTraduzir ? (
+                <ActivityIndicator color={cores.acento} />
+              ) : (
+                <Text style={estilos.botaoDeIdiomaTexto}>{emIngles ? '🇵🇹 Português' : '🇬🇧 English'}</Text>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
 
         {pratos.length === 0 ? (
           <Text style={texto.pequeno}>Este restaurante ainda não publicou o menu de hoje.</Text>
         ) : (
           <View style={estilos.lista}>
             {pratos.map((prato, indice) => (
-              <View
+              <LinhaDoPrato
                 key={prato.id}
-                style={[estilos.prato, indice > 0 && estilos.pratoComLinha]}
-                accessible
-                accessibilityLabel={`${prato.nome}, ${nomeDaCategoria(prato.categoria)}, ${prato.esgotado ? 'esgotado' : formatarPreco(prato.preco)}`}
-              >
-                <View style={estilos.ocuparTudo}>
-                  <Text style={[estilos.pratoNome, prato.esgotado && estilos.riscado]}>{prato.nome}</Text>
-                  <Text style={estilos.pratoCategoria}>{nomeDaCategoria(prato.categoria)}</Text>
-                </View>
-                {prato.esgotado ? <EtiquetaEsgotado /> : null}
-                <Text style={[estilos.pratoPreco, prato.esgotado && estilos.riscado]}>{formatarPreco(prato.preco)}</Text>
-              </View>
+                prato={prato}
+                comLinha={indice > 0}
+                emIngles={emIngles}
+                nomeEmIngles={emIngles ? traducoes[prato.nome] : null}
+              />
             ))}
           </View>
         )}
 
         {menu?.preco_menu_completo ? (
           <Text style={texto.corpo}>
-            Menu completo: <Text style={estilos.destaque}>{formatarPreco(menu.preco_menu_completo)}</Text>
+            {emIngles ? 'Set menu: ' : 'Menu completo: '}
+            <Text style={estilos.destaque}>{formatarPreco(menu.preco_menu_completo)}</Text>
           </Text>
         ) : null}
       </ScrollView>
     </Ecra>
+  );
+}
+
+// Um prato do menu. No menu em inglês: o nome traduzido em cima e o nome português por baixo, em pequeno.
+function LinhaDoPrato({ prato, comLinha, emIngles, nomeEmIngles }) {
+  const categoria = emIngles ? CATEGORIAS_EM_INGLES[prato.categoria] : nomeDaCategoria(prato.categoria);
+  const estado = prato.esgotado ? (emIngles ? 'sold out' : 'esgotado') : formatarPreco(prato.preco);
+  return (
+    <View style={[estilos.prato, comLinha && estilos.pratoComLinha]} accessible accessibilityLabel={`${nomeEmIngles ?? prato.nome}, ${categoria}, ${estado}`}>
+      <View style={estilos.ocuparTudo}>
+        <Text style={[estilos.pratoNome, prato.esgotado && estilos.riscado]}>{nomeEmIngles ?? prato.nome}</Text>
+        <Text style={estilos.pratoCategoria}>{nomeEmIngles ? `${prato.nome} · ${categoria}` : categoria}</Text>
+      </View>
+      {prato.esgotado ? <EtiquetaEsgotado texto={emIngles ? 'Sold out' : 'Esgotado'} /> : null}
+      <Text style={[estilos.pratoPreco, prato.esgotado && estilos.riscado]}>{formatarPreco(prato.preco)}</Text>
+    </View>
   );
 }
 
@@ -271,6 +329,10 @@ const estilos = StyleSheet.create({
   // 48 x 48: área de toque confortável (RNF06)
   botaoDeIcone: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   botoes: { flexDirection: 'row', gap: espaco.m },
+  linhaDoMenu: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
+  // minHeight 44: área de toque mínima (RNF06)
+  botaoDeIdioma: { minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: espaco.s },
+  botaoDeIdiomaTexto: { ...texto.pequeno, fontWeight: '700', color: cores.acento },
   aviso: { ...texto.pequeno, color: cores.erro },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },
   prato: { flexDirection: 'row', alignItems: 'center', gap: espaco.m, paddingHorizontal: espaco.l, paddingVertical: espaco.m, minHeight: 56 },
