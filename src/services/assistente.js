@@ -1,6 +1,6 @@
 import { traduzirErroDeFuncao } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
-import { CATEGORIAS, formatarPreco } from '@/services/pratos';
+import { CATEGORIAS, ETIQUETAS, formatarPreco } from '@/services/pratos';
 
 // O assistente de IA (função "assistente" do Supabase, que usa o Groq):
 //  - interpretarPesquisa("peixe até 8 euros aqui perto") → filtros prontos a aplicar na lista e no mapa;
@@ -12,6 +12,7 @@ import { CATEGORIAS, formatarPreco } from '@/services/pratos';
 // O que a IA devolve nunca é usado às cegas: limparFiltrosDaIa só deixa passar valores que a app conhece.
 
 const VALORES_DE_CATEGORIA = CATEGORIAS.map((categoria) => categoria.valor);
+const VALORES_DE_ETIQUETA = ETIQUETAS.map((etiqueta) => etiqueta.valor);
 const RAIOS_KM = [1, 2, 5, 10]; // as distâncias dos filtros (OPCOES_DE_RAIO_KM)
 
 // ---------------------------------------------------------------------------
@@ -21,12 +22,13 @@ const RAIOS_KM = [1, 2, 5, 10]; // as distâncias dos filtros (OPCOES_DE_RAIO_KM
 /** Confirma os filtros que vieram da IA: tudo o que não for um valor conhecido passa a null. */
 export function limparFiltrosDaIa(lido) {
   const categoria = VALORES_DE_CATEGORIA.includes(lido?.categoria) ? lido.categoria : null;
+  const etiqueta = VALORES_DE_ETIQUETA.includes(lido?.etiqueta) ? lido.etiqueta : null;
   const preco = Number(lido?.precoMax);
   const precoMax = lido?.precoMax != null && Number.isFinite(preco) && preco > 0 && preco < 100 ? Math.round(preco * 100) / 100 : null;
   const raio = Number(lido?.raioKm);
   const raioKm = lido?.raioKm != null && Number.isFinite(raio) && raio > 0 ? (RAIOS_KM.find((opcao) => opcao >= raio) ?? 10) : null;
   const pesquisa = typeof lido?.pesquisa === 'string' && lido.pesquisa.trim() ? lido.pesquisa.trim().slice(0, 40) : null;
-  return { categoria, precoMax, raioKm, pesquisa };
+  return { categoria, etiqueta, precoMax, raioKm, pesquisa };
 }
 
 /** As categorias em inglês (não precisam de IA: são sempre as mesmas cinco). */
@@ -42,11 +44,18 @@ const simplificar = (texto) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g
 
 // Palavras que indicam uma categoria (o "sem carne" tem de ser visto antes da "carne").
 const PALAVRAS_DAS_CATEGORIAS = [
-  ['vegetariano', ['vegetarian', 'vegan', 'sem carne']],
+  ['vegetariano', ['vegetarian', 'sem carne']],
   ['sopa', ['sopa', 'caldo']],
   ['sobremesa', ['sobremesa', 'doce']],
   ['peixe', ['peixe', 'marisco']],
   ['carne', ['carne']],
+];
+// Palavras que indicam uma etiqueta ("vegan" apanha "vegano", "vegana" e "vegan").
+const PALAVRAS_DAS_ETIQUETAS = [
+  ['vegano', ['vegan']],
+  ['sem-gluten', ['sem gluten', 'celiac']],
+  ['sem-lactose', ['sem lactose']],
+  ['picante', ['picante']],
 ];
 // Pratos e ingredientes conhecidos: vão para a pesquisa pelo nome do prato. Estão escritos como nos
 // menus (com acentos), porque a pesquisa na base de dados distingue "salmão" de "salmao".
@@ -57,15 +66,19 @@ const INGREDIENTES = [
 
 /**
  * Plano B, sem IA: percebe pedidos simples com regras.
- * "peixe até 8 € aqui perto" → { categoria: 'peixe', precoMax: 8, raioKm: 1, pesquisa: null }.
+ * "peixe até 8 € aqui perto" → { categoria: 'peixe', etiqueta: null, precoMax: 8, raioKm: 1, pesquisa: null }.
  * Devolve null se não perceber nada.
  */
 export function interpretarPesquisaSemIa(texto) {
   const frase = simplificar(texto ?? '');
 
   const ingrediente = INGREDIENTES.find((palavra) => frase.includes(simplificar(palavra))) ?? null;
-  // com um prato concreto não se filtra também pela categoria (podia esconder o que se procura)
-  const categoria = ingrediente ? null : (PALAVRAS_DAS_CATEGORIAS.find(([, palavras]) => palavras.some((palavra) => frase.includes(palavra)))?.[0] ?? null);
+  const etiqueta = PALAVRAS_DAS_ETIQUETAS.find(([, palavras]) => palavras.some((palavra) => frase.includes(palavra)))?.[0] ?? null;
+  // com um prato concreto, ou com "vegano", não se filtra também pela categoria (podia esconder o que se procura)
+  const categoria =
+    ingrediente || etiqueta === 'vegano'
+      ? null
+      : (PALAVRAS_DAS_CATEGORIAS.find(([, palavras]) => palavras.some((palavra) => frase.includes(palavra)))?.[0] ?? null);
 
   // preço: "até 8", "menos de 8,5", "máximo 8", "8 euros", "8€"; "barato" sem número → 8
   // (o "(?!…)" impede que "até 3 km" seja lido como um preço de 3 €)
@@ -82,7 +95,7 @@ export function interpretarPesquisaSemIa(texto) {
   else if (/\bperto\b|\bao pe\b|\baqui\b/.test(frase)) raioKm = 1;
   else if (frase.includes('longe')) raioKm = 10;
 
-  const filtros = limparFiltrosDaIa({ categoria, precoMax, raioKm, pesquisa: ingrediente });
+  const filtros = limparFiltrosDaIa({ categoria, etiqueta, precoMax, raioKm, pesquisa: ingrediente });
   return temAlgumFiltro(filtros) ? filtros : null;
 }
 
@@ -91,6 +104,7 @@ export function descreverFiltros(filtros) {
   const partes = [];
   if (filtros?.pesquisa) partes.push(`«${filtros.pesquisa}»`);
   if (filtros?.categoria) partes.push(CATEGORIAS.find((categoria) => categoria.valor === filtros.categoria)?.nome ?? filtros.categoria);
+  if (filtros?.etiqueta) partes.push(ETIQUETAS.find((etiqueta) => etiqueta.valor === filtros.etiqueta)?.nome ?? filtros.etiqueta);
   if (filtros?.precoMax) partes.push(`até ${formatarPreco(filtros.precoMax)}`);
   if (filtros?.raioKm) partes.push(`até ${filtros.raioKm} km`);
   return partes.join(' · ');

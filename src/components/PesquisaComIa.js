@@ -11,7 +11,7 @@ import { cores, espaco, raio, texto } from '@/theme';
 // para o cliente confirmar. Se a IA não responder, as regras simples do telemóvel tentam perceber.
 //
 // Propriedades:
-//   aoAplicar  função chamada com os filtros percebidos ({ categoria, precoMax, raioKm, pesquisa })
+//   aoAplicar  função chamada com os filtros percebidos ({ categoria, etiqueta, precoMax, raioKm, pesquisa })
 export function PesquisaComIa({ aoAplicar }) {
   const [frase, setFrase] = useState('');
   const [aPensar, setAPensar] = useState(false);

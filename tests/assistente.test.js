@@ -38,8 +38,8 @@ jest.mock('@/lib/vibrar', () => ({ vibrarLeve: jest.fn(), vibrarSucesso: jest.fn
 const semRede = () => new FunctionsFetchError(new TypeError('Network request failed'));
 const erroDaFuncao = (status, corpo) => new FunctionsHttpError({ status, json: async () => corpo });
 
-const PEIXE_PERTO = { categoria: 'peixe', precoMax: 8, raioKm: 1, pesquisa: null };
-const NADA = { categoria: null, precoMax: null, raioKm: null, pesquisa: null };
+const PEIXE_PERTO = { categoria: 'peixe', etiqueta: null, precoMax: 8, raioKm: 1, pesquisa: null };
+const NADA = { categoria: null, etiqueta: null, precoMax: null, raioKm: null, pesquisa: null };
 
 beforeEach(() => {
   mockEstado.resposta = { data: null, error: null };
@@ -54,7 +54,7 @@ describe('limparFiltrosDaIa — só passa o que a app conhece', () => {
   });
 
   test('valores desconhecidos ou absurdos passam a null (a IA pode enganar-se)', () => {
-    expect(limparFiltrosDaIa({ categoria: 'pizza', precoMax: 1000, raioKm: -2, pesquisa: '   ' })).toEqual(NADA);
+    expect(limparFiltrosDaIa({ categoria: 'pizza', etiqueta: 'sem-sal', precoMax: 1000, raioKm: -2, pesquisa: '   ' })).toEqual(NADA);
     expect(limparFiltrosDaIa({ precoMax: 'barato', raioKm: 'perto' })).toEqual(NADA);
     expect(limparFiltrosDaIa(null)).toEqual(NADA);
   });
@@ -87,6 +87,13 @@ describe('interpretarPesquisaSemIa — o plano B, com regras simples', () => {
     expect(interpretarPesquisaSemIa('algo sem carne até 3 km')).toEqual({ ...NADA, categoria: 'vegetariano', raioKm: 5 });
   });
 
+  test('"vegano", "sem glúten", "sem lactose" e "picante" são etiquetas dos pratos', () => {
+    expect(interpretarPesquisaSemIa('algo vegano até 3 km')).toEqual({ ...NADA, etiqueta: 'vegano', raioKm: 5 });
+    expect(interpretarPesquisaSemIa('uma francesinha sem glúten')).toEqual({ ...NADA, etiqueta: 'sem-gluten', pesquisa: 'francesinha' });
+    expect(interpretarPesquisaSemIa('sobremesa sem lactose')).toEqual({ ...NADA, categoria: 'sobremesa', etiqueta: 'sem-lactose' });
+    expect(interpretarPesquisaSemIa('carne picante')).toEqual({ ...NADA, categoria: 'carne', etiqueta: 'picante' });
+  });
+
   test('preço com vírgula e "euros" por extenso', () => {
     expect(interpretarPesquisaSemIa('sopa por menos de 4,50 euros')).toEqual({ ...NADA, categoria: 'sopa', precoMax: 4.5 });
   });
@@ -113,6 +120,10 @@ describe('descreverFiltros — o que se mostra ao cliente', () => {
 
   test('pesquisa por um prato', () => {
     expect(descreverFiltros({ ...NADA, pesquisa: 'francesinha', precoMax: 8 })).toBe('«francesinha» · até 8,00 €');
+  });
+
+  test('etiqueta', () => {
+    expect(descreverFiltros({ ...NADA, etiqueta: 'sem-gluten', raioKm: 2 })).toBe('Sem glúten · até 2 km');
   });
 });
 

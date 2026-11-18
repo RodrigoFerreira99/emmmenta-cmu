@@ -3,7 +3,7 @@
 // Pedidos de TEXTO à IA (serviço Groq, plano gratuito — a mesma chave da função "ler-menu"):
 //
 //   { tarefa: "interpretar-pesquisa", texto: "peixe até 8 euros aqui perto" }
-//     → { categoria: "peixe", precoMax: 8, raioKm: 1, pesquisa: null }
+//     → { categoria: "peixe", etiqueta: null, precoMax: 8, raioKm: 1, pesquisa: null }
 //     (o cliente escreve o que lhe apetece e a app põe os filtros sozinha)
 //
 //   { tarefa: "traduzir-pratos", pratos: ["Bacalhau à Brás", "Caldo verde"] }
@@ -21,6 +21,7 @@ const MODELO = Deno.env.get('MODELO_ASSISTENTE') ?? Deno.env.get('MODELO_LER_MEN
 const TEMPO_MAXIMO_MS = 30 * 1000;
 
 const CATEGORIAS = ['sopa', 'carne', 'peixe', 'vegetariano', 'sobremesa'];
+const ETIQUETAS = ['vegano', 'sem-gluten', 'sem-lactose', 'picante'];
 const RAIOS_KM = [1, 2, 5, 10]; // as distâncias que a app oferece nos filtros
 const MAXIMO_DE_PRATOS = 40;
 
@@ -42,12 +43,14 @@ const INSTRUCOES_DA_PESQUISA = `Numa aplicação de pratos do dia em Portugal, u
 
 Responde só com um objeto JSON, sem mais texto, com exatamente estes campos:
 {"categoria": "sopa" | "carne" | "peixe" | "vegetariano" | "sobremesa" | null,
+ "etiqueta": "vegano" | "sem-gluten" | "sem-lactose" | "picante" | null,
  "precoMax": número em euros ou null,
  "raioKm": 1 | 2 | 5 | 10 | null,
  "pesquisa": nome curto de um prato ou ingrediente (máximo 3 palavras) ou null}
 
 Regras:
-- "vegano", "sem carne" ou "vegan" → "vegetariano". Bacalhau, polvo, sardinhas e marisco são "peixe".
+- "vegetariano" ou "sem carne" → categoria "vegetariano". Bacalhau, polvo, sardinhas e marisco são "peixe".
+- Etiqueta: "vegano" ou "vegan" → "vegano"; "sem glúten" ou "celíaco" → "sem-gluten"; "sem lactose" → "sem-lactose"; "picante" → "picante". Sem nada disto → null. Com "vegano" a categoria fica null.
 - Preço: "até 8 euros", "menos de 8€", "máximo 8" → 8. "barato" sem valor → 8. Sem nada sobre preço → null.
 - Distância: "aqui perto", "perto", "ao pé" → 1. "até 3 km" → 5 (o valor da lista igual ou maior). Sem nada sobre distância → null.
 - "pesquisa" só quando o cliente diz um prato ou ingrediente concreto (por exemplo "bacalhau", "francesinha", "arroz de pato"). Para pedidos genéricos ("peixe", "algo leve") usa null.
@@ -71,12 +74,13 @@ Regras:
 
 function limparFiltros(lido) {
   const categoria = CATEGORIAS.includes(lido?.categoria) ? lido.categoria : null;
+  const etiqueta = ETIQUETAS.includes(lido?.etiqueta) ? lido.etiqueta : null;
   const preco = Number(lido?.precoMax);
   const precoMax = lido?.precoMax != null && Number.isFinite(preco) && preco > 0 && preco < 100 ? Math.round(preco * 100) / 100 : null;
   const raio = Number(lido?.raioKm);
   const raioKm = lido?.raioKm != null && Number.isFinite(raio) && raio > 0 ? (RAIOS_KM.find((opcao) => opcao >= raio) ?? 10) : null;
   const pesquisa = typeof lido?.pesquisa === 'string' && lido.pesquisa.trim() ? lido.pesquisa.trim().slice(0, 40) : null;
-  return { categoria, precoMax, raioKm, pesquisa };
+  return { categoria, etiqueta, precoMax, raioKm, pesquisa };
 }
 
 function limparTraducoes(lido, quantas) {
