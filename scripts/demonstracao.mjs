@@ -19,6 +19,10 @@
 // Segurança: usa só a chave pública (a mesma da app, do ficheiro .env) e as regras de segurança (RLS)
 // normais — cada conta de demonstração só mexe no seu restaurante, como um restaurante verdadeiro.
 // A palavra-passe das contas de demonstração fica no ficheiro .env.local, que nunca vai para o GitHub.
+//
+// Todas as manhãs, a tarefa automática .github/workflows/publicar-menus-de-demonstracao.yml corre
+// "publicar" no GitHub. Lá não há ficheiros .env: os mesmos valores chegam como variáveis de ambiente,
+// vindas dos segredos do repositório.
 
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
@@ -235,7 +239,10 @@ function lerVariaveis(caminho) {
   return variaveis;
 }
 
-const variaveis = { ...lerVariaveis('.env'), ...lerVariaveis('.env.local') };
+// Na tarefa automática do GitHub não há ficheiros: os valores vêm das variáveis de ambiente (segredos).
+const NOMES_DAS_VARIAVEIS = ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'EMMMENTA_DEMO_PALAVRA_PASSE'];
+const doAmbiente = Object.fromEntries(NOMES_DAS_VARIAVEIS.filter((nome) => process.env[nome]).map((nome) => [nome, process.env[nome]]));
+const variaveis = { ...lerVariaveis('.env'), ...lerVariaveis('.env.local'), ...doAmbiente };
 const URL_DO_SUPABASE = variaveis.EXPO_PUBLIC_SUPABASE_URL;
 const CHAVE_PUBLICA = variaveis.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -252,7 +259,7 @@ if (!URL_DO_SUPABASE || !CHAVE_PUBLICA) {
 function palavraPasse({ podeCriar }) {
   if (variaveis.EMMMENTA_DEMO_PALAVRA_PASSE) return variaveis.EMMMENTA_DEMO_PALAVRA_PASSE;
   if (!podeCriar) {
-    falhar('Falta EMMMENTA_DEMO_PALAVRA_PASSE no ficheiro .env.local. Corre primeiro "node scripts/demonstracao.mjs criar".');
+    falhar('Falta EMMMENTA_DEMO_PALAVRA_PASSE (no ficheiro .env.local, ou no segredo do GitHub com o mesmo nome). Da primeira vez, corre "node scripts/demonstracao.mjs criar".');
   }
   const nova = randomBytes(18).toString('base64url');
   appendFileSync('.env.local', `\n# contas de demonstração (scripts/demonstracao.mjs) — não vai para o GitHub\nEMMMENTA_DEMO_PALAVRA_PASSE=${nova}\n`);
@@ -342,6 +349,7 @@ async function criar() {
 async function publicar() {
   const senha = palavraPasse({ podeCriar: false });
   const variante = varianteDeHoje();
+  let falhas = 0;
   console.log(`Menus de hoje (${hojeEmLisboa()}, variante ${variante + 1}):`);
 
   for (const restaurante of RESTAURANTES) {
@@ -369,11 +377,14 @@ async function publicar() {
 
       console.log(`✔ ${restaurante.nome}: ${pratos.length} pratos`);
     } catch (erro) {
+      falhas += 1;
       console.log(`✖ ${restaurante.nome}: ${erro.message}`);
     } finally {
       await cliente.auth.signOut();
     }
   }
+  // código de saída 1: na tarefa automática do GitHub, a execução fica a vermelho e o GitHub avisa por email
+  if (falhas > 0) process.exitCode = 1;
 }
 
 async function estado() {

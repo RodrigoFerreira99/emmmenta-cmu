@@ -1,0 +1,52 @@
+# Publicar os menus de demonstração todas as manhãs
+#
+# Um menu só vale no dia em que é publicado (RN01). Para quem abrir a app num dia qualquer (por exemplo,
+# o professor antes da defesa) ver sempre pratos perto da ESMAD, esta tarefa corre todas as manhãs
+# "node scripts/demonstracao.mjs publicar": os 6 restaurantes de demonstração publicam o menu desse dia.
+# Usa só a chave pública e as contas de demonstração, com as regras de segurança (RLS) normais — como
+# 6 donos de restaurante a publicar na app. Os restaurantes verdadeiros não são tocados.
+#
+# Precisa de três segredos no GitHub (Settings → Secrets and variables → Actions → New repository secret):
+#   SUPABASE_URL                 já existe (é o da tarefa "Manter o Supabase acordado")
+#   SUPABASE_PUBLISHABLE_KEY     já existe
+#   EMMMENTA_DEMO_PALAVRA_PASSE  a palavra-passe das contas de demonstração (está no ficheiro .env.local)
+#
+# Se algum restaurante falhar, a execução fica a vermelho no separador Actions e o GitHub avisa por email.
+# Também se pode correr à mão: Actions → "Publicar os menus de demonstração" → Run workflow.
+# Nota: as tarefas com horário só correm a partir do ramo principal (main).
+
+name: Publicar os menus de demonstração
+
+on:
+  schedule:
+    - cron: '30 6 * * *' # todos os dias às 6h30 (UTC): 6h30 em Lisboa no inverno, 7h30 no verão
+  workflow_dispatch: {}
+
+# esta tarefa só lê o repositório (para ter o script); o que escreve vai para o Supabase, não para o GitHub
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Descarregar o projeto
+        uses: actions/checkout@v6
+
+      - name: Instalar o Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      # só as bibliotecas (o script usa a do Supabase); --ignore-scripts não corre nada das bibliotecas
+      - name: Instalar as dependências
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Publicar o menu de hoje nos 6 restaurantes de demonstração
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          EMMMENTA_DEMO_PALAVRA_PASSE: ${{ secrets.EMMMENTA_DEMO_PALAVRA_PASSE }}
+        run: node scripts/demonstracao.mjs publicar

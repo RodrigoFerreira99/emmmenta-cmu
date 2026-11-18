@@ -137,7 +137,7 @@ só da primeira vez: cria as contas e os restaurantes (a palavra-passe fica no `
 node scripts/demonstracao.mjs publicar
 ```
 
-na manhã da defesa (e sempre que quiserem testar o lado do cliente): publica o menu de hoje em todos;
+publica o menu de hoje em todos. **Já não é preciso fazer isto todos os dias:** a tarefa automática "Publicar os menus de demonstração" (`.github/workflows/publicar-menus-de-demonstracao.yml`) corre-o todas as manhãs às 6h30 (UTC), a partir do `main`. À mão continua a servir, por exemplo se a tarefa falhar;
 
 ```bash
 node scripts/demonstracao.mjs estado
@@ -150,6 +150,17 @@ node scripts/demonstracao.mjs sala
 ```
 
 mesmo antes de mostrar a lista ao júri: põe "Há mesa" ou "Cheio agora" nos restaurantes de demonstração (o aviso só aparece durante 45 minutos). Os pratos de demonstração já têm etiquetas (Vegano, Sem glúten…), para o filtro "Dieta e sabor" ter resultados.
+
+**Segredo para a tarefa automática (só uma vez).** A tarefa precisa da palavra-passe das contas de demonstração, que só existe no `.env.local` de quem correu `criar`:
+
+1. No computador, na pasta do projeto, copiar a palavra-passe sem a mostrar no ecrã (PowerShell):
+
+```powershell
+(Select-String -Path .env.local -Pattern '^EMMMENTA_DEMO_PALAVRA_PASSE=').Line.Split('=', 2)[1].Trim() | Set-Clipboard
+```
+
+2. No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, com o nome `EMMMENTA_DEMO_PALAVRA_PASSE`; no campo **Secret**, colar (Ctrl+V) e carregar em **Add secret**. Os outros dois segredos (`SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`) já existem.
+3. Experimentar: separador **Actions → Publicar os menus de demonstração → Run workflow**. Fica a verde e mostra ✔ nos 6 restaurantes.
 
 ### 3. O telemóvel tem de chegar ao computador
 
