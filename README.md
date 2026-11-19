@@ -112,6 +112,8 @@ O que convém saber:
 
 ## Antes da defesa
 
+**Para estudar:** o [guia da defesa](docs/guia-da-defesa.md) tem as perguntas prováveis de cada um, com a resposta curta e o ficheiro onde está o código, o guião da demonstração e o que fazer se algo correr mal.
+
 A demonstração é ao vivo, por isso há três coisas que não podem falhar: o Supabase tem de estar acordado, tem de haver menus publicados nesse dia e o telemóvel tem de chegar ao computador. Os pontos 4 a 6 são cuidados para os telemóveis, para os dados e para as contas.
 
 ### 1. Supabase acordado
