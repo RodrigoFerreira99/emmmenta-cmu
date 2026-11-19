@@ -44,6 +44,40 @@ export function distanciaEmMetros(a, b) {
   return 2 * RAIO_DA_TERRA_M * Math.asin(Math.sqrt(h));
 }
 
+// ---------------------------------------------------------------------------
+// Bússola até ao restaurante (componente Bussola)
+// ---------------------------------------------------------------------------
+
+// A menos disto do restaurante, a bússola diz "Chegaste!".
+export const CHEGOU_A_METROS = 25;
+
+/** O rumo de A para B, em graus, como numa bússola: 0 = norte, 90 = este, 180 = sul, 270 = oeste. */
+export function rumoEmGraus(de, para) {
+  const latitudeDe = radianos(de.latitude);
+  const latitudePara = radianos(para.latitude);
+  const dLongitude = radianos(para.longitude - de.longitude);
+  const y = Math.sin(dLongitude) * Math.cos(latitudePara);
+  const x = Math.cos(latitudeDe) * Math.sin(latitudePara) - Math.sin(latitudeDe) * Math.cos(latitudePara) * Math.cos(dLongitude);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/**
+ * Para onde a seta aponta no ecrã (0 a 360 graus, 0 = para cima): o rumo do restaurante menos a direção
+ * para onde o telemóvel está virado. Exemplo: o restaurante a este (90) com o telemóvel virado a norte (0)
+ * → 90, a seta aponta para a direita.
+ */
+export function anguloDaSeta(rumo, direcaoDoTelemovel) {
+  return (((rumo - direcaoDoTelemovel) % 360) + 360) % 360;
+}
+
+/** O ângulo da seta em palavras (para o leitor de ecrã e para quem não olha para a seta). */
+export function descreverDirecao(angulo) {
+  if (angulo < 30 || angulo > 330) return 'em frente';
+  if (angulo < 150) return 'à tua direita';
+  if (angulo <= 210) return 'atrás de ti';
+  return 'à tua esquerda';
+}
+
 /** Plano B: uma linha reta e uma estimativa (a distância pelas ruas é, em média, 30 % maior). */
 export function caminhoEmLinhaReta(origem, destino) {
   const distanciaM = Math.round(distanciaEmMetros(origem, destino) * FATOR_DAS_RUAS);

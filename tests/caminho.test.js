@@ -1,15 +1,18 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 import {
+  anguloDaSeta,
   arredondarPonto,
   calcularCaminhoAPe,
   caminhoEmLinhaReta,
   descreverCaminho,
+  descreverDirecao,
   descreverDistancia,
   descreverDuracao,
   distanciaEmMetros,
   lerRespostaDoCaminho,
   regiaoParaOsPontos,
+  rumoEmGraus,
 } from '@/services/caminho';
 
 // Caminho a pé até ao restaurante — testes a src/services/caminho.js.
@@ -149,5 +152,31 @@ describe('calcularCaminhoAPe', () => {
 
     global.fetch = jest.fn(async () => respostaHttp({ code: 'NoRoute', routes: [] }));
     expect((await calcularCaminhoAPe(ESMAD, TASCA)).emLinhaReta).toBe(true);
+  });
+});
+
+describe('bússola: rumo, seta e direção em palavras', () => {
+  const AQUI = { latitude: 41.0, longitude: -8.0 };
+
+  test('rumoEmGraus: norte 0, este 90, sul 180, oeste 270', () => {
+    expect(rumoEmGraus(AQUI, { latitude: 41.01, longitude: -8.0 })).toBeCloseTo(0, 0);
+    expect(rumoEmGraus(AQUI, { latitude: 41.0, longitude: -7.99 })).toBeCloseTo(90, 0);
+    expect(rumoEmGraus(AQUI, { latitude: 40.99, longitude: -8.0 })).toBeCloseTo(180, 0);
+    expect(rumoEmGraus(AQUI, { latitude: 41.0, longitude: -8.01 })).toBeCloseTo(270, 0);
+  });
+
+  test('anguloDaSeta: o rumo menos a direção do telemóvel, sempre entre 0 e 360', () => {
+    expect(anguloDaSeta(90, 0)).toBe(90); // restaurante a este, telemóvel virado a norte: seta para a direita
+    expect(anguloDaSeta(90, 80)).toBe(10);
+    expect(anguloDaSeta(10, 350)).toBe(20); // passa pelo norte sem dar números negativos
+    expect(anguloDaSeta(350, 10)).toBe(340);
+  });
+
+  test('descreverDirecao', () => {
+    expect(descreverDirecao(0)).toBe('em frente');
+    expect(descreverDirecao(345)).toBe('em frente');
+    expect(descreverDirecao(90)).toBe('à tua direita');
+    expect(descreverDirecao(180)).toBe('atrás de ti');
+    expect(descreverDirecao(270)).toBe('à tua esquerda');
   });
 });

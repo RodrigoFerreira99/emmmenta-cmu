@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { Bussola } from '@/components/Bussola';
 import { CaminhoAPe } from '@/components/CaminhoAPe';
 import { EtiquetaEsgotado, EtiquetaUltimasDoses } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
@@ -30,6 +31,7 @@ import { cores, espaco, raio, texto } from '@/theme';
 // Também em tempo real: "Há mesa" / "Cheio agora" e as "Últimas doses". Tocar na fotografia de um
 // prato mostra-a em grande. "Ver o caminho a pé" mostra no mapa o percurso até ao restaurante (CaminhoAPe).
 // O botão do altifalante lê o menu em voz alta (em português ou, no menu em inglês, em inglês).
+// "Seguir a bússola" abre uma seta que aponta para o restaurante enquanto o cliente anda (Bussola).
 export default function PaginaRestaurante() {
   const { id, distancia } = useLocalSearchParams();
 
@@ -45,6 +47,7 @@ export default function PaginaRestaurante() {
   const [traducoes, setTraducoes] = useState({}); // nome em português → nome em inglês
   const [caminhoAberto, setCaminhoAberto] = useState(false);
   const [aFalar, setAFalar] = useState(false); // o telemóvel está a ler o menu em voz alta
+  const [bussolaAberta, setBussolaAberta] = useState(false);
 
   // ao sair da página, a voz cala-se
   useEffect(() => () => pararDeLer(), []);
@@ -270,6 +273,8 @@ export default function PaginaRestaurante() {
           />
         ) : null}
         {caminhoAberto ? <CaminhoAPe restaurante={restaurante} aoAbrirDirecoes={() => abrirOutraApp(() => abrirDirecoes(restaurante))} /> : null}
+        {temPonto ? <Botao tipo="secundario" icone="compass-outline" titulo="Seguir a bússola" onPress={() => setBussolaAberta(true)} /> : null}
+        {temPonto ? <Bussola restaurante={restaurante} visivel={bussolaAberta} aoFechar={() => setBussolaAberta(false)} /> : null}
         {aviso ? (
           <Text style={estilos.aviso} accessibilityRole="alert">
             {aviso}

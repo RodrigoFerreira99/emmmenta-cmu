@@ -77,3 +77,31 @@ export async function lerLocalizacao() {
     throw new Error('Não foi possível saber onde estás. Tenta outra vez ou escolhe a zona à mão.');
   }
 }
+
+// ---------------------------------------------------------------------------
+// Bússola até ao restaurante: seguir a posição e a direção enquanto o ecrã está aberto
+// ---------------------------------------------------------------------------
+
+/**
+ * Segue a posição do telemóvel enquanto a bússola está aberta (só com a app aberta e só em memória — RNF04).
+ * "aoMudar" recebe { latitude, longitude } sempre que o cliente anda uns metros.
+ * Devolve uma função que pára de seguir. Só deve ser chamada com a permissão concedida.
+ */
+export async function seguirPosicao(aoMudar) {
+  const subscricao = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 3 }, (posicao) =>
+    aoMudar({ latitude: posicao.coords.latitude, longitude: posicao.coords.longitude })
+  );
+  return () => subscricao.remove();
+}
+
+/**
+ * Segue para onde o telemóvel está virado (a bússola do telemóvel). "aoMudar" recebe { graus, precisao }:
+ * graus de 0 a 360 (0 = norte) e precisao de 0 (nenhuma) a 3 (boa). Devolve uma função que pára.
+ * Usa o norte verdadeiro quando existe (precisa da permissão de localização); senão, o norte magnético.
+ */
+export async function seguirDirecao(aoMudar) {
+  const subscricao = await Location.watchHeadingAsync((direcao) =>
+    aoMudar({ graus: direcao.trueHeading >= 0 ? direcao.trueHeading : direcao.magHeading, precisao: direcao.accuracy })
+  );
+  return () => subscricao.remove();
+}
