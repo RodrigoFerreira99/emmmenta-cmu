@@ -44,6 +44,9 @@ jest.mock('@/services/menus', () => ({
   buscarMenuDeHoje: jest.fn(),
   ouvirLotacao: jest.fn(),
 }));
+// A língua do telemóvel: português, salvo nos testes do turista (mockLingua.codigo = 'en').
+const mockLingua = { codigo: 'pt' };
+jest.mock('expo-localization', () => ({ getLocales: () => [{ languageCode: mockLingua.codigo }] }));
 // A voz do telemóvel (ouvir o menu) é simulada.
 jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }));
 // O mapa só existe no telemóvel: aqui é trocado por caixas simples (a linha do caminho guarda os pontos).
@@ -88,6 +91,7 @@ const pararDeOuvir = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLingua.codigo = 'pt';
   mockFavoritos.ids = new Set();
   alternarFavorito.mockImplementation(async (id) => {
     const novos = new Set(mockFavoritos.ids);
@@ -449,5 +453,25 @@ describe('Página do restaurante — ouvir o menu em voz alta', () => {
     const { onDone } = Speech.speak.mock.calls.at(-1)[1];
     await act(async () => onDone());
     expect(screen.getByRole('button', { name: 'Ouvir o menu em voz alta' })).toBeTruthy();
+  });
+});
+
+describe('Página do restaurante — turistas (telemóvel noutra língua)', () => {
+  test('com o telemóvel em inglês, o menu abre logo em inglês e pede a tradução sozinho', async () => {
+    mockLingua.codigo = 'en';
+    traduzirPratos.mockResolvedValue(['Caldo verde (kale and potato soup)', 'Bacalhau à Brás (salt cod)']);
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText("Today's menu")).toBeTruthy();
+    expect(await screen.findByText('Caldo verde (kale and potato soup)')).toBeTruthy();
+    expect(traduzirPratos).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Ver o menu em português' })).toBeTruthy();
+  });
+
+  test('se a tradução automática falhar, explica e mostra o menu em português', async () => {
+    mockLingua.codigo = 'fr';
+    traduzirPratos.mockRejectedValue(new Error('Não foi possível traduzir o menu. Tenta outra vez.'));
+    await render(<PaginaRestaurante />);
+    expect(await screen.findByText('Não foi possível traduzir o menu. Tenta outra vez.')).toBeTruthy();
+    expect(screen.getByText('Menu de hoje')).toBeTruthy();
   });
 });

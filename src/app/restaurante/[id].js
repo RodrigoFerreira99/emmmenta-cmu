@@ -13,6 +13,7 @@ import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
+import { telemovelEmPortugues } from '@/lib/lingua';
 import { lerEmVozAlta, pararDeLer, textoDoMenuParaOuvir } from '@/lib/ouvirMenu';
 import { partilhar, textoDoConvite } from '@/lib/partilhar';
 import { vibrarLeve } from '@/lib/vibrar';
@@ -27,7 +28,8 @@ import { cores, espaco, raio, texto } from '@/theme';
 //
 // Mostra a fotografia, o nome, o tipo de cozinha, o horário e a morada, os botões Ligar e Direções
 // e o menu de hoje. Os pratos esgotados aparecem riscados e mudam em tempo real (RF04).
-// O botão "English" mostra o menu em inglês para turistas (traduzido pelo assistente de IA).
+// O botão "English" mostra o menu em inglês para turistas (traduzido pelo assistente de IA); num telemóvel
+// noutra língua, a página já abre em inglês (expo-localization).
 // Também em tempo real: "Há mesa" / "Cheio agora" e as "Últimas doses". Tocar na fotografia de um
 // prato mostra-a em grande. "Ver o caminho a pé" mostra no mapa o percurso até ao restaurante (CaminhoAPe).
 // O botão do altifalante lê o menu em voz alta (em português ou, no menu em inglês, em inglês).
@@ -42,8 +44,8 @@ export default function PaginaRestaurante() {
   const [menu, setMenu] = useState(null); // null = hoje ainda não publicou
   const [aviso, setAviso] = useState(null); // quando Ligar, Direções ou os favoritos não resultam
   const { eFavorito, alternarFavorito } = useFavoritos();
-  const [emIngles, setEmIngles] = useState(false);
-  const [aTraduzir, setATraduzir] = useState(false);
+  // num telemóvel noutra língua (um turista), o menu começa logo em inglês
+  const [emIngles, setEmIngles] = useState(() => !telemovelEmPortugues());
   const [traducoes, setTraducoes] = useState({}); // nome em português → nome em inglês
   const [caminhoAberto, setCaminhoAberto] = useState(false);
   const [aFalar, setAFalar] = useState(false); // o telemóvel está a ler o menu em voz alta
@@ -105,6 +107,29 @@ export default function PaginaRestaurante() {
     );
   }, [menuId]);
 
+  // 4) Menu em inglês: pede a tradução dos nomes que ainda faltam. Cada nome só é traduzido uma vez
+  // (as traduções ficam guardadas enquanto a página está aberta). Se falhar, explica e volta ao português.
+  const nomesPorTraduzir = emIngles ? [...new Set((menu?.pratos ?? []).map((prato) => prato.nome))].filter((nome) => !traducoes[nome]) : [];
+  const chaveDaTraducao = JSON.stringify(nomesPorTraduzir); // "[]" quando não falta nada
+  useEffect(() => {
+    const nomes = JSON.parse(chaveDaTraducao);
+    if (nomes.length === 0) return;
+    let ativo = true;
+    traduzirPratos(nomes)
+      .then((novas) => {
+        if (ativo) setTraducoes((atuais) => ({ ...atuais, ...Object.fromEntries(nomes.map((nome, indice) => [nome, novas[indice]])) }));
+      })
+      .catch((erro) => {
+        if (!ativo) return;
+        setAviso(erro.message);
+        setEmIngles(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [chaveDaTraducao]);
+  const aTraduzir = nomesPorTraduzir.length > 0;
+
   function tentarOutraVez() {
     setEstado('aCarregar');
     setTentativa((n) => n + 1);
@@ -131,28 +156,10 @@ export default function PaginaRestaurante() {
     }
   }
 
-  // Menu em inglês: traduz só os nomes que ainda não foram traduzidos (a tradução fica guardada no ecrã).
-  async function alternarIngles() {
+  // Botão "English" / "Português": só muda de língua; a tradução que faltar é pedida pelo efeito 4.
+  function alternarIngles() {
     setAviso(null);
-    if (emIngles) {
-      setEmIngles(false);
-      return;
-    }
-    const porTraduzir = (menu?.pratos ?? []).map((prato) => prato.nome).filter((nome) => !traducoes[nome]);
-    if (porTraduzir.length === 0) {
-      setEmIngles(true);
-      return;
-    }
-    setATraduzir(true);
-    try {
-      const novas = await traduzirPratos(porTraduzir);
-      setTraducoes((atuais) => ({ ...atuais, ...Object.fromEntries(porTraduzir.map((nome, indice) => [nome, novas[indice]])) }));
-      setEmIngles(true);
-    } catch (erro) {
-      setAviso(erro.message);
-    } finally {
-      setATraduzir(false);
-    }
+    setEmIngles((atual) => !atual);
   }
 
   // Ouvir o menu: lê os pratos, os preços e o que está esgotado; tocar outra vez pára.
