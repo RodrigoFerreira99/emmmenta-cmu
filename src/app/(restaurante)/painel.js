@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View }
 
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { EscolherLotacao } from '@/components/Lotacao';
+import { QrDoRestaurante } from '@/components/QrDoRestaurante';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { diaPorExtenso, horaCurta, saudacao } from '@/lib/datas';
@@ -26,6 +27,7 @@ import { cores, espaco, raio, texto } from '@/theme';
 //     ecrã também acompanha as mudanças feitas noutro telemóvel do restaurante.
 //  5. "Últimas doses" avisa que um prato está quase a acabar, e "Como está a sala agora?" diz aos
 //     clientes se há mesa ou se está cheio (o aviso desaparece sozinho ao fim de 45 minutos).
+//  6. "QR code e cartaz para a porta" mostra o QR do restaurante e imprime um cartaz com o menu de hoje.
 // O acesso aos dados é todo feito pelas funções de src/services/ (RNF09).
 export default function Painel() {
   const { sessao, perfil } = useAuth();
@@ -38,6 +40,7 @@ export default function Painel() {
   const [aAtualizar, setAAtualizar] = useState(false); // "puxar para atualizar" em curso
   const [aMudar, setAMudar] = useState([]); // ids dos pratos cujo "esgotado" ou "últimas doses" está a ser gravado
   const [aGravarLotacao, setAGravarLotacao] = useState(false);
+  const [qrAberto, setQrAberto] = useState(false);
   const [aviso, setAviso] = useState(null); // erro a mostrar sem esconder o que já está no ecrã
 
   // Fica a false quando o ecrã é desmontado; confirmamos antes de mexer no estado depois de um "await".
@@ -305,6 +308,13 @@ export default function Painel() {
             ) : null}
           </>
         )}
+
+        {restaurante ? (
+          <>
+            <Botao tipo="secundario" titulo="QR code e cartaz para a porta" icone="qr-code-outline" onPress={() => setQrAberto(true)} />
+            <QrDoRestaurante restaurante={restaurante} menu={menu} visivel={qrAberto} aoFechar={() => setQrAberto(false)} />
+          </>
+        ) : null}
       </ScrollView>
     </Ecra>
   );

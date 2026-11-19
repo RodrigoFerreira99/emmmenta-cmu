@@ -13,6 +13,7 @@ import { buscarMeuRestaurante } from '@/services/restaurantes';
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
 jest.mock('@expo/vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ sessao: { user: { id: 'u1', email: 'tasca@email.pt' } }, perfil: { nome: 'Manuel', tipo: 'restaurante' } }),
 }));
@@ -274,5 +275,19 @@ describe('Painel — "Como está a sala agora?"', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Há mesa' }));
     expect(await screen.findByText('Sem ligação à internet. Verifica a rede e tenta outra vez.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Há mesa' }).props.accessibilityState.selected).toBe(false);
+  });
+});
+
+describe('Painel — QR code e cartaz para a porta', () => {
+  test('mostra o QR do restaurante e diz se o cartaz leva o menu de hoje', async () => {
+    await render(<Painel />);
+    await screen.findByText('Menu de hoje publicado');
+    await fireEvent.press(screen.getByRole('button', { name: 'QR code e cartaz para a porta' }));
+    expect(await screen.findByText('QR code do restaurante')).toBeTruthy();
+    expect(screen.getByLabelText('QR code de Tasca do Manuel')).toBeTruthy();
+    expect(screen.getByText('O cartaz leva também o menu de hoje.')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar o QR code' }));
+    expect(screen.queryByText('QR code do restaurante')).toBeNull();
   });
 });

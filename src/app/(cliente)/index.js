@@ -9,6 +9,7 @@ import { DestaqueMaisBarato } from '@/components/DestaqueMaisBarato';
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
 import { ListaFantasma } from '@/components/Esqueleto';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
+import { LerQr } from '@/components/LerQr';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
 import { ouvirAbanoes } from '@/lib/abanar';
@@ -40,6 +41,7 @@ export default function Inicio() {
   } = usePerto();
   const [aMudarLocal, setAMudarLocal] = useState(false);
   const [aDecidir, setADecidir] = useState(false); // o "Abana para decidir" está aberto?
+  const [aLerQr, setALerQr] = useState(false); // o leitor do QR code de um restaurante está aberto?
 
   // Abanar o telemóvel abre o "Abana para decidir", mas só com este ecrã à frente e se houver
   // pratos para escolher. Ao sair do ecrã o acelerómetro deixa de ser ouvido (poupa bateria).
@@ -123,12 +125,31 @@ export default function Inicio() {
   return (
     <Ecra>
       <View style={estilos.cabecalho}>
-        <Text style={texto.titulo} accessibilityRole="header">
-          Pratos de hoje
-        </Text>
+        <View style={estilos.linhaDoTitulo}>
+          <Text style={[texto.titulo, estilos.ocuparTudo]} accessibilityRole="header">
+            Pratos de hoje
+          </Text>
+          {/* ler o QR code que um restaurante tem na porta: abre logo a página dele */}
+          <Pressable
+            onPress={() => setALerQr(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Ler o QR code de um restaurante"
+            style={estilos.botaoDoQr}
+          >
+            <Ionicons name="qr-code-outline" size={24} color={cores.acento} />
+          </Pressable>
+        </View>
         <BotaoDoLocal onPress={() => setAMudarLocal(true)} />
         <FiltrosDePratos />
       </View>
+      <LerQr
+        visivel={aLerQr}
+        aoFechar={() => setALerQr(false)}
+        aoLer={(id) => {
+          setALerQr(false);
+          router.push({ pathname: '/restaurante/[id]', params: { id } });
+        }}
+      />
 
       <FlatList
         data={pratos}
@@ -188,6 +209,9 @@ function Separador() {
 
 const estilos = StyleSheet.create({
   cabecalho: { paddingHorizontal: espaco.xl, paddingTop: espaco.l, paddingBottom: espaco.m, gap: espaco.s },
+  linhaDoTitulo: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
+  // 44 x 44: área de toque mínima (RNF06)
+  botaoDoQr: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   lista: { paddingHorizontal: espaco.xl, paddingBottom: espaco.xl, flexGrow: 1 },
   cabecalhoDaLista: { gap: espaco.m, marginBottom: espaco.m },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco.s },

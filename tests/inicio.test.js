@@ -13,6 +13,14 @@ import { buscarPratosPerto, ouvirAlteracoesPratos } from '@/services/pratos';
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
 jest.mock('@expo/vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+// O leitor de QR: a câmara é uma caixa que guarda a função que recebe os QR lidos; a permissão é simulada.
+jest.mock('expo-camera', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+  return { CameraView: (props) => mockReact.createElement(View, { testID: 'camara', ...props }) };
+});
+jest.mock('@/lib/fotografias', () => ({ pedirAcessoACamara: jest.fn(async () => {}) }));
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
   // no teste, "ficar à frente" acontece quando o ecrã aparece e sempre que a função muda
@@ -459,5 +467,17 @@ describe('Início — tempo real só dos menus da lista', () => {
     await abrir();
     await screen.findByLabelText(CARTAO_DO_BACALHAU);
     expect(ouvirAlteracoesPratos).toHaveBeenLastCalledWith(expect.any(Function), { menuIds: ['m1', 'm2'] });
+  });
+});
+
+describe('Início — ler o QR code de um restaurante', () => {
+  test('o ícone do QR abre o leitor; um QR da Emmmenta abre a página do restaurante', async () => {
+    await abrir();
+    await screen.findByLabelText(CARTAO_DO_BACALHAU);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ler o QR code de um restaurante' }));
+    const id = '11111111-2222-3333-4444-555555555555';
+    await fireEvent(await screen.findByTestId('camara'), 'barcodeScanned', { type: 'qr', data: `emmmenta://restaurante/${id}` });
+    expect(router.push).toHaveBeenLastCalledWith({ pathname: '/restaurante/[id]', params: { id } });
+    expect(screen.queryByTestId('camara')).toBeNull(); // o leitor fechou
   });
 });
