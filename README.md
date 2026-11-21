@@ -88,12 +88,20 @@ Os sete requisitos estão feitos e já estão no `main`. O que falta testar em c
 
 ## Serviços externos
 
-Além do Supabase, a app usa três serviços. Só o de caminhos recebe a localização do cliente, e só quando ele pede o caminho a pé (arredondada a cerca de 100 m, sem ficar guardada pela app).
+Além do Supabase, a app usa os serviços abaixo. Só o de caminhos recebe a localização do cliente, e só quando ele pede o caminho a pé (arredondada a cerca de 100 m, sem ficar guardada pela app).
 
 - **Encontrar a morada no mapa (RF02):** o botão do perfil do restaurante envia o texto da morada ao [Nominatim](https://nominatim.org/), o serviço público do OpenStreetMap, e recebe as coordenadas. É gratuito e não precisa de chave. A morada de um restaurante é um dado público do negócio. Se o serviço falhar, o pin põe-se à mão.
 - **Ler o menu por fotografia (extra do RF03):** no ecrã Publicar menu, o dono fotografa o menu e a app preenche os pratos, que ele confirma antes de publicar. A fotografia é enviada à função `ler-menu` do Supabase (`supabase/functions/ler-menu/index.js`), que a lê com um modelo de IA no serviço Groq (plano gratuito). A fotografia não fica guardada.
 - **Assistente (pesquisa por frase e menu em inglês):** o texto que o cliente escreve em "Diz o que te apetece" e os nomes dos pratos do menu são enviados à função `assistente` do Supabase (`supabase/functions/assistente/index.js`), que usa o mesmo serviço Groq. Não vai a localização nem nenhum dado da conta. Se o serviço falhar, a pesquisa por frase usa regras simples no próprio telemóvel e o botão "English" avisa que não foi possível traduzir.
 - **Caminho a pé até ao restaurante:** o botão "Ver o caminho a pé" da página do restaurante mostra, num mapa dentro da app, o percurso pelas ruas, com o tempo e a distância ("12 min a pé · 870 m"). O percurso é pedido ao serviço de caminhos do OpenStreetMap ([routing.openstreetmap.de](https://routing.openstreetmap.de/about.html), gratuito e sem chave), com a localização do cliente arredondada a cerca de 100 m. As regras desse serviço pedem no máximo um pedido por segundo (a app faz um por toque), que a app se identifique e que se mostre a atribuição ao OpenStreetMap com a ligação "Corrigir o mapa". Se o serviço falhar, aparece uma linha reta com uma estimativa. Para ser guiado passo a passo, continua a haver o botão "Direções" (abre a app de mapas).
+- **Mapa de calor 3D no Início (design):** as ruas e os prédios em 3D vêm do [OpenFreeMap](https://openfreemap.org/) (mosaicos gratuitos, sem chave nem conta, com dados do OpenStreetMap) e são desenhados pelo [MapLibre GL](https://maplibre.org/) numa WebView (a biblioteca é descarregada do unpkg.com). Só são pedidos os mosaicos da zona que aparece; a localização do cliente não é enviada nem guardada. Sem rede, o cartão do mapa mostra uma mensagem e a lista continua.
+
+### Créditos do design
+
+- Pratos em 3D (`assets/pratos`): imagens feitas a partir do [Food Kit](https://kenney.nl/assets/food-kit) do Kenney (licença CC0), com cores novas.
+- Ícones: [Phosphor Icons](https://phosphoricons.com) (licença MIT), gerados por `scripts/gerar-icones.mjs`.
+- Letras: Bricolage Grotesque e JetBrains Mono (Google Fonts, licença SIL Open Font License).
+- Mapa: © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), mosaicos OpenFreeMap, MapLibre GL (BSD). Física da queda ao abanar: [Matter.js](https://brm.io/matter-js/) (MIT).
 
 ### Ativar a IA (leitura por fotografia e assistente)
 
