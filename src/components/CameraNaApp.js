@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { CameraView } from 'expo-camera';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { cores, espaco, raio, texto } from '@/theme';
+import { Icone } from '@/components/Icone';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Câmara dentro da própria app, em ecrã inteiro.
 //
@@ -63,7 +63,7 @@ export function CameraNaApp({ dica, aoTirar, aoFechar }) {
 
           <SafeAreaView edges={['top']} style={estilos.topo}>
             <Pressable onPress={aoFechar} accessibilityRole="button" style={estilos.cancelar}>
-              <Ionicons name="close" size={22} color={cores.textoInverso} />
+              <Icone name="close" size={22} color={cores.textoSobreImagem} />
               <Text style={estilos.cancelarTexto}>Cancelar</Text>
             </Pressable>
             {dica ? <Text style={estilos.dica}>{dica}</Text> : null}
@@ -98,7 +98,7 @@ const SOMBRA = `${cores.texto}80`;
 
 const estilos = StyleSheet.create({
   // a cor de texto do tema é quase preta: serve de fundo à câmara
-  fundo: { flex: 1, backgroundColor: cores.texto },
+  fundo: { flex: 1, backgroundColor: cores.fundo },
   topo: { position: 'absolute', top: 0, left: 0, right: 0, padding: espaco.l, gap: espaco.m },
   cancelar: {
     flexDirection: 'row',
@@ -110,12 +110,12 @@ const estilos = StyleSheet.create({
     borderRadius: raio.pilula,
     backgroundColor: SOMBRA,
   },
-  cancelarTexto: { fontSize: 16, fontWeight: '600', color: cores.textoInverso },
+  cancelarTexto: { fontSize: 16, fontFamily: fontes.semi, color: cores.textoSobreImagem },
   dica: {
     ...texto.corpo,
     alignSelf: 'center',
     textAlign: 'center',
-    color: cores.textoInverso,
+    color: cores.textoSobreImagem,
     paddingHorizontal: espaco.m,
     paddingVertical: espaco.s,
     borderRadius: raio.m,
@@ -125,7 +125,7 @@ const estilos = StyleSheet.create({
   fundoDoEcra: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', gap: espaco.m, paddingBottom: espaco.xl },
   erro: {
     ...texto.pequeno,
-    color: cores.textoInverso,
+    color: cores.textoSobreImagem,
     textAlign: 'center',
     marginHorizontal: espaco.xl,
     padding: espaco.s,
@@ -138,7 +138,7 @@ const estilos = StyleSheet.create({
     height: TAMANHO_DO_DISPARADOR,
     borderRadius: TAMANHO_DO_DISPARADOR / 2,
     borderWidth: 5,
-    borderColor: cores.textoInverso,
+    borderColor: cores.textoSobreImagem,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -147,6 +147,6 @@ const estilos = StyleSheet.create({
     width: TAMANHO_DO_DISPARADOR - 18,
     height: TAMANHO_DO_DISPARADOR - 18,
     borderRadius: (TAMANHO_DO_DISPARADOR - 18) / 2,
-    backgroundColor: cores.textoInverso,
+    backgroundColor: cores.textoSobreImagem,
   },
 });

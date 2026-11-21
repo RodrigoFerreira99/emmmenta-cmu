@@ -1,8 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { formatarDistancia, formatarPreco } from '@/services/pratos';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Destaque no topo da lista do Início: "O almoço mais barato perto de ti". É o prato principal
 // disponível mais barato entre os que estão na lista (almocoMaisBarato em src/services/pratos.js),
@@ -20,7 +20,7 @@ export function DestaqueMaisBarato({ prato, onPress }) {
       style={({ pressed }) => [estilos.cartao, pressed && estilos.premido]}
     >
       <View style={estilos.icone}>
-        <Ionicons name="pricetag" size={18} color={cores.textoInverso} />
+        <Icone name="pricetag" size={18} color={cores.textoInverso} />
       </View>
       <View style={estilos.textos}>
         <Text style={estilos.titulo}>O almoço mais barato perto de ti</Text>
@@ -50,7 +50,7 @@ const estilos = StyleSheet.create({
   premido: { opacity: 0.7 },
   icone: { width: 36, height: 36, borderRadius: raio.pilula, alignItems: 'center', justifyContent: 'center', backgroundColor: cores.acento },
   textos: { flex: 1, gap: 2 },
-  titulo: { fontSize: 12, fontWeight: '700', color: cores.acento, textTransform: 'uppercase', letterSpacing: 0.5 },
-  nome: { ...texto.corpo, fontSize: 16, fontWeight: '700' },
-  preco: { fontSize: 20, fontWeight: '800', color: cores.acento },
+  titulo: { fontSize: 12, fontFamily: fontes.negrito, color: cores.acento, textTransform: 'uppercase', letterSpacing: 0.5 },
+  nome: { ...texto.corpo, fontSize: 16, fontFamily: fontes.negrito },
+  preco: { fontSize: 20, fontFamily: fontes.grossa, color: cores.acento },
 });

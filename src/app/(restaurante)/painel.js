@@ -1,9 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { EcraDeErro } from '@/components/EcraDeErro';
+import { Icone } from '@/components/Icone';
 import { EscolherLotacao } from '@/components/Lotacao';
 import { QrDoRestaurante } from '@/components/QrDoRestaurante';
 import { Botao, Carregar, Ecra } from '@/components/ui';
@@ -14,7 +14,7 @@ import { vibrarLeve } from '@/lib/vibrar';
 import { buscarMenuDeHoje, marcarEsgotado, marcarLotacao, marcarUltimasDoses } from '@/services/menus';
 import { formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarMeuRestaurante } from '@/services/restaurantes';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 5 · Painel (RF04) — responsável: José
 //
@@ -189,7 +189,7 @@ export default function Painel() {
             accessibilityLabel="Abrir o perfil do restaurante"
             style={estilos.botaoDoPerfil}
           >
-            <Ionicons name="storefront-outline" size={22} color={cores.acento} />
+            <Icone name="storefront-outline" size={22} color={cores.acento} />
           </Pressable>
         </View>
 
@@ -204,7 +204,7 @@ export default function Painel() {
           <>
             <View style={[estilos.estadoDoMenu, estilos.estadoNeutro]}>
               <View style={[estilos.bola, estilos.bolaNeutra]}>
-                <Ionicons name="storefront-outline" size={20} color={cores.acento} />
+                <Icone name="storefront-outline" size={20} color={cores.acento} />
               </View>
               <View style={estilos.ocuparTudo}>
                 <Text style={estilos.estadoTitulo}>Primeiro, o perfil do restaurante</Text>
@@ -220,7 +220,7 @@ export default function Painel() {
           <>
             <View style={[estilos.estadoDoMenu, estilos.estadoNeutro]}>
               <View style={[estilos.bola, estilos.bolaNeutra]}>
-                <Ionicons name="time-outline" size={20} color={cores.acento} />
+                <Icone name="time-outline" size={20} color={cores.acento} />
               </View>
               <View style={estilos.ocuparTudo}>
                 <Text style={estilos.estadoTitulo}>Ainda não publicaste o menu de hoje</Text>
@@ -236,7 +236,7 @@ export default function Painel() {
           <>
             <View style={[estilos.estadoDoMenu, estilos.estadoPublicado]}>
               <View style={[estilos.bola, estilos.bolaPublicado]}>
-                <Ionicons name="checkmark" size={20} color={cores.textoInverso} />
+                <Icone name="checkmark" size={20} color={cores.textoInverso} />
               </View>
               <View style={estilos.ocuparTudo}>
                 <Text style={estilos.estadoTitulo}>Menu de hoje publicado</Text>
@@ -280,7 +280,7 @@ export default function Painel() {
                       hitSlop={8}
                       style={[estilos.ultimas, prato.ultimas_doses && estilos.ultimasLigado]}
                     >
-                      <Ionicons name="hourglass-outline" size={14} color={prato.ultimas_doses ? cores.textoInverso : cores.acentoEscuro} />
+                      <Icone name="hourglass-outline" size={14} color={prato.ultimas_doses ? cores.textoInverso : cores.acentoTexto} />
                       <Text style={[estilos.ultimasTexto, prato.ultimas_doses && estilos.ultimasTextoLigado]}>Últimas doses</Text>
                     </Pressable>
                   ) : null}
@@ -330,7 +330,7 @@ const estilos = StyleSheet.create({
   estadoDoMenu: { flexDirection: 'row', alignItems: 'center', gap: espaco.m, padding: espaco.l, borderRadius: raio.l },
   estadoPublicado: { backgroundColor: cores.sucessoSuave },
   estadoNeutro: { backgroundColor: cores.superficie, borderWidth: 1, borderColor: cores.linha },
-  estadoTitulo: { ...texto.corpo, fontWeight: '600' },
+  estadoTitulo: { ...texto.corpo, fontFamily: fontes.semi },
   bola: { width: 36, height: 36, borderRadius: raio.pilula, alignItems: 'center', justifyContent: 'center' },
   bolaPublicado: { backgroundColor: cores.sucesso },
   bolaNeutra: { backgroundColor: cores.acentoSuave },
@@ -347,10 +347,10 @@ const estilos = StyleSheet.create({
     borderColor: cores.linha,
     backgroundColor: cores.superficie,
   },
-  pratoNome: { fontSize: 16, fontWeight: '600', color: cores.texto },
+  pratoNome: { fontSize: 16, fontFamily: fontes.semi, color: cores.texto },
   // Esgotado = texto cinzento riscado (regra de design do projeto)
   pratoNomeEsgotado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
-  rotuloEsgotado: { fontSize: 13, fontWeight: '500', color: cores.textoSecundario },
+  rotuloEsgotado: { fontSize: 13, fontFamily: fontes.media, color: cores.textoSecundario },
   rotuloEsgotadoLigado: { color: cores.acento },
   pratoTextos: { gap: 2 },
   ultimas: {
@@ -367,6 +367,6 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.superficie,
   },
   ultimasLigado: { backgroundColor: cores.acento, borderColor: cores.acento },
-  ultimasTexto: { fontSize: 13, fontWeight: '600', color: cores.acentoEscuro },
+  ultimasTexto: { fontSize: 13, fontFamily: fontes.semi, color: cores.acentoTexto },
   ultimasTextoLigado: { color: cores.textoInverso },
 });

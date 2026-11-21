@@ -1,12 +1,12 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampoComErro } from '@/components/CampoComErro';
+import { Icone } from '@/components/Icone';
 import { Botao, Ecra, Logo } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { TAMANHO_MINIMO_PALAVRA_PASSE, validarConta } from '@/lib/validarConta';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 1 · Login / Registo (RF01) — igual ao mock-up do Figma, mais a recuperação de palavra-passe.
 //
@@ -218,7 +218,7 @@ export default function Login() {
                 accessibilityLabel="Mostrar palavra-passe"
                 style={estilos.ligacao}
               >
-                <Ionicons name={verPalavraPasse ? 'eye-off-outline' : 'eye-outline'} size={18} color={cores.textoSecundario} />
+                <Icone name={verPalavraPasse ? 'eye-off-outline' : 'eye-outline'} size={18} color={cores.textoSecundario} />
                 <Text style={texto.pequeno}>{verPalavraPasse ? 'Esconder palavra-passe' : 'Mostrar palavra-passe'}</Text>
               </Pressable>
             </View>
@@ -264,7 +264,7 @@ function Ligacao({ titulo, onPress }) {
 function OpcaoTipo({ icone, titulo, descricao, ativa, onPress }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: ativa }} style={[estilos.opcao, ativa && estilos.opcaoAtiva]}>
-      <Ionicons name={icone} size={22} color={ativa ? cores.acento : cores.textoSecundario} />
+      <Icone name={icone} size={22} color={ativa ? cores.acento : cores.textoSecundario} />
       <Text style={estilos.opcaoTitulo}>{titulo}</Text>
       <Text style={estilos.opcaoDescricao}>{descricao}</Text>
     </Pressable>
@@ -279,17 +279,17 @@ const estilos = StyleSheet.create({
   segmento: { flexDirection: 'row', backgroundColor: cores.linha, borderRadius: raio.m, padding: 4, gap: 4 },
   segmentoOpcao: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
   segmentoAtivo: { backgroundColor: cores.superficie },
-  segmentoTexto: { fontSize: 15, fontWeight: '500', color: cores.textoSecundario },
-  segmentoTextoAtivo: { color: cores.texto, fontWeight: '600' },
+  segmentoTexto: { fontSize: 15, fontFamily: fontes.media, color: cores.textoSecundario },
+  segmentoTextoAtivo: { color: cores.texto, fontFamily: fontes.semi },
   opcoes: { flexDirection: 'row', gap: espaco.m },
   opcao: { flex: 1, gap: 6, padding: 14, borderRadius: raio.l, backgroundColor: cores.superficie, borderWidth: 1.5, borderColor: cores.linha },
   opcaoAtiva: { backgroundColor: cores.acentoSuave, borderColor: cores.acento, borderWidth: 2 },
-  opcaoTitulo: { fontSize: 15, fontWeight: '600', color: cores.texto },
+  opcaoTitulo: { fontSize: 15, fontFamily: fontes.semi, color: cores.texto },
   opcaoDescricao: { fontSize: 12, color: cores.textoSecundario },
   mensagemErro: { ...texto.corpo, color: cores.erro },
   mensagemInfo: { ...texto.corpo, color: cores.sucesso },
   // minHeight 44: área de toque mínima (RNF06)
   ligacao: { flexDirection: 'row', alignItems: 'center', gap: espaco.s, minHeight: 44, alignSelf: 'flex-start' },
   ligacaoCentro: { alignSelf: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: espaco.s },
-  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontWeight: '600' },
+  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontFamily: fontes.semi },
 });

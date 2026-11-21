@@ -4,7 +4,7 @@ import { StyleSheet, Switch, Text, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { desligarLembrete, horaParaTexto, LEMBRETES, lerLembrete, ligarLembrete } from '@/lib/lembretes';
 import { vibrarLeve } from '@/lib/vibrar';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Cartão para ligar um lembrete diário e escolher a hora (ver src/lib/lembretes.js).
 //
@@ -106,7 +106,7 @@ const estilos = StyleSheet.create({
   },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
   ocuparTudo: { flex: 1, gap: 2 },
-  titulo: { ...texto.corpo, fontWeight: '600' },
+  titulo: { ...texto.corpo, fontFamily: fontes.semi },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.s },
   erro: { ...texto.pequeno, color: cores.erro },
 });

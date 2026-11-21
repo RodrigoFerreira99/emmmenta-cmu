@@ -1,15 +1,15 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { LinhasFantasma } from '@/components/Esqueleto';
+import { Icone } from '@/components/Icone';
 import { LembreteDiario } from '@/components/LembreteDiario';
 import { Botao, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useFavoritos } from '@/lib/favoritos';
 import { buscarRestaurantesPorIds } from '@/services/restaurantes';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Conta do cliente: quem está a usar a app, os restaurantes favoritos, o lembrete do almoço e terminar sessão (RF01).
 //
@@ -71,7 +71,7 @@ export default function Conta() {
             accessibilityLabel={`${restaurante.nome}, ${restaurante.temMenuHoje ? 'com menu hoje' : 'sem menu hoje'}`}
             style={({ pressed }) => [estilos.favorito, indice > 0 && estilos.favoritoComLinha, pressed && estilos.premido]}
           >
-            <Ionicons name="heart" size={18} color={cores.acento} />
+            <Icone name="heart" size={18} color={cores.acento} />
             <View style={estilos.ocuparTudo}>
               <Text style={estilos.nome}>{restaurante.nome}</Text>
               <Text style={[texto.pequeno, restaurante.temMenuHoje && estilos.comMenu]}>
@@ -80,7 +80,7 @@ export default function Conta() {
                   .join(' · ')}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={cores.textoTerciario} />
+            <Icone name="chevron-forward" size={18} color={cores.textoTerciario} />
           </Pressable>
         ))}
       </View>
@@ -135,7 +135,7 @@ const estilos = StyleSheet.create({
   favorito: { flexDirection: 'row', alignItems: 'center', gap: espaco.m, paddingHorizontal: espaco.l, minHeight: 56 },
   favoritoComLinha: { borderTopWidth: 1, borderTopColor: cores.linha },
   premido: { backgroundColor: cores.acentoSuave },
-  nome: { ...texto.corpo, fontWeight: '600' },
+  nome: { ...texto.corpo, fontFamily: fontes.semi },
   comMenu: { color: cores.sucesso },
   nota: { fontSize: 12, color: cores.textoSecundario },
 });

@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
 import { ZONAS } from '@/lib/zonas';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // RF05 — escolher onde procurar: a localização do telemóvel ou uma zona escolhida à mão.
 //
@@ -31,7 +31,7 @@ export function EscolherLocal({ aoEscolher, aoCancelar }) {
 
   return (
     <ScrollView contentContainerStyle={estilos.conteudo}>
-      <Ionicons name="location-outline" size={36} color={cores.acento} />
+      <Icone name="location-outline" size={36} color={cores.acento} />
       <Text style={texto.titulo} accessibilityRole="header">
         Onde queres almoçar?
       </Text>
@@ -61,7 +61,7 @@ export function EscolherLocal({ aoEscolher, aoCancelar }) {
               style={({ pressed }) => [estilos.zona, indice > 0 && estilos.zonaComLinha, pressed && estilos.premida]}
             >
               <Text style={[texto.corpo, estilos.ocuparTudo]}>{zona.nome}</Text>
-              <Ionicons name={escolhida ? 'checkmark' : 'chevron-forward'} size={18} color={escolhida ? cores.acento : cores.textoTerciario} />
+              <Icone name={escolhida ? 'checkmark' : 'chevron-forward'} size={18} color={escolhida ? cores.acento : cores.textoTerciario} />
             </Pressable>
           );
         })}
@@ -86,11 +86,11 @@ export function BotaoDoLocal({ onPress }) {
       accessibilityLabel={`A procurar perto de ${local.nome}. Mudar o sítio`}
       style={estilos.botaoDoLocal}
     >
-      <Ionicons name={local.origem === 'gps' ? 'navigate' : 'location'} size={16} color={cores.acento} />
+      <Icone name={local.origem === 'gps' ? 'navigate' : 'location'} size={16} color={cores.acento} />
       <Text style={estilos.botaoDoLocalTexto} numberOfLines={1}>
         Perto de: {local.nome}
       </Text>
-      <Ionicons name="chevron-down" size={16} color={cores.textoSecundario} />
+      <Icone name="chevron-down" size={16} color={cores.textoSecundario} />
     </Pressable>
   );
 }
@@ -106,7 +106,7 @@ const estilos = StyleSheet.create({
   zonaComLinha: { borderTopWidth: 1, borderTopColor: cores.linha },
   premida: { backgroundColor: cores.acentoSuave },
   ligacao: { alignSelf: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: espaco.s },
-  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontWeight: '600' },
+  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontFamily: fontes.semi },
   botaoDoLocal: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs, minHeight: 44, alignSelf: 'flex-start' },
-  botaoDoLocalTexto: { ...texto.corpo, fontWeight: '600', flexShrink: 1 },
+  botaoDoLocalTexto: { ...texto.corpo, fontFamily: fontes.semi, flexShrink: 1 },
 });

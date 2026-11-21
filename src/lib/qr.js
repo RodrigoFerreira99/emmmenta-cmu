@@ -4,7 +4,7 @@ import criarQr from 'qrcode-generator';
 
 import { diaPorExtenso } from '@/lib/datas';
 import { formatarPreco } from '@/services/pratos';
-import { cores } from '@/theme';
+import { coresDeImpressao as cores } from '@/theme'; // o cartaz é impresso em papel branco: cores claras
 
 // QR code do restaurante: o dono imprime um cartaz com o QR (e o menu de hoje) para a porta ou para as mesas;
 // o cliente lê o QR com a Emmmenta (Início → ícone do QR) e vai logo para a página do restaurante.

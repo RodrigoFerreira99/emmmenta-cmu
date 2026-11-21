@@ -1,15 +1,15 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Icone } from '@/components/Icone';
 import { hojeEmLisboa } from '@/lib/datas';
 import { useFavoritos } from '@/lib/favoritos';
 import { vibrarLeve } from '@/lib/vibrar';
 import { buscarRestauranteDoMenu } from '@/services/menus';
 import { ouvirPratosNovos } from '@/services/pratos';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Aviso em tempo real: com a app aberta, quando um restaurante FAVORITO publica o menu de hoje,
 // aparece no topo "A Tasca do Sancho acabou de publicar o menu de hoje", com o botão "Ver".
@@ -81,13 +81,13 @@ export function AvisoDeFavoritos() {
     // "box-none": só o cartão recebe toques; o resto do ecrã por baixo continua a funcionar
     <SafeAreaView edges={['top']} pointerEvents="box-none" style={estilos.posicao}>
       <View style={estilos.cartao} accessibilityRole="alert" accessibilityLiveRegion="polite">
-        <Ionicons name="heart" size={20} color={cores.acento} />
+        <Icone name="heart" size={20} color={cores.acento} />
         <Text style={[texto.corpo, estilos.ocuparTudo]}>{aviso.texto}</Text>
         <Pressable onPress={ver} accessibilityRole="button" accessibilityLabel="Ver o menu" style={estilos.botao}>
           <Text style={estilos.botaoTexto}>Ver</Text>
         </Pressable>
         <Pressable onPress={() => setAviso(null)} accessibilityRole="button" accessibilityLabel="Fechar o aviso" style={estilos.fechar}>
-          <Ionicons name="close" size={18} color={cores.textoSecundario} />
+          <Icone name="close" size={18} color={cores.textoSecundario} />
         </Pressable>
       </View>
     </SafeAreaView>
@@ -108,7 +108,7 @@ const estilos = StyleSheet.create({
     borderColor: cores.linha,
     backgroundColor: cores.superficie,
     // sombra leve para o aviso se destacar do ecrã por baixo
-    shadowColor: cores.texto,
+    shadowColor: cores.sombra,
     shadowOpacity: 0.15,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -116,6 +116,6 @@ const estilos = StyleSheet.create({
   },
   // minHeight 44: área de toque mínima (RNF06)
   botao: { minHeight: 44, justifyContent: 'center', paddingHorizontal: espaco.s },
-  botaoTexto: { ...texto.corpo, fontWeight: '700', color: cores.acento },
+  botaoTexto: { ...texto.corpo, fontFamily: fontes.negrito, color: cores.acento },
   fechar: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });

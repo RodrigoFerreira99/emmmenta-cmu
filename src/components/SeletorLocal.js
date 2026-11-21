@@ -4,7 +4,7 @@ import MapView, { Marker } from 'react-native-maps';
 
 import { Botao } from '@/components/ui';
 import { procurarMoradaNoMapa } from '@/services/restaurantes';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, estiloDoMapaEscuro, raio, texto } from '@/theme';
 
 // RF02 — escolher no mapa o ponto exato do restaurante.
 //
@@ -79,6 +79,9 @@ export function SeletorLocal({ ponto, aoMudarPonto, morada, erro }) {
       {/* A moldura dá os cantos redondos ao mapa (o mapa nativo não aceita borderRadius). */}
       <View style={[estilos.moldura, erro ? estilos.molduraComErro : null]}>
         <MapView
+          // mapa escuro, como o resto da app (Android: estilo do Google; iPhone: modo escuro do Apple Maps)
+          customMapStyle={estiloDoMapaEscuro}
+          userInterfaceStyle="dark"
           ref={mapa}
           style={estilos.mapa}
           initialRegion={regiaoInicial}

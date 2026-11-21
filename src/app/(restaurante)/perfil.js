@@ -1,9 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampoComErro } from '@/components/CampoComErro';
 import { EcraDeErro } from '@/components/EcraDeErro';
+import { Icone } from '@/components/Icone';
 import { LembreteDiario } from '@/components/LembreteDiario';
 import { SeletorFoto } from '@/components/SeletorFoto';
 import { SeletorLocal } from '@/components/SeletorLocal';
@@ -18,7 +18,7 @@ import {
   restauranteParaFormulario,
   validarRestaurante,
 } from '@/services/restaurantes';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Nome de cada campo, para a mensagem "Falta corrigir: ..." junto ao botão Guardar.
 const NOMES_DOS_CAMPOS = {
@@ -334,7 +334,7 @@ export default function PerfilRestaurante() {
           )}
           {mensagem?.tipo === 'sucesso' && (
             <View style={estilos.sucesso} accessibilityRole="alert">
-              <Ionicons name="checkmark-circle" size={20} color={cores.sucesso} />
+              <Icone name="checkmark-circle" size={20} color={cores.sucesso} />
               <Text style={estilos.sucessoTexto}>{mensagem.texto}</Text>
             </View>
           )}
@@ -381,5 +381,5 @@ const estilos = StyleSheet.create({
     borderRadius: raio.m,
     backgroundColor: cores.sucessoSuave,
   },
-  sucessoTexto: { ...texto.corpo, fontWeight: '600', color: cores.sucesso },
+  sucessoTexto: { ...texto.corpo, fontFamily: fontes.semi, color: cores.sucesso },
 });

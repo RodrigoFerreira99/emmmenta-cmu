@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { formatarPreco } from '@/services/pratos';
-import { cores, espaco, raio } from '@/theme';
+import { cores, espaco, fontes, raio } from '@/theme';
 
 // O marcador de um restaurante no mapa: em vez do alfinete genérico, uma etiqueta com o preço do
 // prato mais barato ("6,50 €"), como nas apps de alojamento. Assim compara-se preços só a olhar
@@ -37,8 +37,8 @@ const estilos = StyleSheet.create({
   },
   etiquetaEsgotada: { backgroundColor: cores.textoTerciario },
   etiquetaEscolhida: { backgroundColor: cores.texto, transform: [{ scale: 1.1 }] },
-  texto: { fontSize: 13, fontWeight: '700', color: cores.textoInverso },
-  textoEsgotado: { fontWeight: '600' },
+  texto: { fontSize: 13, fontFamily: fontes.negrito, color: cores.textoInverso },
+  textoEsgotado: { fontFamily: fontes.semi },
   bico: {
     width: 10,
     height: 10,

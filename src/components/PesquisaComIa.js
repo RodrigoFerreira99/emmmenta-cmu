@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { vibrarLeve } from '@/lib/vibrar';
 import { descreverFiltros, interpretarPesquisa } from '@/services/assistente';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Pesquisa por frase (com IA): o cliente escreve — ou dita, com o microfone do teclado — o que lhe
 // apetece ("peixe até 8 € aqui perto") e a app põe os filtros sozinha. Mostra sempre o que percebeu,
@@ -48,7 +48,7 @@ export function PesquisaComIa({ aoAplicar }) {
   return (
     <View style={estilos.painel}>
       <View style={estilos.cabecalho}>
-        <Ionicons name="sparkles" size={16} color={cores.acento} />
+        <Icone name="sparkles" size={16} color={cores.acento} />
         <Text style={texto.etiqueta}>Diz o que te apetece</Text>
       </View>
 
@@ -72,7 +72,7 @@ export function PesquisaComIa({ aoAplicar }) {
           accessibilityState={{ busy: aPensar }}
           style={({ pressed }) => [estilos.botao, pressed && estilos.premido]}
         >
-          {aPensar ? <ActivityIndicator color={cores.textoInverso} /> : <Ionicons name="arrow-forward" size={20} color={cores.textoInverso} />}
+          {aPensar ? <ActivityIndicator color={cores.textoInverso} /> : <Icone name="arrow-forward" size={20} color={cores.textoInverso} />}
         </Pressable>
       </View>
 
@@ -116,7 +116,7 @@ const estilos = StyleSheet.create({
   // 48 x 48: área de toque confortável (RNF06)
   botao: { width: 48, height: 48, borderRadius: raio.m, alignItems: 'center', justifyContent: 'center', backgroundColor: cores.acento },
   premido: { opacity: 0.7 },
-  percebido: { ...texto.pequeno, color: cores.sucesso, fontWeight: '600' },
+  percebido: { ...texto.pequeno, color: cores.sucesso, fontFamily: fontes.semi },
   erro: { ...texto.pequeno, color: cores.erro },
   nota: { fontSize: 12, color: cores.textoSecundario },
 });

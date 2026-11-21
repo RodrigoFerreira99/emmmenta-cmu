@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { AvisoDeFavoritos } from '@/components/AvisoDeFavoritos';
+import { Icone } from '@/components/Icone';
 import { PertoProvider } from '@/context/PertoContext';
-import { cores } from '@/theme';
+import { cores, fontes } from '@/theme';
 
 // Separadores do cliente: Início, Mapa e Conta.
 // O PertoProvider guarda o sítio onde se procura, os filtros e os pratos encontrados,
@@ -20,11 +20,12 @@ export default function LayoutCliente() {
             tabBarActiveTintColor: cores.acento,
             tabBarInactiveTintColor: cores.textoTerciario,
             tabBarStyle: { backgroundColor: cores.superficie, borderTopColor: cores.linha },
+            tabBarLabelStyle: { fontFamily: fontes.media, fontSize: 11 },
           }}
         >
-          <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} /> }} />
-          <Tabs.Screen name="mapa" options={{ title: 'Mapa', tabBarIcon: ({ color, size }) => <Ionicons name="map-outline" size={size} color={color} /> }} />
-          <Tabs.Screen name="conta" options={{ title: 'Conta', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} /> }} />
+          <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: ({ color, size }) => <Icone name="home-outline" size={size} color={color} /> }} />
+          <Tabs.Screen name="mapa" options={{ title: 'Mapa', tabBarIcon: ({ color, size }) => <Icone name="map-outline" size={size} color={color} /> }} />
+          <Tabs.Screen name="conta" options={{ title: 'Conta', tabBarIcon: ({ color, size }) => <Icone name="person-outline" size={size} color={color} /> }} />
         </Tabs>
         <AvisoDeFavoritos />
       </View>

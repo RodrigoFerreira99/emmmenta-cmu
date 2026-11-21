@@ -1,9 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import { enderecoDoRestaurante, htmlDoCartaz, imprimirCartaz, partilharCartazEmPdf, svgDoQr } from '@/lib/qr';
 import { cores, espaco, raio, texto } from '@/theme';
@@ -53,7 +53,7 @@ function Conteudo({ restaurante, menu, aoFechar }) {
           QR code do restaurante
         </Text>
         <Pressable onPress={aoFechar} accessibilityRole="button" accessibilityLabel="Fechar o QR code" style={estilos.fechar}>
-          <Ionicons name="close" size={28} color={cores.texto} />
+          <Icone name="close" size={28} color={cores.texto} />
         </Pressable>
       </View>
 

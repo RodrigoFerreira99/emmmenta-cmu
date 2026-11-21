@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CameraNaApp } from '@/components/CameraNaApp';
+import { Icone } from '@/components/Icone';
 import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // RF02 — fotografia do restaurante: pré-visualização e botões para tirar, escolher ou remover.
 // Também é usado no Publicar, para a fotografia de cada prato (com outro título, ícone e dica).
@@ -72,7 +72,7 @@ export function SeletorFoto({
             accessibilityLabel={rotulo}
           />
         ) : (
-          <Ionicons name={icone} size={30} color={cores.acento} />
+          <Icone name={icone} size={30} color={cores.acento} />
         )}
         {aEnviar && <ActivityIndicator style={StyleSheet.absoluteFill} color={cores.acento} />}
       </View>
@@ -112,7 +112,7 @@ export function SeletorFoto({
 function BotaoDeTexto({ icone, titulo, rotulo, onPress, cor = cores.acento }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={rotulo} style={estilos.botao}>
-      <Ionicons name={icone} size={16} color={cor} />
+      <Icone name={icone} size={16} color={cor} />
       <Text style={[estilos.botaoTexto, { color: cor }]}>{titulo}</Text>
     </Pressable>
   );
@@ -132,9 +132,9 @@ const estilos = StyleSheet.create({
   imagem: { width: TAMANHO, height: TAMANHO },
   imagemAEnviar: { opacity: 0.4 },
   textos: { flex: 1 },
-  titulo: { ...texto.corpo, fontWeight: '600' },
+  titulo: { ...texto.corpo, fontFamily: fontes.semi },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco.l },
   // minHeight 44: área de toque mínima recomendada (RNF06)
   botao: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs, minHeight: 44 },
-  botaoTexto: { ...texto.corpo, fontWeight: '600' },
+  botaoTexto: { ...texto.corpo, fontFamily: fontes.semi },
 });

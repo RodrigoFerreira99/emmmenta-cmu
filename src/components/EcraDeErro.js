@@ -1,6 +1,6 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { Botao, Ecra } from '@/components/ui';
 import { cores, espaco, texto } from '@/theme';
 
@@ -15,7 +15,7 @@ export function EcraDeErro({ mensagem, aoTentar, aoSair }) {
   return (
     <Ecra bordas={['top', 'bottom']}>
       <View style={estilos.centro}>
-        <Ionicons name="cloud-offline-outline" size={40} color={cores.textoTerciario} style={estilos.icone} />
+        <Icone name="cloud-offline-outline" size={40} color={cores.textoTerciario} style={estilos.icone} />
         <Text style={[texto.corpo, estilos.mensagem]} accessibilityRole="alert">
           {mensagem}
         </Text>

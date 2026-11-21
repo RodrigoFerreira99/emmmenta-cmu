@@ -1,8 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import {
   calcularCaminhoAPe,
@@ -12,7 +12,7 @@ import {
   regiaoParaOsPontos,
 } from '@/services/caminho';
 import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, estiloDoMapaEscuro, fontes, raio, texto } from '@/theme';
 
 // "Caminho a pé" na página do restaurante: mostra no mapa o percurso pelas ruas desde onde o cliente está
 // até ao restaurante, com o tempo e a distância ("12 min a pé · 870 m").
@@ -125,7 +125,7 @@ export function CaminhoAPe({ restaurante, aoAbrirDirecoes }) {
   return (
     <View style={estilos.cartao}>
       <View style={estilos.linha}>
-        <Ionicons name="walk-outline" size={22} color={cores.acento} />
+        <Icone name="walk-outline" size={22} color={cores.acento} />
         <Text style={estilos.resumo} accessibilityRole="header">
           {descreverCaminho(caminho)}
         </Text>
@@ -137,6 +137,9 @@ export function CaminhoAPe({ restaurante, aoAbrirDirecoes }) {
 
       <View style={estilos.moldura}>
         <MapView
+          // mapa escuro, como o resto da app (Android: estilo do Google; iPhone: modo escuro do Apple Maps)
+          customMapStyle={estiloDoMapaEscuro}
+          userInterfaceStyle="dark"
           style={estilos.mapa}
           initialRegion={regiaoParaOsPontos(caminho.pontos)}
           showsUserLocation
@@ -184,8 +187,8 @@ const estilos = StyleSheet.create({
   mapa: { flex: 1 },
   linhaDaAtribuicao: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco.xs },
   atribuicao: { fontSize: 12, color: cores.textoSecundario },
-  atribuicaoLigacao: { fontSize: 12, color: cores.acento, fontWeight: '600', textDecorationLine: 'underline' },
+  atribuicaoLigacao: { fontSize: 12, color: cores.acento, fontFamily: fontes.semi, textDecorationLine: 'underline' },
   // minHeight 44: área de toque mínima (RNF06)
   ligacao: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 44 },
-  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontWeight: '600' },
+  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontFamily: fontes.semi },
 });

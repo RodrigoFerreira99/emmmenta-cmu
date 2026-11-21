@@ -1,9 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { CameraView } from 'expo-camera';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { Icone } from '@/components/Icone';
 import { pedirAcessoACamara } from '@/lib/fotografias';
 import { lerQrDoRestaurante } from '@/lib/qr';
 import { vibrarSucesso } from '@/lib/vibrar';
@@ -70,7 +70,7 @@ function Leitor({ aoFechar, aoLer }) {
         <View style={estilos.topo}>
           <Text style={estilos.titulo}>Ler o QR do restaurante</Text>
           <Pressable onPress={aoFechar} accessibilityRole="button" accessibilityLabel="Fechar o leitor de QR" style={estilos.fechar}>
-            <Ionicons name="close" size={28} color={cores.textoInverso} />
+            <Icone name="close" size={28} color={cores.textoSobreImagem} />
           </Pressable>
         </View>
 
@@ -91,12 +91,12 @@ function Leitor({ aoFechar, aoLer }) {
 }
 
 const estilos = StyleSheet.create({
-  fundo: { flex: 1, backgroundColor: cores.texto },
+  fundo: { flex: 1, backgroundColor: cores.fundo },
   camada: { flex: 1, justifyContent: 'space-between', alignItems: 'center', padding: espaco.xl },
   topo: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: espaco.m },
-  titulo: { ...texto.subtitulo, color: cores.textoInverso, flex: 1 },
+  titulo: { ...texto.subtitulo, color: cores.textoSobreImagem, flex: 1 },
   // 48 x 48: área de toque confortável (RNF06)
   fechar: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  moldura: { width: 240, height: 240, borderRadius: raio.xl, borderWidth: 3, borderColor: cores.textoInverso },
-  mensagem: { ...texto.corpo, color: cores.textoInverso, textAlign: 'center' },
+  moldura: { width: 240, height: 240, borderRadius: raio.xl, borderWidth: 3, borderColor: cores.textoSobreImagem },
+  mensagem: { ...texto.corpo, color: cores.textoSobreImagem, textAlign: 'center' },
 });

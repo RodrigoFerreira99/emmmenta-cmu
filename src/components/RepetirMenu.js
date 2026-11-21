@@ -1,7 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import { descreverDia } from '@/lib/datas';
 import { cores, espaco, raio, texto } from '@/theme';
@@ -20,7 +20,7 @@ export function RepetirMenu({ menu, aoRepetir }) {
   return (
     <View style={estilos.cartao}>
       <View style={estilos.cabecalho}>
-        <Ionicons name="repeat-outline" size={20} color={cores.acento} />
+        <Icone name="repeat-outline" size={20} color={cores.acento} />
         <Text style={[texto.subtitulo, estilos.ocuparTudo]}>Repetir o menu de {descreverDia(menu.dia)}</Text>
       </View>
       <Text style={texto.pequeno} numberOfLines={2}>

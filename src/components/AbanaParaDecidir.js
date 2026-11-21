@@ -1,11 +1,11 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import { vibrarSelecao, vibrarSucesso } from '@/lib/vibrar';
 import { escolherAoAcaso, formatarDistancia, formatarPreco, pratosParaSortear } from '@/services/pratos';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // "Abana para decidir": não sabes o que almoçar? A app baralha os pratos perto de ti durante pouco
 // mais de um segundo (como uma roleta) e escolhe um. Abre-se com o botão "Escolhe por mim" ou
@@ -73,7 +73,7 @@ function Sorteio({ pratos, aoAbrirRestaurante, aoRepetir, aoFechar }) {
   if (candidatos.length === 0) {
     return (
       <>
-        <Ionicons name="sad-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
+        <Icone name="sad-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
         <Text style={[texto.corpo, estilos.centro]}>Não há pratos disponíveis para escolher. Experimenta aumentar a distância nos filtros.</Text>
         <Botao tipo="secundario" titulo="Fechar" onPress={aoFechar} />
       </>
@@ -82,7 +82,7 @@ function Sorteio({ pratos, aoAbrirRestaurante, aoRepetir, aoFechar }) {
 
   return (
     <>
-      <Ionicons name={escolhido ? 'sparkles' : 'dice-outline'} size={36} color={cores.acento} style={estilos.icone} />
+      <Icone name={escolhido ? 'sparkles' : 'dice-outline'} size={36} color={cores.acento} style={estilos.icone} />
       <Text style={[texto.etiqueta, estilos.centro]} accessibilityLiveRegion="polite">
         {escolhido ? 'Hoje almoças…' : 'A escolher por ti…'}
       </Text>
@@ -135,11 +135,11 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.fundo,
   },
   pratoEscolhido: { borderColor: cores.acento, backgroundColor: cores.acentoSuave },
-  nome: { fontSize: 20, fontWeight: '700', color: cores.texto, textAlign: 'center' },
-  preco: { fontSize: 18, fontWeight: '700', color: cores.acento },
+  nome: { fontSize: 20, fontFamily: fontes.negrito, color: cores.texto, textAlign: 'center' },
+  preco: { fontSize: 18, fontFamily: fontes.negrito, color: cores.acento },
   linha: { flexDirection: 'row', justifyContent: 'center', gap: espaco.xl },
   // minHeight 44: área de toque mínima (RNF06)
   ligacao: { minHeight: 44, justifyContent: 'center', paddingHorizontal: espaco.s },
-  ligacaoTexto: { ...texto.corpo, fontWeight: '600', color: cores.acento },
+  ligacaoTexto: { ...texto.corpo, fontFamily: fontes.semi, color: cores.acento },
   ligacaoNeutra: { color: cores.textoSecundario },
 });

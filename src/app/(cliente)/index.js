@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -9,12 +8,13 @@ import { DestaqueMaisBarato } from '@/components/DestaqueMaisBarato';
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
 import { ListaFantasma } from '@/components/Esqueleto';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
+import { Icone } from '@/components/Icone';
 import { LerQr } from '@/components/LerQr';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
 import { ouvirAbanoes } from '@/lib/abanar';
 import { almocoMaisBarato, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
-import { cores, espaco, texto } from '@/theme';
+import { cores, espaco, fontes, texto } from '@/theme';
 
 // Ecrã 2 · Início (RF05, RF07) — responsável: André
 //
@@ -91,7 +91,7 @@ export default function Inicio() {
     if (erro) {
       return (
         <View style={estilos.vazio}>
-          <Ionicons name="cloud-offline-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
+          <Icone name="cloud-offline-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
           <Text style={[texto.corpo, estilos.textoCentro]} accessibilityRole="alert">
             {erro}
           </Text>
@@ -112,7 +112,7 @@ export default function Inicio() {
     }
     return (
       <View style={estilos.vazio}>
-        <Ionicons name="restaurant-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
+        <Icone name="restaurant-outline" size={36} color={cores.textoTerciario} style={estilos.icone} />
         <Text style={[texto.corpo, estilos.textoCentro]}>{mensagem}</Text>
         {raioMaior ? (
           <Botao tipo="secundario" icone="resize-outline" titulo={`Procurar até ${raioMaior} km`} onPress={() => mudarFiltros({ raioKm: raioMaior })} />
@@ -136,7 +136,7 @@ export default function Inicio() {
             accessibilityLabel="Ler o QR code de um restaurante"
             style={estilos.botaoDoQr}
           >
-            <Ionicons name="qr-code-outline" size={24} color={cores.acento} />
+            <Icone name="qr-code-outline" size={24} color={cores.acento} />
           </Pressable>
         </View>
         <BotaoDoLocal onPress={() => setAMudarLocal(true)} />
@@ -174,7 +174,7 @@ export default function Inicio() {
                     accessibilityLabel="Escolhe por mim (também podes abanar o telemóvel)"
                     style={estilos.escolhePorMim}
                   >
-                    <Ionicons name="dice-outline" size={18} color={cores.acento} />
+                    <Icone name="dice-outline" size={18} color={cores.acento} />
                     <Text style={estilos.escolhePorMimTexto}>Escolhe por mim</Text>
                   </Pressable>
                 ) : null}
@@ -218,7 +218,7 @@ const estilos = StyleSheet.create({
   ocuparTudo: { flex: 1 },
   // minHeight 44: área de toque mínima (RNF06)
   escolhePorMim: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs, minHeight: 44 },
-  escolhePorMimTexto: { ...texto.pequeno, fontWeight: '700', color: cores.acento },
+  escolhePorMimTexto: { ...texto.pequeno, fontFamily: fontes.negrito, color: cores.acento },
   separador: { height: espaco.m },
   vazio: { gap: espaco.l, paddingTop: espaco.xxl },
   icone: { alignSelf: 'center' },

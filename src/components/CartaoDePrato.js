@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { useAgora } from '@/lib/relogio';
 import { descreverLotacao, lotacaoAtual, nomeDaCategoria } from '@/services/menus';
 import { descreverEtiquetas, formatarDistancia, formatarPreco } from '@/services/pratos';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // RF05 — cartão de um prato na lista "pratos perto de mim": nome, restaurante, distância,
 // categoria e preço. Um prato esgotado aparece a cinzento e riscado, com a etiqueta "Esgotado".
@@ -41,7 +41,7 @@ export function CartaoDePrato({ prato, onPress, favorito = false }) {
           {prato.prato}
         </Text>
         <View style={estilos.linhaDoRestaurante}>
-          {favorito ? <Ionicons name="heart" size={12} color={cores.acento} /> : null}
+          {favorito ? <Icone name="heart" size={12} color={cores.acento} /> : null}
           <Text style={[texto.pequeno, estilos.encolher]} numberOfLines={1}>
             {prato.restaurante} · {distancia}
             {lotacao ? (
@@ -100,18 +100,18 @@ const estilos = StyleSheet.create({
   foto: { width: 56, height: 56, borderRadius: raio.m, backgroundColor: cores.acentoSuave },
   fotoEsgotada: { opacity: 0.4 },
   textos: { flex: 1, gap: 2 },
-  nome: { ...texto.corpo, fontSize: 16, fontWeight: '600' },
+  nome: { ...texto.corpo, fontSize: 16, fontFamily: fontes.semi },
   riscado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
   categoria: { fontSize: 12, color: cores.textoTerciario },
   linhaDoRestaurante: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs },
   encolher: { flexShrink: 1 },
-  cheio: { color: cores.erro, fontWeight: '600' },
-  haMesa: { color: cores.sucesso, fontWeight: '600' },
+  cheio: { color: cores.erro, fontFamily: fontes.semi },
+  haMesa: { color: cores.sucesso, fontFamily: fontes.semi },
   direita: { alignItems: 'flex-end', gap: espaco.xs },
-  preco: { fontSize: 17, fontWeight: '700', color: cores.acento },
+  preco: { fontSize: 17, fontFamily: fontes.negrito, color: cores.acento },
   precoEsgotado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
   etiqueta: { paddingHorizontal: espaco.s, paddingVertical: 2, borderRadius: raio.s, backgroundColor: cores.linha },
-  etiquetaTexto: { fontSize: 11, fontWeight: '600', color: cores.textoSecundario },
+  etiquetaTexto: { fontSize: 11, fontFamily: fontes.semi, color: cores.textoSecundario },
   etiquetaUltimas: { backgroundColor: cores.acentoSuave },
-  etiquetaUltimasTexto: { color: cores.acentoEscuro },
+  etiquetaUltimasTexto: { color: cores.acentoTexto },
 });

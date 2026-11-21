@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -7,6 +6,7 @@ import { Image, Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleShee
 import { CampoComErro } from '@/components/CampoComErro';
 import { Chip } from '@/components/Chip';
 import { EcraDeErro } from '@/components/EcraDeErro';
+import { Icone } from '@/components/Icone';
 import { LerMenuDaFoto } from '@/components/LerMenuDaFoto';
 import { RepetirMenu } from '@/components/RepetirMenu';
 import { SeletorFoto } from '@/components/SeletorFoto';
@@ -28,7 +28,7 @@ import {
 } from '@/services/menus';
 import { CATEGORIAS, descreverEtiquetas, ETIQUETAS, formatarPreco } from '@/services/pratos';
 import { buscarMeuRestaurante, enviarFotoDoPrato } from '@/services/restaurantes';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 6 · Publicar menu (RF03) — responsável: José
 //
@@ -369,7 +369,7 @@ export default function Publicar() {
     return (
       <Ecra bordas={['bottom']}>
         <View style={estilos.centro}>
-          <Ionicons name="storefront-outline" size={40} color={cores.textoTerciario} style={estilos.iconeCentro} />
+          <Icone name="storefront-outline" size={40} color={cores.textoTerciario} style={estilos.iconeCentro} />
           <Text style={[texto.corpo, estilos.textoCentro]}>Antes de publicares o menu, preenche o perfil do restaurante.</Text>
           {/* dismissTo: fecha este ecrã e volta aos separadores, já no Perfil */}
           <Botao titulo="Preencher o perfil" icone="storefront-outline" onPress={() => router.dismissTo('/perfil')} />
@@ -533,7 +533,7 @@ export default function Publicar() {
                         accessibilityLabel={`Remover ${prato.nome}`}
                         style={estilos.remover}
                       >
-                        <Ionicons name="close" size={18} color={cores.textoSecundario} />
+                        <Icone name="close" size={18} color={cores.textoSecundario} />
                       </Pressable>
                     </View>
                   ))}
@@ -598,18 +598,18 @@ const estilos = StyleSheet.create({
   erro: { ...texto.pequeno, color: cores.erro },
   // minHeight 44: área de toque mínima (RNF06)
   ligacao: { alignSelf: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: espaco.s },
-  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontWeight: '600' },
+  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontFamily: fontes.semi },
   cabecalhoDaLista: { flexDirection: 'row', alignItems: 'center', paddingTop: espaco.xs },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },
   prato: { flexDirection: 'row', alignItems: 'center' },
   pratoComLinha: { borderTopWidth: 1, borderTopColor: cores.linha },
   pratoAEditar: { backgroundColor: cores.acentoSuave },
   pratoInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco.m, paddingLeft: espaco.l, paddingVertical: espaco.m, minHeight: 56 },
-  pratoNome: { ...texto.corpo, fontWeight: '500' },
+  pratoNome: { ...texto.corpo, fontFamily: fontes.media },
   pratoCategoria: { fontSize: 12, color: cores.textoSecundario },
   miniatura: { width: 40, height: 40, borderRadius: raio.s, backgroundColor: cores.acentoSuave },
-  pratoPreco: { ...texto.corpo, fontWeight: '600' },
-  pratoSemPreco: { ...texto.pequeno, color: cores.erro, fontWeight: '600' },
+  pratoPreco: { ...texto.corpo, fontFamily: fontes.semi },
+  pratoSemPreco: { ...texto.pequeno, color: cores.erro, fontFamily: fontes.semi },
   remover: { width: 48, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   barra: {
     gap: espaco.s,

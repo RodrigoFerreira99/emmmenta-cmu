@@ -1,12 +1,12 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '@/components/Chip';
+import { Icone } from '@/components/Icone';
 import { PesquisaComIa } from '@/components/PesquisaComIa';
 import { usePerto } from '@/context/PertoContext';
 import { CATEGORIAS, ETIQUETAS, OPCOES_DE_PRECO_MAXIMO, OPCOES_DE_RAIO_KM, RAIO_POR_OMISSAO_KM } from '@/services/pratos';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // RF07 — pesquisa pelo nome do prato e filtros: categoria, preço máximo, raio e dieta (etiquetas).
 // É usado na lista (Início) e no mapa. Os filtros vivem no PertoContext, por isso
@@ -32,7 +32,7 @@ export function FiltrosDePratos() {
     <View style={estilos.grupo}>
       <View style={estilos.linha}>
         <View style={estilos.pesquisa}>
-          <Ionicons name="search-outline" size={18} color={cores.textoTerciario} />
+          <Icone name="search-outline" size={18} color={cores.textoTerciario} />
           <TextInput
             value={filtros.pesquisa}
             onChangeText={(pesquisa) => mudarFiltros({ pesquisa })}
@@ -51,7 +51,7 @@ export function FiltrosDePratos() {
               accessibilityLabel="Apagar a pesquisa"
               hitSlop={12}
             >
-              <Ionicons name="close-circle" size={18} color={cores.textoTerciario} />
+              <Icone name="close-circle" size={18} color={cores.textoTerciario} />
             </Pressable>
           ) : null}
         </View>
@@ -63,7 +63,7 @@ export function FiltrosDePratos() {
           accessibilityState={{ expanded: assistenteAberto }}
           style={[estilos.botaoDosFiltros, assistenteAberto && estilos.botaoDoAssistenteAberto]}
         >
-          <Ionicons name="sparkles" size={20} color={assistenteAberto ? cores.textoInverso : cores.acento} />
+          <Icone name="sparkles" size={20} color={assistenteAberto ? cores.textoInverso : cores.acento} />
         </Pressable>
 
         <Pressable
@@ -73,7 +73,7 @@ export function FiltrosDePratos() {
           accessibilityState={{ expanded: painelAberto }}
           style={[estilos.botaoDosFiltros, painelAberto && estilos.botaoDosFiltrosAberto]}
         >
-          <Ionicons name="options-outline" size={20} color={painelAberto ? cores.textoInverso : cores.texto} />
+          <Icone name="options-outline" size={20} color={painelAberto ? cores.textoInverso : cores.texto} />
           {filtrosDoPainel > 0 ? (
             <View style={estilos.bolinha}>
               <Text style={estilos.bolinhaTexto}>{filtrosDoPainel}</Text>
@@ -189,7 +189,7 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: cores.acento,
   },
-  bolinhaTexto: { fontSize: 11, fontWeight: '700', color: cores.textoInverso },
+  bolinhaTexto: { fontSize: 11, fontFamily: fontes.negrito, color: cores.textoInverso },
   // paddingVertical: espaço para o hitSlop das etiquetas não ser cortado
   chips: { gap: espaco.s, paddingVertical: 2 },
   painel: {
@@ -202,5 +202,5 @@ const estilos = StyleSheet.create({
   },
   chipsDoPainel: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.s, marginBottom: espaco.s },
   ligacao: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 44 },
-  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontWeight: '600' },
+  ligacaoTexto: { ...texto.pequeno, color: cores.acento, fontFamily: fontes.semi },
 });

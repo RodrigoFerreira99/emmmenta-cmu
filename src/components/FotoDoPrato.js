@@ -1,8 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { cores, espaco, raio } from '@/theme';
+import { Icone } from '@/components/Icone';
+import { cores, espaco, fontes, raio } from '@/theme';
 
 // Fotografia de um prato na página do restaurante: uma miniatura que, ao tocar, abre a fotografia
 // em grande (tocar outra vez, ou no botão "voltar" do Android, fecha).
@@ -30,7 +30,7 @@ export function FotoDoPrato({ uri, nome, tamanho = 56 }) {
           <Image source={{ uri }} style={estilos.grande} resizeMode="contain" accessibilityLabel={`Fotografia de ${nome}`} />
           <View style={estilos.legenda}>
             <Text style={estilos.legendaTexto}>{nome}</Text>
-            <Ionicons name="close" size={22} color={cores.textoInverso} />
+            <Icone name="close" size={22} color={cores.textoSobreImagem} />
           </View>
         </Pressable>
       </Modal>
@@ -44,5 +44,5 @@ const estilos = StyleSheet.create({
   fundo: { flex: 1, backgroundColor: `${cores.texto}E6`, alignItems: 'center', justifyContent: 'center', padding: espaco.xl, gap: espaco.l },
   grande: { width: '100%', height: '70%' },
   legenda: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
-  legendaTexto: { fontSize: 17, fontWeight: '600', color: cores.textoInverso },
+  legendaTexto: { fontSize: 17, fontFamily: fontes.semi, color: cores.textoSobreImagem },
 });

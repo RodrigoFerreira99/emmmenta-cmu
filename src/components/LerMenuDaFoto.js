@@ -1,8 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { CameraNaApp } from '@/components/CameraNaApp';
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
 import { lerMenuDaFoto } from '@/services/lerMenu';
@@ -80,7 +80,7 @@ export function LerMenuDaFoto({ aoLer }) {
   return (
     <View style={estilos.cartao}>
       <View style={estilos.cabecalho}>
-        <Ionicons name="sparkles-outline" size={20} color={cores.acento} />
+        <Icone name="sparkles-outline" size={20} color={cores.acento} />
         <Text style={[texto.subtitulo, estilos.ocuparTudo]}>Tens o menu num quadro ou numa folha?</Text>
       </View>
       <Text style={texto.pequeno}>

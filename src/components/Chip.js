@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { cores, raio } from '@/theme';
+import { cores, fontes, raio } from '@/theme';
 
 // Etiqueta arredondada para escolher uma opção entre várias (por exemplo, a categoria de um prato).
 // Igual ao componente "Chip" do Figma: a opção escolhida fica escura, as outras ficam brancas.
@@ -31,6 +31,6 @@ const estilos = StyleSheet.create({
   chip: { height: 36, paddingHorizontal: 14, borderRadius: raio.pilula, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
   ativo: { backgroundColor: cores.texto, borderColor: cores.texto },
   inativo: { backgroundColor: cores.superficie, borderColor: cores.linha },
-  texto: { fontSize: 14, fontWeight: '500', color: cores.texto },
+  texto: { fontSize: 14, fontFamily: fontes.media, color: cores.texto },
   textoAtivo: { color: cores.textoInverso },
 });

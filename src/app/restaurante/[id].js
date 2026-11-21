@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +8,7 @@ import { EtiquetaEsgotado, EtiquetaUltimasDoses } from '@/components/CartaoDePra
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { PaginaFantasma } from '@/components/Esqueleto';
 import { FotoDoPrato } from '@/components/FotoDoPrato';
+import { Icone } from '@/components/Icone';
 import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
@@ -21,7 +21,7 @@ import { CATEGORIAS_EM_INGLES, traduzirPratos } from '@/services/assistente';
 import { buscarMenuDeHoje, nomeDaCategoria, ouvirLotacao } from '@/services/menus';
 import { descreverEtiquetas, formatarDistancia, formatarPreco, ouvirAlteracoesPratos } from '@/services/pratos';
 import { buscarRestaurante, estadoDoHorario, horaParaEcra, telefoneParaEcra } from '@/services/restaurantes';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 4 · Página do restaurante (RF06) — responsável: André
 // Abre-se a partir da lista ou do mapa, com o id do restaurante no endereço e a distância como parâmetro.
@@ -192,7 +192,7 @@ export default function PaginaRestaurante() {
     return (
       <Ecra bordas={['bottom']}>
         <View style={estilos.centro}>
-          <Ionicons name="storefront-outline" size={40} color={cores.textoTerciario} style={estilos.iconeCentro} />
+          <Icone name="storefront-outline" size={40} color={cores.textoTerciario} style={estilos.iconeCentro} />
           <Text style={[texto.corpo, estilos.textoCentro]}>Este restaurante já não está disponível.</Text>
         </View>
       </Ecra>
@@ -224,7 +224,7 @@ export default function PaginaRestaurante() {
           <Image source={{ uri: restaurante.foto_url }} style={estilos.foto} accessibilityLabel={`Fotografia de ${restaurante.nome}`} />
         ) : (
           <View style={[estilos.foto, estilos.semFoto]}>
-            <Ionicons name="storefront-outline" size={48} color={cores.acento} />
+            <Icone name="storefront-outline" size={48} color={cores.acento} />
           </View>
         )}
 
@@ -242,7 +242,7 @@ export default function PaginaRestaurante() {
             accessibilityLabel="Partilhar este restaurante"
             style={estilos.botaoDeIcone}
           >
-            <Ionicons name="share-social-outline" size={24} color={cores.acento} />
+            <Icone name="share-social-outline" size={24} color={cores.acento} />
           </Pressable>
           <Pressable
             onPress={mudarFavorito}
@@ -251,7 +251,7 @@ export default function PaginaRestaurante() {
             accessibilityState={{ selected: favorito }}
             style={estilos.botaoDeIcone}
           >
-            <Ionicons name={favorito ? 'heart' : 'heart-outline'} size={26} color={cores.acento} />
+            <Icone name={favorito ? 'heart' : 'heart-outline'} size={26} color={cores.acento} />
           </Pressable>
         </View>
 
@@ -299,7 +299,7 @@ export default function PaginaRestaurante() {
               accessibilityLabel={aFalar ? (emIngles ? 'Stop reading the menu' : 'Parar de ler o menu') : emIngles ? 'Listen to the menu' : 'Ouvir o menu em voz alta'}
               style={estilos.botaoDeIdioma}
             >
-              <Ionicons name={aFalar ? 'stop-circle-outline' : 'volume-high-outline'} size={24} color={cores.acento} />
+              <Icone name={aFalar ? 'stop-circle-outline' : 'volume-high-outline'} size={24} color={cores.acento} />
             </Pressable>
           ) : null}
           {pratos.length > 0 ? (
@@ -381,7 +381,7 @@ function LinhaDoPrato({ prato, comLinha, emIngles, nomeEmIngles }) {
 function Linha({ icone, titulo, valor, nota, notaBoa = false }) {
   return (
     <View style={estilos.linha}>
-      <Ionicons name={icone} size={20} color={cores.acento} />
+      <Icone name={icone} size={20} color={cores.acento} />
       <View style={estilos.ocuparTudo}>
         <Text style={estilos.linhaTitulo}>{titulo}</Text>
         <Text style={texto.corpo}>{valor}</Text>
@@ -410,7 +410,7 @@ const estilos = StyleSheet.create({
   },
   linha: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco.m },
   linhaTitulo: { fontSize: 12, color: cores.textoSecundario },
-  nota: { ...texto.pequeno, fontWeight: '600' },
+  nota: { ...texto.pequeno, fontFamily: fontes.semi },
   notaBoa: { color: cores.sucesso },
   linhaDoTitulo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco.m },
   // 48 x 48: área de toque confortável (RNF06)
@@ -419,16 +419,16 @@ const estilos = StyleSheet.create({
   linhaDoMenu: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
   // minHeight 44: área de toque mínima (RNF06)
   botaoDeIdioma: { minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: espaco.s },
-  botaoDeIdiomaTexto: { ...texto.pequeno, fontWeight: '700', color: cores.acento },
+  botaoDeIdiomaTexto: { ...texto.pequeno, fontFamily: fontes.negrito, color: cores.acento },
   aviso: { ...texto.pequeno, color: cores.erro },
   lista: { borderRadius: raio.xl, borderWidth: 1, borderColor: cores.linha, backgroundColor: cores.superficie, overflow: 'hidden' },
   prato: { flexDirection: 'row', alignItems: 'center', gap: espaco.m, paddingHorizontal: espaco.l, paddingVertical: espaco.m, minHeight: 56 },
   pratoTextos: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco.m },
   pratoDireita: { alignItems: 'flex-end', gap: espaco.xs },
   pratoComLinha: { borderTopWidth: 1, borderTopColor: cores.linha },
-  pratoNome: { ...texto.corpo, fontWeight: '500' },
+  pratoNome: { ...texto.corpo, fontFamily: fontes.media },
   pratoCategoria: { fontSize: 12, color: cores.textoSecundario },
-  pratoPreco: { ...texto.corpo, fontWeight: '600' },
+  pratoPreco: { ...texto.corpo, fontFamily: fontes.semi },
   riscado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
-  destaque: { fontWeight: '700', color: cores.acento },
+  destaque: { fontFamily: fontes.negrito, color: cores.acento },
 });

@@ -1,9 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icone } from '@/components/Icone';
 import { useAgora } from '@/lib/relogio';
 import { descreverLotacao, LOTACAO_VALIDA_MINUTOS, lotacaoAtual } from '@/services/menus';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // "Há mesa" / "Cheio agora" — o restaurante diz como está a sala e os clientes veem em tempo real.
 // O aviso só vale 45 minutos (lotacaoAtual): depois disso desaparece sozinho, para não enganar ninguém.
@@ -84,7 +84,7 @@ function BotaoDaLotacao({ titulo, icone, corEscolhida, escolhido, desativado, on
         (pressed || desativado) && estilos.premido,
       ]}
     >
-      <Ionicons name={icone} size={18} color={corDoTexto} />
+      <Icone name={icone} size={18} color={corDoTexto} />
       <Text style={[estilos.botaoTexto, { color: corDoTexto }]}>{titulo}</Text>
     </Pressable>
   );
@@ -103,7 +103,7 @@ const estilos = StyleSheet.create({
   etiquetaCheio: { backgroundColor: cores.erroSuave },
   etiquetaComMesa: { backgroundColor: cores.sucessoSuave },
   bolinha: { width: 8, height: 8, borderRadius: raio.pilula },
-  etiquetaTexto: { fontSize: 12, fontWeight: '700' },
+  etiquetaTexto: { fontSize: 12, fontFamily: fontes.negrito },
   cartao: {
     gap: espaco.s,
     padding: espaco.l,
@@ -112,7 +112,7 @@ const estilos = StyleSheet.create({
     borderColor: cores.linha,
     backgroundColor: cores.superficie,
   },
-  titulo: { ...texto.corpo, fontWeight: '600' },
+  titulo: { ...texto.corpo, fontFamily: fontes.semi },
   botoes: { flexDirection: 'row', gap: espaco.m, paddingTop: espaco.xs },
   // minHeight 48: área de toque confortável (RNF06)
   botao: {
@@ -127,6 +127,6 @@ const estilos = StyleSheet.create({
     borderColor: cores.linha,
     backgroundColor: cores.superficie,
   },
-  botaoTexto: { fontSize: 15, fontWeight: '600' },
+  botaoTexto: { fontSize: 15, fontFamily: fontes.semi },
   premido: { opacity: 0.6 },
 });

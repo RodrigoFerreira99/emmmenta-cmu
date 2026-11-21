@@ -10,7 +10,7 @@ import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { usePerto } from '@/context/PertoContext';
 import { agruparPorRestaurante, formatarDistancia, formatarPreco } from '@/services/pratos';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, estiloDoMapaEscuro, raio, texto } from '@/theme';
 
 // Ecrã 3 · Mapa (RF06, RF07) — responsável: André
 //
@@ -77,6 +77,9 @@ export default function Mapa() {
 
       <View style={estilos.ocuparTudo}>
         <MapView
+          // mapa escuro, como o resto da app (Android: estilo do Google; iPhone: modo escuro do Apple Maps)
+          customMapStyle={estiloDoMapaEscuro}
+          userInterfaceStyle="dark"
           ref={mapa}
           style={estilos.ocuparTudo}
           initialRegion={regiaoDoMapa(local, raioKm)}

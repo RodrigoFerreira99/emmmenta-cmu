@@ -1,13 +1,13 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { Icone } from '@/components/Icone';
 import { Botao } from '@/components/ui';
 import { vibrarSucesso } from '@/lib/vibrar';
 import { anguloDaSeta, CHEGOU_A_METROS, descreverDirecao, descreverDistancia, distanciaEmMetros, rumoEmGraus } from '@/services/caminho';
 import { estadoDaPermissao, pedirPermissao, seguirDirecao, seguirPosicao } from '@/services/localizacao';
-import { cores, espaco, raio, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Bússola até ao restaurante: uma seta grande que aponta sempre para o restaurante, enquanto o cliente anda,
 // com a distância a diminuir. Quando chega (a menos de 25 m), o telemóvel vibra e diz "Chegaste!".
@@ -119,7 +119,7 @@ function ConteudoDaBussola({ restaurante, aoFechar }) {
     if (chegou) {
       return (
         <View style={estilos.explicacao} accessible accessibilityLabel={`Chegaste a ${restaurante.nome}. Bom almoço!`}>
-          <Ionicons name="checkmark-circle" size={120} color={cores.sucesso} />
+          <Icone name="checkmark-circle" size={120} color={cores.sucesso} />
           <Text style={estilos.distancia}>Chegaste!</Text>
           <Text style={[texto.corpo, estilos.textoCentro]}>Bom almoço.</Text>
         </View>
@@ -137,7 +137,7 @@ function ConteudoDaBussola({ restaurante, aoFechar }) {
     return (
       <View style={estilos.explicacao}>
         <View style={estilos.circulo} accessible accessibilityLabel={`O restaurante está ${frase}, a ${descreverDistancia(distancia)}`}>
-          <Ionicons name="arrow-up" size={150} color={cores.acento} style={{ transform: [{ rotate: `${Math.round(angulo)}deg` }] }} />
+          <Icone name="arrow-up" size={150} color={cores.acento} style={{ transform: [{ rotate: `${Math.round(angulo)}deg` }] }} />
         </View>
         <Text style={estilos.distancia} accessibilityLiveRegion="polite">
           Faltam {descreverDistancia(distancia)}
@@ -160,7 +160,7 @@ function ConteudoDaBussola({ restaurante, aoFechar }) {
           </Text>
         </View>
         <Pressable onPress={aoFechar} accessibilityRole="button" accessibilityLabel="Fechar a bússola" style={estilos.fechar}>
-          <Ionicons name="close" size={28} color={cores.texto} />
+          <Icone name="close" size={28} color={cores.texto} />
         </Pressable>
       </View>
 
@@ -189,6 +189,6 @@ const estilos = StyleSheet.create({
     borderColor: cores.linha,
     backgroundColor: cores.superficie,
   },
-  distancia: { fontSize: 32, fontWeight: '700', color: cores.texto },
+  distancia: { fontSize: 32, fontFamily: fontes.negrito, color: cores.texto },
   textoCentro: { textAlign: 'center' },
 });
