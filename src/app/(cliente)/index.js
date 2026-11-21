@@ -1,8 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { AbanaParaDecidir } from '@/components/AbanaParaDecidir';
 import { CartaoDePrato } from '@/components/CartaoDePrato';
 import { DestaqueMaisBarato } from '@/components/DestaqueMaisBarato';
 import { BotaoDoLocal, EscolherLocal } from '@/components/EscolherLocal';
@@ -12,12 +11,13 @@ import { Icone } from '@/components/Icone';
 import { LerQr } from '@/components/LerQr';
 import { MapaDeCalor } from '@/components/MapaDeCalor';
 import { TituloQuente } from '@/components/TituloQuente';
+import { PecaQueCai, useTudoACair } from '@/components/TudoACai';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { usePerto } from '@/context/PertoContext';
 import { ouvirAbanoes } from '@/lib/abanar';
 import { saudacao } from '@/lib/datas';
-import { almocoMaisBarato, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
+import { almocoMaisBarato, escolherAoAcaso, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
 import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 2 · Início (RF05, RF07) — responsável: André
@@ -27,8 +27,8 @@ import { cores, espaco, fontes, raio, texto } from '@/theme';
 //  1. O PertoContext sabe onde procurar (localização ou zona escolhida), os filtros e os pratos.
 //  2. Este ecrã só desenha: cabeçalho com o sítio, pesquisa e filtros (RF07) e a lista (RF05).
 //  3. Tocar num prato abre a página do restaurante: chega-se a um menu com 1 toque (RNF06).
-//  4. Extras: o destaque "o almoço mais barato perto de ti" e o "Abana para decidir" (botão
-//     "Escolhe por mim" ou abanar o telemóvel com este ecrã à frente).
+//  4. Extras: o mapa de calor 3D, o destaque "o almoço mais barato perto de ti" e o "abanar para
+//     decidir" (botão "Indeciso? Abana o telemóvel" ou abanar mesmo): tudo cai e abre o restaurante que calhou.
 export default function Inicio() {
   const {
     local,
@@ -45,17 +45,30 @@ export default function Inicio() {
   } = usePerto();
   const { perfil } = useAuth();
   const [aMudarLocal, setAMudarLocal] = useState(false);
-  const [aDecidir, setADecidir] = useState(false); // o "Abana para decidir" está aberto?
+  const [aCair, setACair] = useState(false); // o "abanar" está a acontecer (tudo a cair)?
   const [aLerQr, setALerQr] = useState(false); // o leitor do QR code de um restaurante está aberto?
+  const { registar, cair, camada } = useTudoACair();
 
-  // Abanar o telemóvel abre o "Abana para decidir", mas só com este ecrã à frente e se houver
-  // pratos para escolher. Ao sair do ecrã o acelerómetro deixa de ser ouvido (poupa bateria).
+  // "Abanar para decidir" (design térmico): escolhe um prato ao acaso, tudo cai, o calor enche o ecrã
+  // e abre-se o restaurante que calhou, com "Hoje almoças aqui" (src/components/TudoACai.js).
+  const decidir = useCallback(async () => {
+    if (aCair) return;
+    const prato = escolherAoAcaso(pratos);
+    if (!prato) return;
+    setACair(true);
+    AccessibilityInfo.announceForAccessibility(`Calhou: ${prato.prato}, no ${prato.restaurante}`);
+    await cair({ idEscolhido: prato.prato_id, aoAcabar: () => abrirRestaurante(prato, { calhou: true }) });
+    setACair(false);
+  }, [aCair, pratos, cair]);
+
+  // Abanar o telemóvel também decide, mas só com este ecrã à frente e se houver pratos para escolher.
+  // Ao sair do ecrã o acelerómetro deixa de ser ouvido (poupa bateria).
   const haPratosParaSortear = pratosParaSortear(pratos).length > 0;
   useFocusEffect(
     useCallback(() => {
-      if (!haPratosParaSortear || aDecidir) return;
-      return ouvirAbanoes(() => setADecidir(true));
-    }, [haPratosParaSortear, aDecidir])
+      if (!haPratosParaSortear || aCair) return;
+      return ouvirAbanoes(() => decidir());
+    }, [haPratosParaSortear, aCair, decidir])
   );
 
   // Ainda não se sabe onde procurar: ou a app está a ver se já tem permissão, ou o cliente tem de escolher.
@@ -75,11 +88,6 @@ export default function Inicio() {
         <EscolherLocal aoEscolher={() => setAMudarLocal(false)} aoCancelar={() => setAMudarLocal(false)} />
       </Ecra>
     );
-  }
-
-  function abrirRestaurante(prato) {
-    // a distância vai junta para a página do restaurante a poder mostrar sem a calcular outra vez
-    router.push({ pathname: '/restaurante/[id]', params: { id: prato.restaurante_id, distancia: String(prato.distancia_km) } });
   }
 
   // o destaque não aparece com "Mais barato primeiro": aí o mais barato já é o primeiro da lista
@@ -130,44 +138,63 @@ export default function Inicio() {
   // Cabeçalho do design térmico (vai dentro da lista, para fazer scroll com ela):
   // o sítio e o QR code, a saudação, o título, o mapa de calor 3D e a pesquisa com os filtros (RF07).
   const primeiroNome = perfil?.nome?.trim().split(/\s+/)[0];
+  // Cada bloco é uma "peça" (PecaQueCai): quando se abana o telemóvel, cai com física.
   const cabecalho = (
     <View style={estilos.cabecalho}>
       <View style={estilos.linhaDoTitulo}>
-        <View style={estilos.ocuparTudo}>
+        <PecaQueCai id="sitio" registar={registar} style={estilos.ocuparTudo}>
           <BotaoDoLocal onPress={() => setAMudarLocal(true)} />
-        </View>
+        </PecaQueCai>
         {/* ler o QR code que um restaurante tem na porta: abre logo a página dele */}
-        <Pressable
-          onPress={() => setALerQr(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Ler o QR code de um restaurante"
-          style={estilos.botaoRedondo}
-        >
-          <Icone name="qr-code-outline" size={22} color={cores.texto} />
-        </Pressable>
+        <PecaQueCai id="qr" registar={registar}>
+          <Pressable
+            onPress={() => setALerQr(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Ler o QR code de um restaurante"
+            style={estilos.botaoRedondo}
+          >
+            <Icone name="qr-code-outline" size={22} color={cores.texto} />
+          </Pressable>
+        </PecaQueCai>
       </View>
-      <Text style={estilos.saudacao}>{primeiroNome ? `${saudacao()}, ${primeiroNome}` : saudacao()}</Text>
-      <TituloQuente />
-      <MapaDeCalor local={local} pratos={pratos} onPress={() => router.navigate('/mapa')} />
-      <FiltrosDePratos />
+      <PecaQueCai id="saudacao" registar={registar} style={estilos.encolher}>
+        <Text style={estilos.saudacao}>{primeiroNome ? `${saudacao()}, ${primeiroNome}` : saudacao()}</Text>
+      </PecaQueCai>
+      <PecaQueCai id="titulo" registar={registar} style={estilos.encolher}>
+        <TituloQuente />
+      </PecaQueCai>
+      <PecaQueCai id="mapa" registar={registar}>
+        <MapaDeCalor local={local} pratos={pratos} onPress={() => router.navigate('/mapa')} />
+      </PecaQueCai>
+      <PecaQueCai id="filtros" registar={registar}>
+        <FiltrosDePratos />
+      </PecaQueCai>
       {haPratosParaSortear ? (
         // "Indeciso? Abana o telemóvel": diz que se pode abanar (e também funciona com um toque)
-        <Pressable
-          onPress={() => setADecidir(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Escolhe por mim (também podes abanar o telemóvel)"
-          style={estilos.abana}
-        >
-          <Icone name="vibrar" size={20} color={cores.acento} />
-          <Text style={estilos.abanaTexto}>Indeciso? Abana o telemóvel</Text>
-        </Pressable>
+        <PecaQueCai id="abana" registar={registar} style={estilos.encolher}>
+          <Pressable
+            onPress={decidir}
+            accessibilityRole="button"
+            accessibilityLabel="Escolhe por mim (também podes abanar o telemóvel)"
+            style={estilos.abana}
+          >
+            <Icone name="vibrar" size={20} color={cores.acento} />
+            <Text style={estilos.abanaTexto}>Indeciso? Abana o telemóvel</Text>
+          </Pressable>
+        </PecaQueCai>
       ) : null}
       {pratos.length > 0 ? (
         <View style={estilos.cabecalhoDaLista}>
-          {maisBarato ? <DestaqueMaisBarato prato={maisBarato} onPress={() => abrirRestaurante(maisBarato)} /> : null}
-          <Text style={estilos.contagem}>
-            {pratos.length === 1 ? '1 prato' : `${pratos.length} pratos`} {perto}
-          </Text>
+          {maisBarato ? (
+            <PecaQueCai id="destaque" registar={registar}>
+              <DestaqueMaisBarato prato={maisBarato} onPress={() => abrirRestaurante(maisBarato)} />
+            </PecaQueCai>
+          ) : null}
+          <PecaQueCai id="contagem" registar={registar} style={estilos.encolher}>
+            <Text style={estilos.contagem}>
+              {pratos.length === 1 ? '1 prato' : `${pratos.length} pratos`} {perto}
+            </Text>
+          </PecaQueCai>
         </View>
       ) : null}
     </View>
@@ -188,7 +215,9 @@ export default function Inicio() {
         data={pratos}
         keyExtractor={(prato) => prato.prato_id}
         renderItem={({ item }) => (
-          <CartaoDePrato prato={item} favorito={favoritos.has(item.restaurante_id)} onPress={() => abrirRestaurante(item)} />
+          <PecaQueCai id={item.prato_id} registar={registar}>
+            <CartaoDePrato prato={item} favorito={favoritos.has(item.restaurante_id)} onPress={() => abrirRestaurante(item)} />
+          </PecaQueCai>
         )}
         contentContainerStyle={estilos.lista}
         ItemSeparatorComponent={Separador}
@@ -200,18 +229,17 @@ export default function Inicio() {
         keyboardDismissMode="on-drag"
       />
 
-      {aDecidir ? (
-        <AbanaParaDecidir
-          pratos={pratos}
-          aoFechar={() => setADecidir(false)}
-          aoAbrirRestaurante={(prato) => {
-            setADecidir(false);
-            abrirRestaurante(prato);
-          }}
-        />
-      ) : null}
+      {/* o calor que enche o ecrã quando se abana (por cima de tudo) */}
+      {camada}
     </Ecra>
   );
+}
+
+// Abre a página do restaurante. A distância vai junta para a página a poder mostrar sem a calcular
+// outra vez; "calhou" diz que o restaurante foi escolhido ao abanar (aparece "Hoje almoças aqui").
+function abrirRestaurante(prato, { calhou = false } = {}) {
+  const params = { id: prato.restaurante_id, distancia: String(prato.distancia_km) };
+  router.push({ pathname: '/restaurante/[id]', params: calhou ? { ...params, calhou: '1' } : params });
 }
 
 function Separador() {
@@ -238,6 +266,8 @@ const estilos = StyleSheet.create({
   // em maiúsculas só no ecrã (o leitor de ecrã lê a frase normal)
   contagem: { ...texto.rotulo, textTransform: 'uppercase' },
   ocuparTudo: { flex: 1 },
+  // as peças pequenas (texto, botões) só ocupam a largura do que têm, para caírem com o tamanho certo
+  encolher: { alignSelf: 'flex-start' },
   // "Indeciso? Abana o telemóvel" (minHeight 44: área de toque mínima, RNF06)
   abana: {
     flexDirection: 'row',

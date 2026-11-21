@@ -381,34 +381,36 @@ describe('Início — o almoço mais barato perto de ti', () => {
   });
 });
 
-describe('Início — Abana para decidir', () => {
-  test('"Escolhe por mim" baralha e escolhe um prato principal disponível; "Ver o restaurante" abre-o', async () => {
+describe('Início — abanar para decidir (tudo cai e abre o restaurante que calhou)', () => {
+  // o restaurante que calhou abre com "calhou" (a página mostra "Hoje almoças aqui")
+  const ABRIR_O_QUE_CALHOU = { pathname: '/restaurante/[id]', params: { id: 'r1', distancia: '0.35', calhou: '1' } };
+
+  test('"Indeciso? Abana o telemóvel" escolhe um prato principal disponível e, depois do calor, abre o restaurante', async () => {
     await abrir();
     await screen.findByLabelText(CARTAO_DO_BACALHAU);
 
+    // o toque só "acaba" depois de tudo cair e do calor encher o ecrã (pouco mais de 2 segundos)
+    const antes = Date.now();
     await fireEvent.press(screen.getByRole('button', { name: 'Escolhe por mim (também podes abanar o telemóvel)' }));
-    expect(screen.getByText('A escolher por ti…')).toBeTruthy();
-
-    // ao fim de 1,3 s pára: o único prato principal disponível é o bacalhau
-    expect(await screen.findByText('Hoje almoças…', {}, { timeout: 3000 })).toBeTruthy();
-    expect(screen.getByLabelText('Hoje almoças: Bacalhau à Brás, Tasca do Manuel, a 350 m, 8,50 €')).toBeTruthy();
-
-    await fireEvent.press(screen.getByRole('button', { name: 'Ver o restaurante' }));
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/restaurante/[id]', params: { id: 'r1', distancia: '0.35' } });
-    expect(screen.queryByText('Hoje almoças…')).toBeNull();
+    expect(Date.now() - antes).toBeGreaterThanOrEqual(1900);
+    // abre-se o restaurante: o único prato principal disponível é o bacalhau, da Tasca
+    expect(router.push).toHaveBeenCalledWith(ABRIR_O_QUE_CALHOU);
+    // e logo a seguir o calor sai (a página do restaurante fica à frente)
+    await waitFor(() => expect(screen.queryByLabelText('A escolher o teu almoço')).toBeNull());
   });
 
-  test('abanar o telemóvel também abre (e um movimento normal não)', async () => {
+  test('abanar o telemóvel também decide (e um movimento normal não)', async () => {
     await abrir();
     await screen.findByLabelText(CARTAO_DO_BACALHAU);
     await waitFor(() => expect(mockAcelerometro.ouvinte).toBeTruthy());
 
     await act(async () => mockAcelerometro.ouvinte({ x: 0.1, y: 0.2, z: 1 })); // pousado na mesa: ~1 g
-    expect(screen.queryByText('A escolher por ti…')).toBeNull();
+    await new Promise((resolver) => setTimeout(resolver, 50));
+    expect(screen.queryByLabelText('A escolher o teu almoço')).toBeNull();
 
     await act(async () => mockAcelerometro.ouvinte({ x: 2.4, y: 0.8, z: 1.1 })); // abanão: mais de 2 g
-    expect(screen.getByText('A escolher por ti…')).toBeTruthy();
-    expect(mockAcelerometro.ouvinte).toBeNull(); // enquanto está aberto deixa de ouvir
+    await waitFor(() => expect(mockAcelerometro.ouvinte).toBeNull()); // enquanto cai deixa de ouvir
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(ABRIR_O_QUE_CALHOU), { timeout: 4000 });
   });
 
   test('sem pratos disponíveis não há botão nem se ouve o acelerómetro', async () => {
