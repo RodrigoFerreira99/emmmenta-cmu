@@ -10,11 +10,15 @@ import { ListaFantasma } from '@/components/Esqueleto';
 import { FiltrosDePratos } from '@/components/FiltrosDePratos';
 import { Icone } from '@/components/Icone';
 import { LerQr } from '@/components/LerQr';
+import { MapaDeCalor } from '@/components/MapaDeCalor';
+import { TituloQuente } from '@/components/TituloQuente';
 import { Botao, Carregar, Ecra } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 import { usePerto } from '@/context/PertoContext';
 import { ouvirAbanoes } from '@/lib/abanar';
+import { saudacao } from '@/lib/datas';
 import { almocoMaisBarato, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
-import { cores, espaco, fontes, texto } from '@/theme';
+import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 2 · Início (RF05, RF07) — responsável: André
 //
@@ -39,6 +43,7 @@ export default function Inicio() {
     mudarFiltros,
     limparFiltros,
   } = usePerto();
+  const { perfil } = useAuth();
   const [aMudarLocal, setAMudarLocal] = useState(false);
   const [aDecidir, setADecidir] = useState(false); // o "Abana para decidir" está aberto?
   const [aLerQr, setALerQr] = useState(false); // o leitor do QR code de um restaurante está aberto?
@@ -122,26 +127,54 @@ export default function Inicio() {
     );
   }
 
+  // Cabeçalho do design térmico (vai dentro da lista, para fazer scroll com ela):
+  // o sítio e o QR code, a saudação, o título, o mapa de calor 3D e a pesquisa com os filtros (RF07).
+  const primeiroNome = perfil?.nome?.trim().split(/\s+/)[0];
+  const cabecalho = (
+    <View style={estilos.cabecalho}>
+      <View style={estilos.linhaDoTitulo}>
+        <View style={estilos.ocuparTudo}>
+          <BotaoDoLocal onPress={() => setAMudarLocal(true)} />
+        </View>
+        {/* ler o QR code que um restaurante tem na porta: abre logo a página dele */}
+        <Pressable
+          onPress={() => setALerQr(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Ler o QR code de um restaurante"
+          style={estilos.botaoRedondo}
+        >
+          <Icone name="qr-code-outline" size={22} color={cores.texto} />
+        </Pressable>
+      </View>
+      <Text style={estilos.saudacao}>{primeiroNome ? `${saudacao()}, ${primeiroNome}` : saudacao()}</Text>
+      <TituloQuente />
+      <MapaDeCalor local={local} pratos={pratos} onPress={() => router.navigate('/mapa')} />
+      <FiltrosDePratos />
+      {haPratosParaSortear ? (
+        // "Indeciso? Abana o telemóvel": diz que se pode abanar (e também funciona com um toque)
+        <Pressable
+          onPress={() => setADecidir(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Escolhe por mim (também podes abanar o telemóvel)"
+          style={estilos.abana}
+        >
+          <Icone name="vibrar" size={20} color={cores.acento} />
+          <Text style={estilos.abanaTexto}>Indeciso? Abana o telemóvel</Text>
+        </Pressable>
+      ) : null}
+      {pratos.length > 0 ? (
+        <View style={estilos.cabecalhoDaLista}>
+          {maisBarato ? <DestaqueMaisBarato prato={maisBarato} onPress={() => abrirRestaurante(maisBarato)} /> : null}
+          <Text style={estilos.contagem}>
+            {pratos.length === 1 ? '1 prato' : `${pratos.length} pratos`} {perto}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <Ecra>
-      <View style={estilos.cabecalho}>
-        <View style={estilos.linhaDoTitulo}>
-          <Text style={[texto.titulo, estilos.ocuparTudo]} accessibilityRole="header">
-            Pratos de hoje
-          </Text>
-          {/* ler o QR code que um restaurante tem na porta: abre logo a página dele */}
-          <Pressable
-            onPress={() => setALerQr(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Ler o QR code de um restaurante"
-            style={estilos.botaoDoQr}
-          >
-            <Icone name="qr-code-outline" size={24} color={cores.acento} />
-          </Pressable>
-        </View>
-        <BotaoDoLocal onPress={() => setAMudarLocal(true)} />
-        <FiltrosDePratos />
-      </View>
       <LerQr
         visivel={aLerQr}
         aoFechar={() => setALerQr(false)}
@@ -159,29 +192,7 @@ export default function Inicio() {
         )}
         contentContainerStyle={estilos.lista}
         ItemSeparatorComponent={Separador}
-        ListHeaderComponent={
-          pratos.length > 0 ? (
-            <View style={estilos.cabecalhoDaLista}>
-              {maisBarato ? <DestaqueMaisBarato prato={maisBarato} onPress={() => abrirRestaurante(maisBarato)} /> : null}
-              <View style={estilos.linha}>
-                <Text style={[texto.pequeno, estilos.ocuparTudo]}>
-                  {pratos.length === 1 ? '1 prato' : `${pratos.length} pratos`} {perto}
-                </Text>
-                {haPratosParaSortear ? (
-                  <Pressable
-                    onPress={() => setADecidir(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Escolhe por mim (também podes abanar o telemóvel)"
-                    style={estilos.escolhePorMim}
-                  >
-                    <Icone name="dice-outline" size={18} color={cores.acento} />
-                    <Text style={estilos.escolhePorMimTexto}>Escolhe por mim</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={cabecalho}
         ListEmptyComponent={listaVazia()}
         // puxar a lista para baixo volta a procurar (por exemplo, para ver menus acabados de publicar)
         refreshControl={<RefreshControl refreshing={aCarregar && pratos.length > 0} onRefresh={recarregar} tintColor={cores.acento} />}
@@ -208,17 +219,39 @@ function Separador() {
 }
 
 const estilos = StyleSheet.create({
-  cabecalho: { paddingHorizontal: espaco.xl, paddingTop: espaco.l, paddingBottom: espaco.m, gap: espaco.s },
+  cabecalho: { paddingTop: espaco.s, paddingBottom: espaco.m, gap: espaco.m },
   linhaDoTitulo: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
   // 44 x 44: área de toque mínima (RNF06)
-  botaoDoQr: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  botaoRedondo: {
+    width: 44,
+    height: 44,
+    borderRadius: raio.pilula,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: cores.superficie,
+    borderWidth: 1,
+    borderColor: cores.linha,
+  },
+  saudacao: { ...texto.pequeno, fontSize: 14, marginTop: espaco.s, marginBottom: -espaco.s },
   lista: { paddingHorizontal: espaco.xl, paddingBottom: espaco.xl, flexGrow: 1 },
-  cabecalhoDaLista: { gap: espaco.m, marginBottom: espaco.m },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco.s },
+  cabecalhoDaLista: { gap: espaco.m, marginTop: espaco.s },
+  // em maiúsculas só no ecrã (o leitor de ecrã lê a frase normal)
+  contagem: { ...texto.rotulo, textTransform: 'uppercase' },
   ocuparTudo: { flex: 1 },
-  // minHeight 44: área de toque mínima (RNF06)
-  escolhePorMim: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs, minHeight: 44 },
-  escolhePorMimTexto: { ...texto.pequeno, fontFamily: fontes.negrito, color: cores.acento },
+  // "Indeciso? Abana o telemóvel" (minHeight 44: área de toque mínima, RNF06)
+  abana: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: espaco.s,
+    minHeight: 44,
+    paddingHorizontal: espaco.l,
+    borderRadius: raio.pilula,
+    borderWidth: 1,
+    borderColor: cores.acento,
+    backgroundColor: cores.acentoSuave,
+  },
+  abanaTexto: { fontFamily: fontes.semi, fontSize: 14, color: cores.texto },
   separador: { height: espaco.m },
   vazio: { gap: espaco.l, paddingTop: espaco.xxl },
   icone: { alignSelf: 'center' },

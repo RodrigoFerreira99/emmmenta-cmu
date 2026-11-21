@@ -21,8 +21,21 @@ jest.mock('expo-camera', () => {
   return { CameraView: (props) => mockReact.createElement(View, { testID: 'camara', ...props }) };
 });
 jest.mock('@/lib/fotografias', () => ({ pedirAcessoACamara: jest.fn(async () => {}) }));
+// o nome do cliente (para a saudação "Boa tarde, Rita") e o mapa 3D (uma WebView, que no teste é uma caixa)
+jest.mock('@/context/AuthContext', () => ({ useAuth: () => ({ perfil: { nome: 'Rita Sousa', tipo: 'cliente' } }) }));
+const mockMapa = { injetado: [] };
+jest.mock('react-native-webview', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+  // guarda o código que a app manda correr no mapa (window.atualizar)
+  const WebView = mockReact.forwardRef((props, ref) => {
+    mockReact.useImperativeHandle(ref, () => ({ injectJavaScript: (codigo) => mockMapa.injetado.push(codigo) }));
+    return mockReact.createElement(View, { testID: 'mapa-3d', ...props });
+  });
+  return { WebView };
+});
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn() },
+  router: { push: jest.fn(), navigate: jest.fn() },
   // no teste, "ficar à frente" acontece quando o ecrã aparece e sempre que a função muda
   useFocusEffect: (efeito) => jest.requireActual('react').useEffect(efeito, [efeito]),
 }));
@@ -479,5 +492,17 @@ describe('Início — ler o QR code de um restaurante', () => {
     await fireEvent(await screen.findByTestId('camara'), 'barcodeScanned', { type: 'qr', data: `emmmenta://restaurante/${id}` });
     expect(router.push).toHaveBeenLastCalledWith({ pathname: '/restaurante/[id]', params: { id } });
     expect(screen.queryByTestId('camara')).toBeNull(); // o leitor fechou
+  });
+});
+
+describe('Início — design térmico', () => {
+  test('diz olá pelo nome, tem o título e o mapa de calor com os restaurantes encontrados', async () => {
+    await abrir();
+    expect(await screen.findByLabelText(CARTAO_DO_BACALHAU)).toBeTruthy();
+    expect(screen.getByText(/^(Bom dia|Boa tarde|Boa noite), Rita$/)).toBeTruthy();
+    expect(screen.getByLabelText('O que almoçamos hoje?')).toBeTruthy();
+    // a Tasca e o Café: 2 restaurantes no mapa (tocar abre o separador Mapa)
+    await fireEvent.press(screen.getByRole('button', { name: /Mapa de calor com 2 restaurantes/ }));
+    expect(router.navigate).toHaveBeenCalledWith('/mapa');
   });
 });

@@ -75,6 +75,16 @@ export const texto = {
   rotulo: { fontSize: 10, fontFamily: fontes.mono, letterSpacing: 0.6, color: cores.textoSecundario },
 };
 
+// Cores do mapa 3D do Início (src/components/MapaDeCalor.js): prédios, ruas e água no mesmo tom escuro da app.
+export const coresDoMapa3d = {
+  fundo: '#07040F',
+  verde: '#0D0C1C',
+  agua: '#0B1033',
+  rua: '#2C2245',
+  ruaGrande: '#3D2F5C',
+  predio: '#1C1432',
+};
+
 // Estilo escuro para o mapa do Google (Android). No iPhone usa-se o modo escuro do Apple Maps.
 export const estiloDoMapaEscuro = [
   { elementType: 'geometry', stylers: [{ color: '#140d22' }] },
