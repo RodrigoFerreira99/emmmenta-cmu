@@ -40,8 +40,8 @@ export function FotoDoPrato({ uri, nome, tamanho = 56 }) {
 
 const estilos = StyleSheet.create({
   miniatura: { borderRadius: raio.m, backgroundColor: cores.acentoSuave },
-  // a cor do texto com 90 % de opacidade ("E6" no fim): um fundo quase preto por trás da fotografia
-  fundo: { flex: 1, backgroundColor: `${cores.texto}E6`, alignItems: 'center', justifyContent: 'center', padding: espaco.xl, gap: espaco.l },
+  // a cor do fundo com 90 % de opacidade ("E6" no fim): um fundo quase preto por trás da fotografia
+  fundo: { flex: 1, backgroundColor: `${cores.fundo}E6`, alignItems: 'center', justifyContent: 'center', padding: espaco.xl, gap: espaco.l },
   grande: { width: '100%', height: '70%' },
   legenda: { flexDirection: 'row', alignItems: 'center', gap: espaco.m },
   legendaTexto: { fontSize: 17, fontFamily: fontes.semi, color: cores.textoSobreImagem },

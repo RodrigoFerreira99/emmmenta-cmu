@@ -4,14 +4,17 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 
 import { Bussola } from '@/components/Bussola';
 import { CaminhoAPe } from '@/components/CaminhoAPe';
+import { CapaQuente } from '@/components/CapaQuente';
 import { EtiquetaEsgotado, EtiquetaUltimasDoses } from '@/components/CartaoDePrato';
 import { EcraDeErro } from '@/components/EcraDeErro';
 import { PaginaFantasma } from '@/components/Esqueleto';
 import { FotoDoPrato } from '@/components/FotoDoPrato';
 import { Icone } from '@/components/Icone';
+import { ImagemDoPrato } from '@/components/ImagemDoPrato';
 import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
+import { pratoDeDestaque } from '@/lib/imagensDosPratos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { telemovelEmPortugues } from '@/lib/lingua';
 import { lerEmVozAlta, pararDeLer, textoDoMenuParaOuvir } from '@/lib/ouvirMenu';
@@ -35,7 +38,8 @@ import { cores, espaco, fontes, raio, texto } from '@/theme';
 // O botão do altifalante lê o menu em voz alta (em português ou, no menu em inglês, em inglês).
 // "Seguir a bússola" abre uma seta que aponta para o restaurante enquanto o cliente anda (Bussola).
 export default function PaginaRestaurante() {
-  const { id, distancia } = useLocalSearchParams();
+  // "calhou" = '1' quando o cliente chegou aqui por ter abanado o telemóvel no Início
+  const { id, distancia, calhou } = useLocalSearchParams();
 
   const [estado, setEstado] = useState('aCarregar'); // 'aCarregar' | 'erro' | 'naoExiste' | 'pronto'
   const [erroAoCarregar, setErroAoCarregar] = useState(null);
@@ -220,12 +224,18 @@ export default function PaginaRestaurante() {
       <Stack.Screen options={{ title: restaurante.nome }} />
 
       <ScrollView contentContainerStyle={estilos.conteudo}>
+        {/* a fotografia do restaurante; sem fotografia, o prato principal de hoje em 3D por cima do "calor" */}
         {restaurante.foto_url ? (
-          <Image source={{ uri: restaurante.foto_url }} style={estilos.foto} accessibilityLabel={`Fotografia de ${restaurante.nome}`} />
-        ) : (
-          <View style={[estilos.foto, estilos.semFoto]}>
-            <Icone name="storefront-outline" size={48} color={cores.acento} />
+          <View>
+            <Image source={{ uri: restaurante.foto_url }} style={estilos.foto} accessibilityLabel={`Fotografia de ${restaurante.nome}`} />
+            {calhou === '1' ? (
+              <View style={estilos.calhou}>
+                <Text style={estilos.calhouTexto}>HOJE ALMOÇAS AQUI</Text>
+              </View>
+            ) : null}
           </View>
+        ) : (
+          <CapaQuente prato={pratoDeDestaque(pratos, restaurante)} calhou={calhou === '1'} />
         )}
 
         <View style={estilos.linhaDoTitulo}>
@@ -361,7 +371,12 @@ function LinhaDoPrato({ prato, comLinha, emIngles, nomeEmIngles }) {
 
   return (
     <View style={[estilos.prato, comLinha && estilos.pratoComLinha]}>
-      {prato.foto_url ? <FotoDoPrato uri={prato.foto_url} nome={nomeEmIngles ?? prato.nome} /> : null}
+      {/* a fotografia do prato (toca-se para a ver em grande) ou, sem fotografia, a imagem 3D do tipo de prato */}
+      {prato.foto_url ? (
+        <FotoDoPrato uri={prato.foto_url} nome={nomeEmIngles ?? prato.nome} />
+      ) : (
+        <ImagemDoPrato prato={{ nome: prato.nome, categoria: prato.categoria, esgotado: prato.esgotado }} tamanho={56} />
+      )}
       <View style={estilos.pratoTextos} accessible accessibilityLabel={rotulo}>
         <View style={estilos.ocuparTudo}>
           <Text style={[estilos.pratoNome, prato.esgotado && estilos.riscado]}>{nomeEmIngles ?? prato.nome}</Text>
@@ -399,7 +414,16 @@ const estilos = StyleSheet.create({
   textoCentro: { textAlign: 'center' },
   grupo: { gap: espaco.xs },
   foto: { width: '100%', height: 180, borderRadius: raio.xl, backgroundColor: cores.acentoSuave },
-  semFoto: { alignItems: 'center', justifyContent: 'center' },
+  calhou: {
+    position: 'absolute',
+    top: espaco.m,
+    alignSelf: 'center',
+    backgroundColor: cores.acento,
+    paddingHorizontal: espaco.m,
+    paddingVertical: espaco.xs + 2,
+    borderRadius: raio.pilula,
+  },
+  calhouTexto: { fontFamily: fontes.monoForte, fontSize: 11, letterSpacing: 0.8, color: cores.textoInverso },
   cartao: {
     gap: espaco.m,
     padding: espaco.l,

@@ -1,6 +1,7 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icone } from '@/components/Icone';
+import { ImagemDoPrato } from '@/components/ImagemDoPrato';
 import { useAgora } from '@/lib/relogio';
 import { descreverLotacao, lotacaoAtual, nomeDaCategoria } from '@/services/menus';
 import { descreverEtiquetas, formatarDistancia, formatarPreco } from '@/services/pratos';
@@ -34,7 +35,11 @@ export function CartaoDePrato({ prato, onPress, favorito = false }) {
 
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={rotulo} style={({ pressed }) => [estilos.cartao, pressed && estilos.premido]}>
-      {prato.foto_url ? <Image source={{ uri: prato.foto_url }} style={[estilos.foto, esgotado && estilos.fotoEsgotada]} /> : null}
+      {/* a fotografia do prato, se o restaurante a tirou; senão, a imagem 3D do tipo de prato */}
+      <ImagemDoPrato
+        prato={{ nome: prato.prato, categoria: prato.categoria, foto_url: prato.foto_url, esgotado, distancia_km: prato.distancia_km }}
+        tamanho={64}
+      />
 
       <View style={estilos.textos}>
         <Text style={[estilos.nome, esgotado && estilos.riscado]} numberOfLines={2}>
@@ -89,16 +94,16 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco.m,
-    padding: espaco.l,
-    minHeight: 72,
+    paddingVertical: espaco.s,
+    paddingLeft: espaco.s,
+    paddingRight: espaco.l,
+    minHeight: 80,
     borderRadius: raio.xl,
     borderWidth: 1,
     borderColor: cores.linha,
     backgroundColor: cores.superficie,
   },
-  premido: { opacity: 0.7 },
-  foto: { width: 56, height: 56, borderRadius: raio.m, backgroundColor: cores.acentoSuave },
-  fotoEsgotada: { opacity: 0.4 },
+  premido: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   textos: { flex: 1, gap: 2 },
   nome: { ...texto.corpo, fontSize: 16, fontFamily: fontes.semi },
   riscado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
@@ -108,7 +113,7 @@ const estilos = StyleSheet.create({
   cheio: { color: cores.erro, fontFamily: fontes.semi },
   haMesa: { color: cores.sucesso, fontFamily: fontes.semi },
   direita: { alignItems: 'flex-end', gap: espaco.xs },
-  preco: { fontSize: 17, fontFamily: fontes.negrito, color: cores.acento },
+  preco: { fontSize: 15, fontFamily: fontes.monoForte, color: cores.acento },
   precoEsgotado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
   etiqueta: { paddingHorizontal: espaco.s, paddingVertical: 2, borderRadius: raio.s, backgroundColor: cores.linha },
   etiquetaTexto: { fontSize: 11, fontFamily: fontes.semi, color: cores.textoSecundario },
