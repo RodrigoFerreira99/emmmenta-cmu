@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
 import { hojeEmLisboa } from '@/lib/datas';
@@ -49,6 +50,13 @@ jest.mock('@/lib/supabase', () => {
   return {
     supabase: {
       from: () => cadeia(),
+      // funções do Supabase (o recorte das fotografias dos pratos)
+      functions: {
+        invoke: async (nome, opcoes) => {
+          mockEstado.ultimaFuncao = { nome, opcoes };
+          return mockEstado.respostaDaFuncao;
+        },
+      },
       storage: {
         from: (bucket) => ({
           upload: async (caminho, corpo, opcoes) => {
@@ -553,5 +561,29 @@ describe('buscarRestaurantesPorIds (favoritos)', () => {
   test('sem rede, a mensagem vem em português', async () => {
     mockEstado.resposta = { data: null, error: { message: 'TypeError: Network request failed' } };
     await esperarErro(s.buscarRestaurantesPorIds([ID1]), 'Sem ligação à internet');
+  });
+});
+
+describe('recortarFotoDoPrato (design térmico: tirar o fundo à fotografia do prato)', () => {
+  const LINK = 'https://x.supabase.co/storage/v1/object/public/fotos/u1/pratos/prato-1.jpg';
+  const RECORTE = 'https://x.supabase.co/storage/v1/object/public/fotos/u1/pratos/recorte-prato-1.png';
+
+  test('pede o recorte à função recortar-prato e devolve o link do PNG', async () => {
+    mockEstado.respostaDaFuncao = { data: { url: RECORTE }, error: null };
+    await expect(s.recortarFotoDoPrato(LINK)).resolves.toBe(RECORTE);
+    expect(mockEstado.ultimaFuncao).toEqual({ nome: 'recortar-prato', opcoes: { body: { foto: LINK } } });
+  });
+
+  test('os erros chegam em português (ex.: acabaram os recortes grátis do mês)', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const erro = 'Os recortes grátis deste mês acabaram. Fica a fotografia normal.';
+    mockEstado.respostaDaFuncao = { data: null, error: new FunctionsHttpError({ status: 429, json: async () => ({ erro }) }) };
+    await expect(s.recortarFotoDoPrato(LINK)).rejects.toThrow(erro);
+
+    mockEstado.respostaDaFuncao = { data: null, error: new FunctionsHttpError({ status: 404, json: async () => ({}) }) };
+    await expect(s.recortarFotoDoPrato(LINK)).rejects.toThrow('O recorte das fotografias ainda não está ativado');
+
+    mockEstado.respostaDaFuncao = { data: {}, error: null };
+    await expect(s.recortarFotoDoPrato(LINK)).rejects.toThrow('Não foi possível recortar a fotografia');
   });
 });

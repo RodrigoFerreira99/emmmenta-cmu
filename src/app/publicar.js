@@ -27,7 +27,7 @@ import {
   validarPrato,
 } from '@/services/menus';
 import { CATEGORIAS, descreverEtiquetas, ETIQUETAS, formatarPreco } from '@/services/pratos';
-import { buscarMeuRestaurante, enviarFotoDoPrato } from '@/services/restaurantes';
+import { buscarMeuRestaurante, enviarFotoDoPrato, recortarFotoDoPrato } from '@/services/restaurantes';
 import { cores, espaco, fontes, raio, texto } from '@/theme';
 
 // Ecrã 6 · Publicar menu (RF03) — responsável: José
@@ -76,6 +76,8 @@ export default function Publicar() {
   const [etiquetas, setEtiquetas] = useState([]); // por exemplo ['vegano', 'sem-gluten']
   const [foto, setFoto] = useState(null); // link da fotografia do prato, depois de enviada
   const [aEnviarFoto, setAEnviarFoto] = useState(false);
+  const [aRecortarFoto, setARecortarFoto] = useState(false); // a tirar o fundo à fotografia do prato
+  const [notaDaFoto, setNotaDaFoto] = useState(null); // ex.: "Os recortes grátis deste mês acabaram…"
 
   const [aPublicar, setAPublicar] = useState(false);
   const [mensagem, setMensagem] = useState(null); // erro junto ao botão Publicar
@@ -158,6 +160,7 @@ export default function Publicar() {
     setErrosDoPrato({});
     setEtiquetas([]);
     setFoto(null);
+    setNotaDaFoto(null);
   }
 
   // Tocar numa etiqueta liga-a ou desliga-a (podem escolher-se várias).
@@ -166,14 +169,28 @@ export default function Publicar() {
   }
 
   // Fotografia do prato: é comprimida e enviada logo (pode demorar uns segundos); o prato fica só com o link.
+  // Depois (design térmico) pede-se o recorte: sem fundo, o prato verdadeiro aparece a flutuar sobre o
+  // calor, como as imagens 3D. Se o recorte não der (sem rede, sem recortes grátis este mês…), fica a
+  // fotografia normal e aparece só uma nota.
   async function escolherFotoDoPrato(caminho) {
     const versao = versaoDoFormulario.current;
     const aindaEOMesmoPrato = () => montado.current && versaoDoFormulario.current === versao;
     setErrosDoPrato((atuais) => ({ ...atuais, foto: undefined }));
+    setNotaDaFoto(null);
     setAEnviarFoto(true);
     try {
       const link = await enviarFotoDoPrato(donoId, caminho);
-      if (aindaEOMesmoPrato()) setFoto(link);
+      if (!aindaEOMesmoPrato()) return;
+      setFoto(link);
+      setARecortarFoto(true);
+      try {
+        const recorte = await recortarFotoDoPrato(link);
+        if (aindaEOMesmoPrato()) setFoto(recorte);
+      } catch (erro) {
+        if (aindaEOMesmoPrato()) setNotaDaFoto(erro.message);
+      } finally {
+        if (montado.current) setARecortarFoto(false);
+      }
     } catch (erro) {
       if (aindaEOMesmoPrato()) setErrosDoPrato((atuais) => ({ ...atuais, foto: erro.message }));
     } finally {
@@ -468,9 +485,14 @@ export default function Publicar() {
                 doQue=" do prato"
                 uri={foto}
                 aEnviar={aEnviarFoto}
+                textoAEnviar={aRecortarFoto ? 'A recortar o fundo da fotografia…' : undefined}
                 aoEscolher={escolherFotoDoPrato}
-                aoRemover={() => setFoto(null)}
+                aoRemover={() => {
+                  setFoto(null);
+                  setNotaDaFoto(null);
+                }}
               />
+              {notaDaFoto ? <Text style={texto.pequeno}>{notaDaFoto}</Text> : null}
 
               {errosDoFormulario.length > 0 && (
                 <Text style={estilos.erro} accessibilityRole="alert">

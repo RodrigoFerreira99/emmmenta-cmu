@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'rea
 import { Circle, Defs, RadialGradient, Stop, Svg } from 'react-native-svg';
 
 import { corDoCalor } from '@/lib/cores';
-import { imagemDoPrato } from '@/lib/imagensDosPratos';
+import { eFotoRecortada, imagemDoPrato } from '@/lib/imagensDosPratos';
 import { cores, espaco, fontes, raio } from '@/theme';
 
 // Capa da página do restaurante (design térmico), quando o restaurante não tem fotografia:
@@ -12,7 +12,7 @@ import { cores, espaco, fontes, raio } from '@/theme';
 // Quando o cliente chega aqui por ter abanado o telemóvel (calhou = true), o prato cai do céu,
 // salta até assentar e aparece o aviso "Hoje almoças aqui".
 //
-// Propriedades: prato ({ nome, categoria }), calhou (true/false), altura (px).
+// Propriedades: prato ({ nome, categoria, foto_url }), calhou (true/false), altura (px).
 export function CapaQuente({ prato, calhou = false, altura = 230 }) {
   // valores das animações (criados uma vez, como em src/components/Esqueleto.js)
   const [flutuar] = useState(() => new Animated.Value(0));
@@ -65,7 +65,8 @@ export function CapaQuente({ prato, calhou = false, altura = 230 }) {
         ))}
       </Svg>
       <Animated.Image
-        source={imagemDoPrato(prato)}
+        // a fotografia recortada do prato (sem fundo), se o restaurante a tirou; senão, a imagem 3D
+        source={eFotoRecortada(prato.foto_url) ? { uri: prato.foto_url } : imagemDoPrato(prato)}
         resizeMode="contain"
         style={{ width: lado, height: lado, transform: [{ translateY: Animated.add(subir, doCeu) }] }}
       />

@@ -14,7 +14,7 @@ import { ImagemDoPrato } from '@/components/ImagemDoPrato';
 import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
 import { useFavoritos } from '@/lib/favoritos';
-import { pratoDeDestaque } from '@/lib/imagensDosPratos';
+import { eFotoRecortada, pratoDeDestaque } from '@/lib/imagensDosPratos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
 import { telemovelEmPortugues } from '@/lib/lingua';
 import { lerEmVozAlta, pararDeLer, textoDoMenuParaOuvir } from '@/lib/ouvirMenu';
@@ -371,11 +371,11 @@ function LinhaDoPrato({ prato, comLinha, emIngles, nomeEmIngles }) {
 
   return (
     <View style={[estilos.prato, comLinha && estilos.pratoComLinha]}>
-      {/* a fotografia do prato (toca-se para a ver em grande) ou, sem fotografia, a imagem 3D do tipo de prato */}
-      {prato.foto_url ? (
+      {/* a fotografia do prato (toca-se para a ver em grande); recortada ou sem fotografia, o prato a flutuar no calor */}
+      {prato.foto_url && !eFotoRecortada(prato.foto_url) ? (
         <FotoDoPrato uri={prato.foto_url} nome={nomeEmIngles ?? prato.nome} />
       ) : (
-        <ImagemDoPrato prato={{ nome: prato.nome, categoria: prato.categoria, esgotado: prato.esgotado }} tamanho={56} />
+        <ImagemDoPrato prato={{ nome: prato.nome, categoria: prato.categoria, esgotado: prato.esgotado, foto_url: prato.foto_url }} tamanho={56} />
       )}
       <View style={estilos.pratoTextos} accessible accessibilityLabel={rotulo}>
         <View style={estilos.ocuparTudo}>

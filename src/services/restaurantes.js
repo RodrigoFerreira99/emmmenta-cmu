@@ -3,7 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 
 import { hojeEmLisboa, horaEmLisboa } from '@/lib/datas';
-import { traduzirErro } from '@/lib/erros';
+import { traduzirErro, traduzirErroDeFuncao } from '@/lib/erros';
 import { supabase } from '@/lib/supabase';
 
 // RF02 — Perfil do restaurante.
@@ -331,6 +331,22 @@ export async function enviarFotoRestaurante(donoId, uriLocal) {
  */
 export async function enviarFotoDoPrato(donoId, uriLocal) {
   return enviarParaAsFotos(`${donoId}/pratos/prato-${Date.now()}.jpg`, uriLocal);
+}
+
+// Design térmico: pede à função "recortar-prato" do Supabase para tirar o fundo à fotografia de um prato
+// (serviço remove.bg), para o prato verdadeiro aparecer a flutuar sobre o calor, como as imagens 3D.
+// Devolve o link do recorte (PNG com fundo transparente). Se falhar, lança um Error com uma mensagem
+// em português, e o ecrã fica com a fotografia normal.
+export async function recortarFotoDoPrato(foto) {
+  const { data, error } = await supabase.functions.invoke('recortar-prato', { body: { foto } });
+  if (error) {
+    throw await traduzirErroDeFuncao(error, {
+      quandoNaoExiste: 'O recorte das fotografias ainda não está ativado. Fica a fotografia normal.',
+      geral: 'Não foi possível recortar a fotografia. Fica a fotografia normal.',
+    });
+  }
+  if (typeof data?.url !== 'string' || !data.url) throw new Error('Não foi possível recortar a fotografia. Fica a fotografia normal.');
+  return data.url;
 }
 
 // Comprime, envia para o bucket "fotos" e devolve o link público.

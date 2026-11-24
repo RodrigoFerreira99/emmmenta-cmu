@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 
 import { CapaQuente } from '@/components/CapaQuente';
 import { ImagemDoPrato } from '@/components/ImagemDoPrato';
-import { chaveDaImagem, imagemDoPrato, pratoDeDestaque } from '@/lib/imagensDosPratos';
+import { chaveDaImagem, eFotoRecortada, imagemDoPrato, pratoDeDestaque } from '@/lib/imagensDosPratos';
 
 // Imagens 3D dos pratos (design térmico) — testes a src/lib/imagensDosPratos.js, ImagemDoPrato e CapaQuente.
 // Correr com: npm test
@@ -52,17 +52,33 @@ describe('o prato da capa', () => {
   ];
 
   test('o primeiro prato principal que ainda há', () => {
-    expect(pratoDeDestaque(PRATOS)).toEqual({ nome: 'Pescada cozida', categoria: 'peixe' });
+    expect(pratoDeDestaque(PRATOS)).toEqual({ nome: 'Pescada cozida', categoria: 'peixe', foto_url: null });
   });
 
   test('se só houver sopa, a sopa; se estiver tudo esgotado, o primeiro; sem menu, o tipo de cozinha', () => {
-    expect(pratoDeDestaque([PRATOS[0]])).toEqual({ nome: 'Caldo verde', categoria: 'sopa' });
-    expect(pratoDeDestaque([PRATOS[1]])).toEqual({ nome: 'Feijoada', categoria: 'carne' });
+    expect(pratoDeDestaque([PRATOS[0]])).toEqual({ nome: 'Caldo verde', categoria: 'sopa', foto_url: null });
+    expect(pratoDeDestaque([PRATOS[1]])).toEqual({ nome: 'Feijoada', categoria: 'carne', foto_url: null });
     expect(pratoDeDestaque([], { tipo_cozinha: 'Grelhados' })).toEqual({ nome: 'Grelhados', categoria: 'carne' });
   });
 });
 
+describe('fotografias recortadas (sem fundo)', () => {
+  test('reconhece os recortes feitos pela função recortar-prato', () => {
+    expect(eFotoRecortada('https://x.supabase.co/storage/v1/object/public/fotos/u1/pratos/recorte-prato-17.png')).toBe(true);
+    expect(eFotoRecortada('https://x.supabase.co/storage/v1/object/public/fotos/u1/pratos/prato-17.jpg')).toBe(false);
+    expect(eFotoRecortada('https://x.supabase.co/storage/v1/object/public/fotos/u1/restaurante.png')).toBe(false);
+    expect(eFotoRecortada(null)).toBe(false);
+  });
+});
+
 describe('componentes', () => {
+  test('ImagemDoPrato mostra a fotografia recortada a flutuar (sem o quadrado da fotografia)', async () => {
+    const recorte = 'https://x.supabase.co/storage/v1/object/public/fotos/u1/pratos/recorte-prato-17.png';
+    await render(<ImagemDoPrato prato={{ nome: 'Bitoque', categoria: 'carne', foto_url: recorte }} />);
+    expect(screen.getByTestId('foto-recortada-do-prato').props.source).toEqual({ uri: recorte });
+    expect(screen.queryByTestId('foto-do-prato')).toBeNull();
+  });
+
   test('ImagemDoPrato mostra a fotografia quando existe', async () => {
     await render(<ImagemDoPrato prato={{ nome: 'Bitoque', categoria: 'carne', foto_url: 'https://exemplo.pt/bitoque.jpg' }} />);
     expect(screen.getByTestId('foto-do-prato').props.source).toEqual({ uri: 'https://exemplo.pt/bitoque.jpg' });

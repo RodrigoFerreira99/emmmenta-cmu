@@ -15,6 +15,7 @@ import { cores, espaco, fontes, raio, texto } from '@/theme';
 //   aoEscolher  função chamada com o caminho local da imagem tirada ou escolhida
 //   aoRemover   função chamada quando se carrega em "Remover"
 //   aEnviar     true enquanto a fotografia está a ser enviada (mostra o indicador e esconde os botões)
+//   textoAEnviar  o que se diz enquanto isso (ex.: "A recortar o fundo da fotografia…")
 //   titulo, rotulo, icone, dica   textos e ícone (por omissão, os da fotografia do restaurante)
 //   doQue       acrescento aos rótulos dos botões, por exemplo " do prato" → "Tirar fotografia do prato"
 //               (assim o leitor de ecrã distingue estes botões dos da leitura do menu por fotografia)
@@ -40,6 +41,7 @@ export function SeletorFoto({
   icone = 'storefront-outline',
   dica = 'Fotografa a fachada ou a sala do restaurante',
   doQue = '',
+  textoAEnviar = 'A enviar fotografia…',
 }) {
   const [cameraAberta, setCameraAberta] = useState(false);
 
@@ -81,7 +83,7 @@ export function SeletorFoto({
         <Text style={estilos.titulo}>{titulo}</Text>
         {aEnviar ? (
           <View style={estilos.botao}>
-            <Text style={texto.pequeno}>A enviar fotografia…</Text>
+            <Text style={texto.pequeno}>{textoAEnviar}</Text>
           </View>
         ) : (
           <View style={estilos.botoes}>

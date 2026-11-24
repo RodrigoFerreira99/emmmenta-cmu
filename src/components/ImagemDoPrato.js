@@ -2,12 +2,16 @@ import { Image, StyleSheet, View } from 'react-native';
 import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 
 import { calorDoPrato, corDoCalor } from '@/lib/cores';
-import { imagemDoPrato } from '@/lib/imagensDosPratos';
+import { eFotoRecortada, imagemDoPrato } from '@/lib/imagensDosPratos';
 import { cores, raio as raios } from '@/theme';
 
-// Imagem de um prato (design térmico): a fotografia do restaurante, se existir; senão, a imagem 3D
-// do tipo de prato (src/lib/imagensDosPratos.js). Por trás há um brilho na cor do "calor":
-// um prato perto brilha laranja e amarelo, um longe brilha menos, e um esgotado fica frio (roxo e apagado).
+// Imagem de um prato (design térmico). Três casos:
+//  1. fotografia recortada (sem fundo, feita pela função "recortar-prato"): o prato verdadeiro a flutuar
+//     sobre o brilho do calor, como as imagens 3D;
+//  2. fotografia normal (se o recorte não foi possível): a fotografia num quadrado de cantos redondos;
+//  3. sem fotografia: a imagem 3D do tipo de prato, escolhida pelo nome (src/lib/imagensDosPratos.js).
+// O brilho tem a cor do "calor": um prato perto brilha laranja e amarelo, um longe brilha menos,
+// e um esgotado fica frio (roxo e apagado).
 //
 // Propriedades: prato ({ nome, categoria, foto_url, esgotado, distancia_km }), tamanho (px), arredondar.
 export function ImagemDoPrato({ prato, tamanho = 64, arredondar = true }) {
@@ -15,8 +19,9 @@ export function ImagemDoPrato({ prato, tamanho = 64, arredondar = true }) {
   const calor = calorDoPrato({ distanciaKm: prato.distancia_km ?? 0.3, esgotado });
   const cor = corDoCalor(calor * 0.85);
   const raio = arredondar ? Math.round(tamanho * 0.24) : raios.m;
+  const recortada = eFotoRecortada(prato.foto_url);
 
-  if (prato.foto_url) {
+  if (prato.foto_url && !recortada) {
     return (
       <Image
         testID="foto-do-prato"
@@ -39,12 +44,22 @@ export function ImagemDoPrato({ prato, tamanho = 64, arredondar = true }) {
         </Defs>
         <Rect width={tamanho} height={tamanho} rx={raio} fill={`url(#${idDoBrilho})`} />
       </Svg>
-      <Image
-        testID="imagem-3d-do-prato"
-        source={imagemDoPrato({ nome: prato.nome, categoria: prato.categoria })}
-        style={[{ width: tamanho * 1.08, height: tamanho * 1.08, margin: -tamanho * 0.04 }, esgotado && estilos.apagado]}
-        resizeMode="contain"
-      />
+      {recortada ? (
+        <Image
+          testID="foto-recortada-do-prato"
+          source={{ uri: prato.foto_url }}
+          style={[{ width: tamanho * 0.94, height: tamanho * 0.94, margin: tamanho * 0.03 }, esgotado && estilos.apagado]}
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+        />
+      ) : (
+        <Image
+          testID="imagem-3d-do-prato"
+          source={imagemDoPrato({ nome: prato.nome, categoria: prato.categoria })}
+          style={[{ width: tamanho * 1.08, height: tamanho * 1.08, margin: -tamanho * 0.04 }, esgotado && estilos.apagado]}
+          resizeMode="contain"
+        />
+      )}
     </View>
   );
 }

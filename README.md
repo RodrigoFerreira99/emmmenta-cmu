@@ -96,6 +96,16 @@ Além do Supabase, a app usa os serviços abaixo. Só o de caminhos recebe a loc
 - **Caminho a pé até ao restaurante:** o botão "Ver o caminho a pé" da página do restaurante mostra, num mapa dentro da app, o percurso pelas ruas, com o tempo e a distância ("12 min a pé · 870 m"). O percurso é pedido ao serviço de caminhos do OpenStreetMap ([routing.openstreetmap.de](https://routing.openstreetmap.de/about.html), gratuito e sem chave), com a localização do cliente arredondada a cerca de 100 m. As regras desse serviço pedem no máximo um pedido por segundo (a app faz um por toque), que a app se identifique e que se mostre a atribuição ao OpenStreetMap com a ligação "Corrigir o mapa". Se o serviço falhar, aparece uma linha reta com uma estimativa. Para ser guiado passo a passo, continua a haver o botão "Direções" (abre a app de mapas).
 - **Mapa de calor 3D no Início (design):** as ruas e os prédios em 3D vêm do [OpenFreeMap](https://openfreemap.org/) (mosaicos gratuitos, sem chave nem conta, com dados do OpenStreetMap) e são desenhados pelo [MapLibre GL](https://maplibre.org/) numa WebView (a biblioteca é descarregada do unpkg.com). Só são pedidos os mosaicos da zona que aparece; a localização do cliente não é enviada nem guardada. Sem rede, o cartão do mapa mostra uma mensagem e a lista continua.
 
+- **Recortar a fotografia do prato (design):** quando o restaurante tira a fotografia de um prato no Publicar menu, a função `recortar-prato` do Supabase (`supabase/functions/recortar-prato/index.js`) pede ao [remove.bg](https://www.remove.bg/api) para tirar o fundo, e o prato verdadeiro aparece "a flutuar" sobre o calor, como as imagens 3D. Vai só o link da fotografia do prato (que já é pública); o recorte fica guardado na pasta do restaurante. O plano gratuito dá 50 recortes por mês, em tamanho pequeno (chega para o ecrã). Se não houver recortes ou rede, fica a fotografia normal.
+
+### Ativar o recorte das fotografias dos pratos
+
+1. Criar uma conta gratuita em https://www.remove.bg e, em **Dashboard → API Keys**, criar uma chave.
+2. No painel do Supabase: **Edge Functions → Secrets** e criar o segredo `REMOVE_BG_API_KEY` com essa chave. A chave **nunca** entra na app nem no repositório.
+3. A função `recortar-prato` tem de estar publicada (com "Verify JWT" ligado). Se o código dela mudar, tem de ser publicada outra vez.
+
+Sem o segredo, a app diz "O recorte das fotografias ainda não está ativado. Fica a fotografia normal." e tudo o resto funciona.
+
 ### Créditos do design
 
 - Pratos em 3D (`assets/pratos`): imagens feitas a partir do [Food Kit](https://kenney.nl/assets/food-kit) do Kenney (licença CC0), com cores novas.

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router, usePreventRemove } from 'expo-router';
 
 import Publicar from '@/app/publicar';
 import { escolherDaGaleria, pedirAcessoACamara } from '@/lib/fotografias';
 import { lerMenuDaFoto } from '@/services/lerMenu';
 import { buscarMenuDeHoje, buscarUltimoMenuAnterior, publicarMenu } from '@/services/menus';
-import { buscarMeuRestaurante, enviarFotoDoPrato } from '@/services/restaurantes';
+import { buscarMeuRestaurante, enviarFotoDoPrato, recortarFotoDoPrato } from '@/services/restaurantes';
 
 // RF03 — testes ao ecrã Publicar menu, a carregar nos botões como um utilizador faria.
 // A base de dados é simulada: só interessa confirmar o que o ecrã mostra e o que pede para gravar.
@@ -22,7 +22,7 @@ jest.mock('expo-router', () => ({
   usePreventRemove: jest.fn(),
 }));
 jest.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 56 }));
-jest.mock('@/services/restaurantes', () => ({ buscarMeuRestaurante: jest.fn(), enviarFotoDoPrato: jest.fn() }));
+jest.mock('@/services/restaurantes', () => ({ buscarMeuRestaurante: jest.fn(), enviarFotoDoPrato: jest.fn(), recortarFotoDoPrato: jest.fn() }));
 // As funções sem rede (validar, ler preços...) são as verdadeiras; só as que falam com a base de dados são simuladas.
 jest.mock('@/services/menus', () => ({
   ...jest.requireActual('@/services/menus'),
@@ -505,6 +505,7 @@ describe('Publicar menu — etiquetas e fotografia de cada prato', () => {
   test('a fotografia do prato é enviada logo e o prato fica com o link', async () => {
     escolherDaGaleria.mockResolvedValue('file:///galeria/salada.jpg');
     enviarFotoDoPrato.mockResolvedValue(LINK);
+    recortarFotoDoPrato.mockRejectedValue(new Error('O recorte das fotografias ainda não está ativado. Fica a fotografia normal.'));
     await render(<Publicar />);
     await screen.findByText('Pratos de hoje');
 
@@ -515,6 +516,36 @@ describe('Publicar menu — etiquetas e fotografia de cada prato', () => {
     await adicionarPrato('Salada de grão', '6,50');
     await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
     expect(publicarMenu).toHaveBeenCalledWith('r1', expect.objectContaining({ pratos: [expect.objectContaining({ foto_url: LINK })] }));
+    // o recorte não estava ativado: fica a fotografia normal e aparece só uma nota
+    expect(screen.queryByText(/ainda não está ativado/)).toBeNull(); // o formulário ficou limpo para o prato seguinte
+  });
+
+  test('design térmico: a fotografia é recortada (sem fundo) e o prato fica com o recorte', async () => {
+    const RECORTE = 'https://exemplo.supabase.co/storage/v1/object/public/fotos/u1/pratos/recorte-prato-1.png';
+    escolherDaGaleria.mockResolvedValue('file:///galeria/salada.jpg');
+    enviarFotoDoPrato.mockResolvedValue(LINK);
+    recortarFotoDoPrato.mockResolvedValue(RECORTE);
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher fotografia do prato da galeria' }));
+    expect(recortarFotoDoPrato).toHaveBeenCalledWith(LINK); // o recorte é pedido com o link da fotografia enviada
+    await waitFor(() => expect(screen.getByLabelText('Fotografia do prato').props.source).toEqual({ uri: RECORTE }));
+
+    await adicionarPrato('Salada de grão', '6,50');
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar menu' }));
+    expect(publicarMenu).toHaveBeenCalledWith('r1', expect.objectContaining({ pratos: [expect.objectContaining({ foto_url: RECORTE })] }));
+  });
+
+  test('se o recorte falhar, fica a fotografia normal e aparece a explicação', async () => {
+    escolherDaGaleria.mockResolvedValue('file:///galeria/salada.jpg');
+    enviarFotoDoPrato.mockResolvedValue(LINK);
+    recortarFotoDoPrato.mockRejectedValue(new Error('Os recortes grátis deste mês acabaram. Fica a fotografia normal.'));
+    await render(<Publicar />);
+    await screen.findByText('Pratos de hoje');
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher fotografia do prato da galeria' }));
+    expect(await screen.findByText('Os recortes grátis deste mês acabaram. Fica a fotografia normal.')).toBeTruthy();
+    expect(screen.getByLabelText('Fotografia do prato').props.source).toEqual({ uri: LINK });
   });
 
   test('se a fotografia não puder ser enviada, explica; o prato pode entrar sem ela', async () => {

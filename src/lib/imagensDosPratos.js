@@ -85,6 +85,12 @@ export function imagemDoPrato(prato) {
 export function pratoDeDestaque(pratos = [], restaurante = null) {
   const disponiveis = pratos.filter((p) => !p.esgotado);
   const principal = disponiveis.find((p) => ['carne', 'peixe', 'vegetariano'].includes(p.categoria)) ?? disponiveis[0] ?? pratos[0];
-  if (principal) return { nome: principal.nome, categoria: principal.categoria };
+  if (principal) return { nome: principal.nome, categoria: principal.categoria, foto_url: principal.foto_url ?? null };
   return { nome: restaurante?.tipo_cozinha ?? '', categoria: 'carne' };
+}
+
+// true se o link for de uma fotografia já recortada (sem fundo) pela função "recortar-prato":
+// <conta>/pratos/recorte-<nome>.png. Essas aparecem a flutuar sobre o calor, como as imagens 3D.
+export function eFotoRecortada(link) {
+  return typeof link === 'string' && /\/pratos\/recorte-[\w-]+\.png(\?.*)?$/.test(link);
 }
