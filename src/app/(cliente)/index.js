@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { usePerto } from '@/context/PertoContext';
 import { ouvirAbanoes } from '@/lib/abanar';
 import { saudacao } from '@/lib/datas';
+import { ZONA_DA_DEMONSTRACAO } from '@/lib/zonas';
 import { almocoMaisBarato, escolherAoAcaso, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
 import { cores, espaco, fontes, raio, texto } from '@/theme';
 
@@ -42,6 +43,7 @@ export default function Inicio() {
     filtrosAtivos,
     mudarFiltros,
     limparFiltros,
+    escolherZona,
   } = usePerto();
   const { perfil } = useAuth();
   const [aMudarLocal, setAMudarLocal] = useState(false);
@@ -131,6 +133,13 @@ export default function Inicio() {
           <Botao tipo="secundario" icone="resize-outline" titulo={`Procurar até ${raioMaior} km`} onPress={() => mudarFiltros({ raioKm: raioMaior })} />
         ) : null}
         {filtrosAtivos > 0 ? <Botao tipo="secundario" icone="close-outline" titulo="Limpar filtros" onPress={limparFiltros} /> : null}
+        {/* quem experimenta a app longe da ESMAD (em casa, na defesa…) vê logo os restaurantes de demonstração */}
+        {local.nome !== ZONA_DA_DEMONSTRACAO.nome ? (
+          <View style={estilos.demonstracao}>
+            <Text style={[texto.pequeno, estilos.textoCentro]}>Estás longe dos restaurantes da Emmmenta? Vê os de demonstração, à volta da ESMAD.</Text>
+            <Botao tipo="secundario" icone="storefront-outline" titulo="Ver os restaurantes de demonstração" onPress={() => escolherZona(ZONA_DA_DEMONSTRACAO)} />
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -284,6 +293,7 @@ const estilos = StyleSheet.create({
   abanaTexto: { fontFamily: fontes.semi, fontSize: 14, color: cores.texto },
   separador: { height: espaco.m },
   vazio: { gap: espaco.l, paddingTop: espaco.xxl },
+  demonstracao: { gap: espaco.s, marginTop: espaco.s },
   icone: { alignSelf: 'center' },
   textoCentro: { textAlign: 'center' },
 });

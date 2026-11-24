@@ -157,7 +157,7 @@ só da primeira vez: cria as contas e os restaurantes (a palavra-passe fica no `
 node scripts/demonstracao.mjs publicar
 ```
 
-publica o menu de hoje em todos. **Já não é preciso fazer isto todos os dias:** a tarefa automática "Publicar os menus de demonstração" (`.github/workflows/publicar-menus-de-demonstracao.yml`) corre-o todas as manhãs às 6h30 (UTC), a partir do `main`. À mão continua a servir, por exemplo se a tarefa falhar;
+publica o menu de hoje em todos. **Já não é preciso fazer isto todos os dias:** a tarefa automática "Publicar os menus de demonstração" (`.github/workflows/publicar-menus-de-demonstracao.yml`) corre-o todas as manhãs às 6h30 (UTC), a partir do `main`. **Atenção:** o GitHub pode atrasar muito as tarefas marcadas (em novembro de 2026 correu entre as 14h45 e as 18h30), por isso de manhã os menus podem ainda não estar lá: no dia da defesa, ou sempre que a lista aparecer vazia, corre o comando à mão. Na app, quem está longe da ESMAD tem o botão "Ver os restaurantes de demonstração" quando não há pratos perto. À mão continua a servir, por exemplo se a tarefa falhar;
 
 ```bash
 node scripts/demonstracao.mjs estado

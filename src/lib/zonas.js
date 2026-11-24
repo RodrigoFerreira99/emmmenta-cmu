@@ -16,3 +16,8 @@ export const ZONAS = [
   { id: 'coimbra', nome: 'Coimbra', latitude: 40.2112, longitude: -8.4291 },
   { id: 'lisboa', nome: 'Lisboa', latitude: 38.7078, longitude: -9.1366 },
 ];
+
+// Onde ficam os restaurantes de demonstração (scripts/demonstracao.mjs): à volta da ESMAD, em Vila do Conde.
+// Quando não há pratos perto do cliente (por exemplo, quem experimenta a app em casa), o Início oferece
+// "Ver os restaurantes de demonstração", que passa a procurar aqui (como escolher uma zona à mão).
+export const ZONA_DA_DEMONSTRACAO = { id: 'demonstracao', nome: 'ESMAD (demonstração)', latitude: 41.36662, longitude: -8.73871 };

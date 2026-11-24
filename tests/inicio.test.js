@@ -508,3 +508,26 @@ describe('Início — design térmico', () => {
     expect(router.navigate).toHaveBeenCalledWith('/mapa');
   });
 });
+
+describe('Início — sempre algo para ver (restaurantes de demonstração)', () => {
+  test('sem pratos perto, oferece os restaurantes de demonstração da ESMAD e passa a procurar lá', async () => {
+    buscarPratosPerto.mockResolvedValueOnce([]); // em casa: nada perto
+    await abrir();
+    expect(await screen.findByText(/Ainda não há pratos publicados hoje/)).toBeTruthy();
+
+    buscarPratosPerto.mockResolvedValue([SOPA, BACALHAU]);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver os restaurantes de demonstração' }));
+    expect(await screen.findByLabelText(CARTAO_DO_BACALHAU)).toBeTruthy();
+    expect(ultimoPedido()).toMatchObject({ latitude: 41.36662, longitude: -8.73871 });
+    expect(screen.getByText('Perto de: ESMAD (demonstração)')).toBeTruthy();
+  });
+
+  test('já na zona de demonstração, o botão não aparece outra vez', async () => {
+    buscarPratosPerto.mockResolvedValue([]);
+    await abrir();
+    await screen.findByText(/Ainda não há pratos publicados hoje/);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver os restaurantes de demonstração' }));
+    expect(await screen.findByText('Perto de: ESMAD (demonstração)')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ver os restaurantes de demonstração' })).toBeNull();
+  });
+});
