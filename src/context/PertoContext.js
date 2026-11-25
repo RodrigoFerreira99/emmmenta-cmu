@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { animarProximaMudanca } from '@/lib/animacoes';
 import { useFavoritos } from '@/lib/favoritos';
+import { buscarPopularidade, ordenarPorPopularidade } from '@/services/idas';
 import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
 import { ouvirLotacao } from '@/services/menus';
 import {
@@ -27,7 +28,7 @@ import {
 const PertoContext = createContext(null);
 
 // soFavoritos: mostrar só os pratos dos restaurantes favoritos (guardados no telemóvel, src/lib/favoritos.js)
-// ordem: 'distancia' (por omissão, RF05) ou 'preco' (mais barato primeiro)
+// ordem: 'distancia' (por omissão, RF05), 'preco' (mais barato primeiro) ou 'popular' (mais estudantes na última semana)
 // etiqueta: um valor de ETIQUETAS (por exemplo 'vegano') ou null
 const FILTROS_INICIAIS = {
   raioKm: RAIO_POR_OMISSAO_KM,
@@ -237,14 +238,46 @@ export function PertoProvider({ children }) {
 
   const aCarregar = chave !== null && resultado.chave !== chave;
 
-  // "Só favoritos" e "Mais barato primeiro" não precisam de ir à base de dados: os favoritos estão no
-  // telemóvel e a ordem muda-se aqui, na lista que já chegou (o ecrã muda logo, sem esperar pela rede).
+  // Ranking dos estudantes: quantos vão hoje e quantos foram na última semana a cada restaurante da lista
+  // (src/services/idas.js). Pede-se de novo quando entram ou saem restaurantes da lista, ou com
+  // atualizarPopularidade() (por exemplo, quando o Início volta a ficar à frente). Se falhar, a lista
+  // continua igual, só sem os números.
+  const idsDosRestaurantes = useMemo(
+    () => [...new Set(resultado.pratos.map((prato) => prato.restaurante_id).filter(Boolean))].sort().join(','),
+    [resultado.pratos]
+  );
+  const [pedidosDePopularidade, setPedidosDePopularidade] = useState(0);
+  const atualizarPopularidade = useCallback(() => setPedidosDePopularidade((n) => n + 1), []);
+  const [popularidadeGuardada, setPopularidadeGuardada] = useState({ ids: null, mapa: new Map() });
+  useEffect(() => {
+    if (!idsDosRestaurantes) return;
+    let ativo = true;
+    buscarPopularidade(idsDosRestaurantes.split(','))
+      .then((mapa) => {
+        if (ativo) setPopularidadeGuardada({ ids: idsDosRestaurantes, mapa });
+      })
+      .catch(() => {
+        // sem os números, a app funciona na mesma (o motivo já ficou na consola)
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [idsDosRestaurantes, pedidosDePopularidade]);
+  const popularidade = useMemo(
+    () => (popularidadeGuardada.ids === idsDosRestaurantes ? popularidadeGuardada.mapa : new Map()),
+    [popularidadeGuardada, idsDosRestaurantes]
+  );
+
+  // "Só favoritos", "Mais barato primeiro" e "Mais populares" não precisam de ir à base de dados: os favoritos
+  // estão no telemóvel e a ordem muda-se aqui, na lista que já chegou (o ecrã muda logo, sem esperar pela rede).
   const { favoritos } = useFavoritos();
   const { soFavoritos, ordem } = filtros;
   const pratos = useMemo(() => {
     const lista = soFavoritos ? resultado.pratos.filter((prato) => favoritos.has(prato.restaurante_id)) : resultado.pratos;
-    return ordem === 'preco' ? ordenarPorPreco(lista) : lista;
-  }, [soFavoritos, ordem, favoritos, resultado.pratos]);
+    if (ordem === 'preco') return ordenarPorPreco(lista);
+    if (ordem === 'popular') return ordenarPorPopularidade(lista, popularidade);
+    return lista;
+  }, [soFavoritos, ordem, favoritos, resultado.pratos, popularidade]);
 
   const valor = useMemo(
     () => ({
@@ -260,6 +293,8 @@ export function PertoProvider({ children }) {
       aplicarFiltros,
       pratos,
       favoritos,
+      popularidade,
+      atualizarPopularidade,
       // enquanto chega a resposta nova continua a ver-se a lista anterior, mas não um erro antigo
       erro: aCarregar ? null : resultado.erro,
       aCarregar,
@@ -279,6 +314,8 @@ export function PertoProvider({ children }) {
       resultado,
       pratos,
       favoritos,
+      popularidade,
+      atualizarPopularidade,
       aCarregar,
       recarregar,
     ]

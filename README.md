@@ -106,6 +106,10 @@ Além do Supabase, a app usa os serviços abaixo. Só o de caminhos recebe a loc
 
 Sem o segredo, a app diz "O recorte das fotografias ainda não está ativado. Fica a fotografia normal." e tudo o resto funciona.
 
+### Ranking dos estudantes ("Vou almoçar aqui")
+
+Na página de um restaurante com menu hoje, o estudante toca em **"Vou almoçar aqui"** (um restaurante por dia; tocar outra vez desmarca). O Início mostra o **Top da semana entre estudantes**, cada cartão diz quantos vão hoje, há a ordem **"Mais populares"** nos filtros, e o calor do mapa passa a mostrar onde vão mais estudantes. A app só recebe números, nunca quem vai; cada um só vê a sua ida e as idas apagam-se ao fim de 30 dias. Os restaurantes de demonstração têm visitas **simuladas** (guardadas à parte das verdadeiras), para o ranking não começar vazio — na demonstração, dizê-lo. Base de dados: `supabase/migracoes/2026-11-25-ranking-dos-estudantes.sql`.
+
 ### Créditos do design
 
 - Pratos em 3D (`assets/pratos`): imagens feitas a partir do [Food Kit](https://kenney.nl/assets/food-kit) do Kenney (licença CC0), com cores novas.

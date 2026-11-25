@@ -11,6 +11,7 @@ import { Icone } from '@/components/Icone';
 import { LerQr } from '@/components/LerQr';
 import { MapaDeCalor } from '@/components/MapaDeCalor';
 import { TituloQuente } from '@/components/TituloQuente';
+import { TopDaSemana } from '@/components/TopDaSemana';
 import { PecaQueCai, useTudoACair } from '@/components/TudoACai';
 import { Botao, Carregar, Ecra } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -18,6 +19,7 @@ import { usePerto } from '@/context/PertoContext';
 import { ouvirAbanoes } from '@/lib/abanar';
 import { saudacao } from '@/lib/datas';
 import { ZONA_DA_DEMONSTRACAO } from '@/lib/zonas';
+import { topDaSemana } from '@/services/idas';
 import { almocoMaisBarato, escolherAoAcaso, OPCOES_DE_RAIO_KM, pratosParaSortear } from '@/services/pratos';
 import { cores, espaco, fontes, raio, texto } from '@/theme';
 
@@ -44,6 +46,8 @@ export default function Inicio() {
     mudarFiltros,
     limparFiltros,
     escolherZona,
+    popularidade,
+    atualizarPopularidade,
   } = usePerto();
   const { perfil } = useAuth();
   const [aMudarLocal, setAMudarLocal] = useState(false);
@@ -62,6 +66,9 @@ export default function Inicio() {
     await cair({ idEscolhido: prato.prato_id, aoAcabar: () => abrirRestaurante(prato, { calhou: true }) });
     setACair(false);
   }, [aCair, pratos, cair]);
+
+  // Ranking dos estudantes: ao voltar ao Início (por exemplo, depois de "Vou almoçar aqui"), os números atualizam.
+  useFocusEffect(atualizarPopularidade);
 
   // Abanar o telemóvel também decide, mas só com este ecrã à frente e se houver pratos para escolher.
   // Ao sair do ecrã o acelerómetro deixa de ser ouvido (poupa bateria).
@@ -147,6 +154,7 @@ export default function Inicio() {
   // Cabeçalho do design térmico (vai dentro da lista, para fazer scroll com ela):
   // o sítio e o QR code, a saudação, o título, o mapa de calor 3D e a pesquisa com os filtros (RF07).
   const primeiroNome = perfil?.nome?.trim().split(/\s+/)[0];
+  const top = topDaSemana(pratos, popularidade); // ranking dos estudantes (os 3 primeiros)
   // Cada bloco é uma "peça" (PecaQueCai): quando se abana o telemóvel, cai com física.
   const cabecalho = (
     <View style={estilos.cabecalho}>
@@ -173,7 +181,7 @@ export default function Inicio() {
         <TituloQuente />
       </PecaQueCai>
       <PecaQueCai id="mapa" registar={registar}>
-        <MapaDeCalor local={local} pratos={pratos} onPress={() => router.navigate('/mapa')} />
+        <MapaDeCalor local={local} pratos={pratos} popularidade={popularidade} onPress={() => router.navigate('/mapa')} />
       </PecaQueCai>
       <PecaQueCai id="filtros" registar={registar}>
         <FiltrosDePratos />
@@ -190,6 +198,17 @@ export default function Inicio() {
             <Icone name="vibrar" size={20} color={cores.acento} />
             <Text style={estilos.abanaTexto}>Indeciso? Abana o telemóvel</Text>
           </Pressable>
+        </PecaQueCai>
+      ) : null}
+      {/* ranking dos estudantes: onde mais estudantes foram almoçar esta semana */}
+      {top.length > 0 ? (
+        <PecaQueCai id="top" registar={registar}>
+          <TopDaSemana
+            lista={top}
+            aoAbrir={(restaurante) =>
+              router.push({ pathname: '/restaurante/[id]', params: { id: restaurante.id, distancia: String(restaurante.distanciaKm) } })
+            }
+          />
         </PecaQueCai>
       ) : null}
       {pratos.length > 0 ? (
@@ -225,7 +244,12 @@ export default function Inicio() {
         keyExtractor={(prato) => prato.prato_id}
         renderItem={({ item }) => (
           <PecaQueCai id={item.prato_id} registar={registar}>
-            <CartaoDePrato prato={item} favorito={favoritos.has(item.restaurante_id)} onPress={() => abrirRestaurante(item)} />
+            <CartaoDePrato
+              prato={item}
+              favorito={favoritos.has(item.restaurante_id)}
+              idasHoje={popularidade.get(item.restaurante_id)?.hoje ?? 0}
+              onPress={() => abrirRestaurante(item)}
+            />
           </PecaQueCai>
         )}
         contentContainerStyle={estilos.lista}

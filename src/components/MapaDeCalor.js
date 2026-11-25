@@ -13,9 +13,10 @@ import { cores, espaco, fontes, raio } from '@/theme';
 // MapLibre (ver src/lib/htmlDoMapaDeCalor.js); é só para ver: tocar abre o separador Mapa.
 // Sem rede, ou se o mapa não carregar, fica um cartão com o calor desenhado e uma mensagem (RNF08).
 //
-// Propriedades: local ({ latitude, longitude }), pratos (os do PertoContext), onPress.
-export function MapaDeCalor({ local, pratos, onPress, altura = 220 }) {
-  const dados = useMemo(() => dadosDoMapa(pratos, local), [pratos, local]);
+// Propriedades: local ({ latitude, longitude }), pratos (os do PertoContext), popularidade (o ranking dos
+// estudantes: Map id → { hoje, semana }; com números, o calor mostra onde vão mais estudantes), onPress.
+export function MapaDeCalor({ local, pratos, popularidade, onPress, altura = 220 }) {
+  const dados = useMemo(() => dadosDoMapa(pratos, local, popularidade), [pratos, local, popularidade]);
   // a página é feita uma vez; depois, as mudanças vão por window.atualizar (sem recarregar o mapa)
   const [html] = useState(() => htmlDoMapaDeCalor(dados));
   const [estado, setEstado] = useState('aCarregar'); // 'aCarregar' | 'pronto' | 'falhou'
@@ -74,7 +75,8 @@ export function MapaDeCalor({ local, pratos, onPress, altura = 220 }) {
         {legenda}
       </Text>
       <View style={estilos.escala} pointerEvents="none">
-        <Text style={estilos.escalaTexto}>LONGE</Text>
+        {/* com o ranking dos estudantes, o calor mostra onde vão mais estudantes; sem ele, a distância */}
+        <Text style={estilos.escalaTexto}>{dados.porPopularidade ? 'MENOS' : 'LONGE'}</Text>
         <Svg width={46} height={6}>
           <Defs>
             <LinearGradient id="escala" x1="0" y1="0" x2="1" y2="0">
@@ -85,7 +87,7 @@ export function MapaDeCalor({ local, pratos, onPress, altura = 220 }) {
           </Defs>
           <Rect width={46} height={6} rx={3} fill="url(#escala)" />
         </Svg>
-        <Text style={estilos.escalaTexto}>PERTO</Text>
+        <Text style={estilos.escalaTexto}>{dados.porPopularidade ? 'MAIS ESTUDANTES' : 'PERTO'}</Text>
       </View>
       <Text style={estilos.creditos} pointerEvents="none">
         © OpenStreetMap · OpenFreeMap

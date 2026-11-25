@@ -102,6 +102,8 @@ export function FiltrosDePratos() {
           <View style={estilos.chipsDoPainel} accessibilityRole="radiogroup">
             <Chip titulo="Mais perto primeiro" ativo={filtros.ordem === 'distancia'} onPress={() => mudarFiltros({ ordem: 'distancia' })} />
             <Chip titulo="Mais barato primeiro" ativo={filtros.ordem === 'preco'} onPress={() => mudarFiltros({ ordem: 'preco' })} />
+            {/* ranking dos estudantes: os restaurantes onde vão mais estudantes primeiro */}
+            <Chip titulo="Mais populares" ativo={filtros.ordem === 'popular'} onPress={() => mudarFiltros({ ordem: 'popular' })} />
           </View>
 
           <Text style={texto.etiqueta}>Preço máximo</Text>

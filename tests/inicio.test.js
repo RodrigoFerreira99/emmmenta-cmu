@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import Inicio from '@/app/(cliente)/index';
 import { PertoProvider } from '@/context/PertoContext';
 import { estadoDaPermissao, lerLocalizacao, pedirPermissao } from '@/services/localizacao';
+import { buscarPopularidade } from '@/services/idas';
 import { buscarPratosPerto, ouvirAlteracoesPratos } from '@/services/pratos';
 
 // RF05 / RF07 — testes ao ecrã Início, a usar a app como um cliente faria.
@@ -66,6 +67,8 @@ jest.mock('@/services/menus', () => ({
     return () => {};
   },
 }));
+// ranking dos estudantes: os números de cada restaurante são simulados (por omissão, sem idas)
+jest.mock('@/services/idas', () => ({ ...jest.requireActual('@/services/idas'), buscarPopularidade: jest.fn(async () => new Map()) }));
 jest.mock('@/services/pratos', () => ({
   ...jest.requireActual('@/services/pratos'),
   buscarPratosPerto: jest.fn(),
@@ -529,5 +532,24 @@ describe('Início — sempre algo para ver (restaurantes de demonstração)', ()
     await fireEvent.press(screen.getByRole('button', { name: 'Ver os restaurantes de demonstração' }));
     expect(await screen.findByText('Perto de: ESMAD (demonstração)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Ver os restaurantes de demonstração' })).toBeNull();
+  });
+});
+
+describe('Início — ranking dos estudantes', () => {
+  test('mostra o Top da semana, quantos vão hoje em cada cartão, e a ordem "Mais populares"', async () => {
+    // o Café Central (r2) tem mais estudantes do que a Tasca (r1), apesar de estar mais longe
+    buscarPopularidade.mockResolvedValue(new Map([['r1', { hoje: 2, semana: 5 }], ['r2', { hoje: 7, semana: 31 }]]));
+    const CAFE_DISPONIVEL = { ...FRANCESINHA, esgotado: false };
+    buscarPratosPerto.mockResolvedValue([SOPA, BACALHAU, CAFE_DISPONIVEL]);
+    await abrir();
+    expect(await screen.findByText('TOP DA SEMANA ENTRE ESTUDANTES')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^1.º Café Central, 31 estudantes esta semana, 7 hoje/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^2.º Tasca do Manuel/ })).toBeTruthy();
+    expect(screen.getAllByText('2 estudantes vão hoje').length).toBeGreaterThan(0); // nos cartões da Tasca
+
+    // "Mais populares": a francesinha do Café passa para o topo da lista
+    await fireEvent.press(screen.getByRole('button', { name: /Mostrar a ordem e os filtros/ }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Mais populares' }));
+    await waitFor(() => expect(screen.getAllByLabelText(/^(Francesinha|Bacalhau à Brás|Caldo verde),/)[0].props.accessibilityLabel).toMatch(/^Francesinha/));
   });
 });

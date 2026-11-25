@@ -13,6 +13,7 @@ import { Icone } from '@/components/Icone';
 import { ImagemDoPrato } from '@/components/ImagemDoPrato';
 import { EtiquetaDeLotacao } from '@/components/Lotacao';
 import { Botao, Ecra } from '@/components/ui';
+import { VouAlmocarAqui } from '@/components/VouAlmocarAqui';
 import { useFavoritos } from '@/lib/favoritos';
 import { eFotoRecortada, pratoDeDestaque } from '@/lib/imagensDosPratos';
 import { abrirDirecoes, ligar } from '@/lib/ligacoes';
@@ -264,6 +265,9 @@ export default function PaginaRestaurante() {
             <Icone name={favorito ? 'heart' : 'heart-outline'} size={26} color={cores.acento} />
           </Pressable>
         </View>
+
+        {/* ranking dos estudantes: "Vou almoçar aqui" e quantos vão hoje (só com menu hoje) */}
+        {menu ? <VouAlmocarAqui restauranteId={restaurante.id} /> : null}
 
         <View style={estilos.cartao}>
           {horario ? <Linha icone="time-outline" titulo="Horário de almoço" valor={horario} nota={agora?.texto} notaBoa={agora?.aberto} /> : null}

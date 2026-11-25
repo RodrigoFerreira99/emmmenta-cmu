@@ -4,6 +4,7 @@ import { Icone } from '@/components/Icone';
 import { ImagemDoPrato } from '@/components/ImagemDoPrato';
 import { useAgora } from '@/lib/relogio';
 import { descreverLotacao, lotacaoAtual, nomeDaCategoria } from '@/services/menus';
+import { descreverIdasDeHoje } from '@/services/idas';
 import { descreverEtiquetas, formatarDistancia, formatarPreco } from '@/services/pratos';
 import { cores, espaco, fontes, raio, texto } from '@/theme';
 
@@ -16,7 +17,8 @@ import { cores, espaco, fontes, raio, texto } from '@/theme';
 //   prato     uma linha devolvida por buscarPratosPerto()
 //   onPress   função chamada ao tocar (abre a página do restaurante)
 //   favorito  true se o restaurante estiver nos favoritos (aparece um coração ao lado do nome)
-export function CartaoDePrato({ prato, onPress, favorito = false }) {
+//   idasHoje  quantos estudantes disseram que vão almoçar a este restaurante hoje (ranking dos estudantes)
+export function CartaoDePrato({ prato, onPress, favorito = false, idasHoje = 0 }) {
   const esgotado = prato.esgotado;
   const ultimasDoses = prato.ultimas_doses && !esgotado;
   const distancia = formatarDistancia(prato.distancia_km);
@@ -29,6 +31,7 @@ export function CartaoDePrato({ prato, onPress, favorito = false }) {
     ultimasDoses ? 'últimas doses' : null,
     etiquetas || null,
     lotacao ? descreverLotacao(lotacao) : null,
+    descreverIdasDeHoje(idasHoje),
   ]
     .filter(Boolean)
     .join(', ');
@@ -60,6 +63,13 @@ export function CartaoDePrato({ prato, onPress, favorito = false }) {
         <Text style={estilos.categoria} numberOfLines={1}>
           {[nomeDaCategoria(prato.categoria), etiquetas].filter(Boolean).join(' · ')}
         </Text>
+        {/* ranking dos estudantes: quantos disseram que vão almoçar a este restaurante hoje */}
+        {idasHoje > 0 ? (
+          <View style={estilos.linhaDoRestaurante}>
+            <Icone name="calor" size={12} color={cores.acento} />
+            <Text style={estilos.idas}>{idasHoje === 1 ? '1 estudante vai hoje' : `${idasHoje} estudantes vão hoje`}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={estilos.direita}>
@@ -108,6 +118,7 @@ const estilos = StyleSheet.create({
   nome: { ...texto.corpo, fontSize: 16, fontFamily: fontes.semi },
   riscado: { color: cores.textoTerciario, textDecorationLine: 'line-through' },
   categoria: { fontSize: 12, color: cores.textoTerciario },
+  idas: { fontFamily: fontes.semi, fontSize: 12, color: cores.acentoTexto },
   linhaDoRestaurante: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs },
   encolher: { flexShrink: 1 },
   cheio: { color: cores.erro, fontFamily: fontes.semi },

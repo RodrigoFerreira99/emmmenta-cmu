@@ -12,18 +12,25 @@ const METROS_POR_MINUTO_A_PE = 80;
 
 // Restaurantes para o mapa, a partir dos pratos encontrados. Só o mais perto leva etiqueta com o nome,
 // para o mapa não ficar cheio de texto.
-export function restaurantesDoMapa(pratos) {
-  return agruparPorRestaurante(pratos)
-    .filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude))
-    .map((r, i) => ({
+// O calor: sem números do ranking, quanto mais perto mais quente. Com o ranking dos estudantes
+// (popularidade: Map id → { hoje, semana }), o calor passa a ser onde os estudantes vão: o restaurante
+// com mais idas na última semana é o mais quente. Um restaurante com tudo esgotado fica sempre frio.
+export function restaurantesDoMapa(pratos, popularidade = new Map()) {
+  const grupos = agruparPorRestaurante(pratos).filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
+  const maisIdas = Math.max(0, ...grupos.map((r) => popularidade.get(r.id)?.semana ?? 0));
+  return grupos.map((r, i) => {
+    const esgotado = r.disponiveis === 0;
+    const idas = popularidade.get(r.id)?.semana ?? 0;
+    return {
       id: r.id,
       nome: r.nome,
       latitude: r.latitude,
       longitude: r.longitude,
-      calor: calorDoPrato({ distanciaKm: r.distanciaKm, esgotado: r.disponiveis === 0 }),
+      calor: maisIdas > 0 && !esgotado ? 0.5 + 0.5 * (idas / maisIdas) : calorDoPrato({ distanciaKm: r.distanciaKm, esgotado }),
       minutos: Math.max(1, Math.round((r.distanciaKm * 1000) / METROS_POR_MINUTO_A_PE)),
       comEtiqueta: i === 0 && r.disponiveis > 0,
-    }));
+    };
+  });
 }
 
 // Para onde olha a câmara: o cliente fica em baixo e a câmara olha para os restaurantes
@@ -43,9 +50,11 @@ export function camaraDoMapa(local, restaurantes) {
 }
 
 // Tudo o que a página do mapa precisa, num objeto simples (vai para a WebView em JSON).
-export function dadosDoMapa(pratos, local) {
-  const restaurantes = restaurantesDoMapa(pratos);
+export function dadosDoMapa(pratos, local, popularidade = new Map()) {
+  const restaurantes = restaurantesDoMapa(pratos, popularidade);
   return {
+    // true quando o calor mostra onde os estudantes vão (o ranking), e não a distância
+    porPopularidade: restaurantes.some((r) => (popularidade.get(r.id)?.semana ?? 0) > 0),
     tu: [local.longitude, local.latitude],
     camara: camaraDoMapa(local, restaurantes),
     restaurantes,
